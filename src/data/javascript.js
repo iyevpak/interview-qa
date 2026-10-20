@@ -3,7 +3,7 @@ export default {
   Types: {
     junior: [
       {
-        q: 'What are the primitive types in JS? What is the difference between == and ===? What does typeof null return?',
+        q: 'What are the primitive types in JS? What is the difference between double equals (==) and triple equals (===)? What does typeof null return?',
         short: 'Seven primitives: string, number, bigint, boolean, undefined, symbol, null. === compares without type coercion, == coerces first; typeof null returns "object" (a historical bug).',
         long: `Primitives are immutable values compared by value; everything else (objects, arrays, functions) is an object compared by reference.
 typeof returns "function" for functions and "object" for null and arrays — use Array.isArray and value === null for those checks.
@@ -100,7 +100,7 @@ console.log(qty(0));`,
         ],
       },
       {
-        q: 'Explain truthy and falsy values in JS. Which values are falsy, and where does relying on truthiness cause bugs?',
+        q: 'Explain truthy and falsy values in JS. Which values are falsy? When does checking for truthy values cause bugs?',
         short: 'The falsy values are false, 0, -0, 0n, "", null, undefined and NaN (plus document.all); everything else is truthy, including "0", [] and {}. Truthiness checks cause bugs when 0 or "" are valid values.',
         long: `Conditions, &&, || and ! convert values to boolean using ToBoolean.
 Surprises: "0", "false", [] and {} are truthy, so if (arr) does not check for an empty array — use arr.length.
@@ -132,7 +132,7 @@ Strong candidate lists all falsy values and the React 0 pitfall; weak candidate 
     ],
     senior: [
       {
-        q: 'Why is 0.1 + 0.2 !== 0.3? How would you handle money in a frontend app?',
+        q: 'Why is 0.1 plus 0.2 not equal to 0.3? How would you handle money in a frontend app?',
         short: 'IEEE-754 binary doubles cannot represent 0.1 exactly, so the sum is 0.30000000000000004. Store money as integer minor units (or BigInt / a decimal library) and format with Intl.NumberFormat.',
         long: `All JS numbers are 64-bit doubles; decimal fractions like 0.1 have infinite binary expansions and get rounded.
 Errors accumulate in sums, so equality checks fail; comparisons need an epsilon (Number.EPSILON) — fine for geometry, not for money.
@@ -191,7 +191,7 @@ Strong candidate finds all three bugs and lists remaining limitations; weak cand
             answer: 'false true -Infinity true -1. includes uses SameValueZero (NaN matches); indexOf uses === (it does not). Many candidates miss the includes/indexOf difference.',
           },
           {
-            task: 'Implement a safe JSON number parse that rejects values beyond safe-integer precision.',
+            task: 'Implement a safe JSON number parser. It rejects numbers that are too big to store exactly as safe integers.',
             description: 'Checks precision awareness at API boundaries. Live-code, then discuss IDs.',
             answer: 'Parse the string, then reject results that are not safe integers, since precision is already lost at that point. A strong answer suggests keeping large IDs as strings or using JSON.parse with a reviver/source text.',
             solution: `function parseId(s) {
@@ -206,7 +206,7 @@ console.log(parseId('42'));`,
     ],
     techlead: [
       {
-        q: 'Your team keeps shipping bugs from implicit coercion and null/undefined. What org-level guardrails would you put in place?',
+        q: 'Your team keeps shipping bugs from implicit type coercion and from null or undefined. What rules and tools would you add for the whole company?',
         ai: true,
         short: 'TypeScript strict mode (plus noUncheckedIndexedAccess), ESLint rules like eqeqeq and no-implicit-coercion, runtime validation at API boundaries (e.g. zod), and tracking bug categories to prove impact.',
         long: `Start by measuring: tag incidents/bugs by root cause so you know coercion/null bugs are really the problem and can verify improvement.
@@ -217,7 +217,7 @@ Process: review checklist, shared utilities (parseMoney, safe formatters), onboa
 Strong candidate balances tooling with adoption cost and measurement; weak candidate says "just be careful" or only "use TypeScript".`,
         exercises: [
           {
-            task: 'Implement a parser for untrusted API data that never lets null or a wrong type through.',
+            task: 'Implement a parser for API data you do not trust. It must never let null or a wrong type through.',
             description: 'Checks validation at trust boundaries. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             code: 'function parseOrder(json) { /* expects { id: number, total: number } */ }',
             answer: 'Check types explicitly at the boundary and throw early, so the rest of the app can trust its types. Relying on TypeScript types alone is the common mistake, because types disappear at runtime. A strong answer suggests a schema library (zod/valibot) for scale and failing loudly with telemetry.',
@@ -227,7 +227,7 @@ Strong candidate balances tooling with adoption cost and measurement; weak candi
 }`,
           },
           {
-            task: 'Fix this code to pass eqeqeq and no-implicit-coercion without changing its behavior.',
+            task: 'Fix this code so it passes the lint rules eqeqeq and no-implicit-coercion. Do not change its behavior.',
             description: 'Checks lint-friendly explicit conversions. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: `if (count == '0') hide();
 const n = +input;
@@ -240,7 +240,7 @@ const flag = Boolean(value);`,
         ],
       },
       {
-        q: 'Code review: this API layer silently converts types. What would you change and what team rule would you add?',
+        q: 'Code review: this API layer changes types without telling anyone. What would you change? What team rule would you add?',
         code: `export async function getPrice(id) {
   const r = await fetch('/price/' + id);
   const d = await r.json();
@@ -261,7 +261,7 @@ Enforce with lint (no-implicit-coercion), shared fetch wrapper, and alerts on va
 Strong candidate talks about failure visibility and business impact; weak candidate only reformats the code.`,
         exercises: [
           {
-            task: 'Fix the defaulting so it does not hide missing data.',
+            task: 'Fix the default values so they do not hide missing data.',
             description: 'Checks fail-loud vs fail-silent design. Present as a PR review.',
             code: 'const discount = config.discount || 0.1;',
             answer: 'If discount is legitimately 0, || turns it into 10%; if config is malformed, the bug is hidden. Use ?? and validate the config at startup. A strong answer separates "missing" from "zero".',
@@ -269,7 +269,7 @@ Strong candidate talks about failure visibility and business impact; weak candid
 const discount = config.discount ?? 0.1;`,
           },
           {
-            task: 'Implement a tiny assertNumber helper teams can reuse at boundaries.',
+            task: 'Implement a small assertNumber helper. Teams can reuse it where data enters the app.',
             description: 'Checks how to build shared guardrails. Live-code and discuss the error messages.',
             answer: 'A reusable assertion with a clear message standardizes boundary checks and produces useful error reports. A strong answer also returns the narrowed value so it composes.',
             solution: `function assertNumber(v, name) {
@@ -285,7 +285,7 @@ console.log(assertNumber(5, 'qty'));`,
   'Function context': {
     junior: [
       {
-        q: 'What is `this` inside a regular function vs an arrow function?',
+        q: 'What is `this` inside a regular function? What is it inside an arrow function?',
         short: 'In a regular function `this` depends on how it is called (obj.method() → obj, plain call → undefined in strict mode / globalThis otherwise). An arrow function has no own `this` and uses the enclosing scope\'s.',
         long: `Binding rules for regular functions, in priority order: new (fresh object) > explicit call/apply/bind > implicit (obj.fn()) > default (undefined in strict, globalThis in sloppy mode).
 Arrow functions capture this lexically at creation; call/apply/bind cannot change it and they cannot be used with new.
@@ -427,7 +427,7 @@ console.log(Math.max(...nums));        // 9`,
     ],
     senior: [
       {
-        q: 'Implement Function.prototype.myBind supporting partial application and `new`.',
+        q: 'Implement Function.prototype.myBind. It must support partial application and the `new` keyword.',
         code: `Function.prototype.myBind = function (ctx, ...args) {
   // your code
 };`,
@@ -475,7 +475,7 @@ console.log(obj.outer());`,
         ],
       },
       {
-        q: 'Explain the precedence of this-binding rules, including what happens with new on a bound function and with arrow functions.',
+        q: 'Explain the order of the rules for `this`. What happens when you call new on a bound function? What about arrow functions?',
         short: 'The order is: new binding > explicit (call/apply/bind) > implicit (obj.fn()) > default (undefined in strict / globalThis). new on a bound function ignores the bound this but keeps the bound arguments; arrow functions ignore all rules and use lexical this (and cannot be constructed).',
         long: `Default: plain call → undefined in strict mode, globalThis in sloppy mode.
 Implicit: obj.fn() → obj; it is lost when the method is extracted or passed as a callback.
@@ -506,7 +506,7 @@ console.log(p.n, p instanceof P);`,
     ],
     techlead: [
       {
-        q: 'Class components with `this` bugs vs hooks vs plain functions — how do you decide coding style guidelines for a mixed legacy codebase?',
+        q: 'An old codebase mixes class components with `this` bugs, hooks, and plain functions. How do you choose the coding style rules?',
         ai: true,
         short: 'Prefer functions/closures and hooks for new code, document a migration path, enforce with lint rules, and migrate opportunistically when files are touched rather than big-bang.',
         long: `Decide based on data: where do bugs cluster, what is the team comfortable with, what does the framework recommend going forward.
@@ -517,7 +517,7 @@ Document patterns and anti-patterns (stale closures in hooks replace this-bindin
 Strong candidate weighs risk, cost and consistency; weak candidate demands a full rewrite or has no opinion.`,
         exercises: [
           {
-            task: 'Fix this class so handlers keep this, without binding inside every render.',
+            task: 'Fix this class so handlers keep `this`. Do not bind them inside every render.',
             description: 'Checks stable handler identity in class components. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: `class List {
   constructor(items) { this.items = items; }
@@ -546,7 +546,7 @@ console.log(inc(), inc()); // 1 2`,
         ],
       },
       {
-        q: 'Code review: a shared utility passes object methods as callbacks across the codebase and keeps causing this-related crashes. What do you change?',
+        q: 'Code review: a shared utility passes object methods as callbacks in many places. This keeps causing crashes because `this` is lost. What do you change?',
         code: `export function retry(fn, times) {
   return async (...args) => {
     for (let i = 0; i < times; i++) {
@@ -579,7 +579,7 @@ Strong candidate fixes both the utility and the call site and proposes a lint ru
 // or: retry(apiClient.load.bind(apiClient), 3)`,
           },
           {
-            task: 'Implement a decorator-style logging wrapper that preserves this and the return value.',
+            task: 'Implement a logging wrapper, like a decorator. It must keep `this` and the return value.',
             description: 'Checks transparent higher-order functions. Live-code, then test with a method.',
             answer: 'Use a regular function and apply so this and arguments pass through; return the result. An arrow wrapper would lose the caller\'s this.',
             solution: `function logged(fn) {
@@ -598,14 +598,14 @@ console.log(o.double(5)); // 10`,
   'Scope and Closures': {
     junior: [
       {
-        q: 'What does this print? Fix it two ways. (Predict BEFORE running.)',
+        q: 'What does this print? Predict it before you run it. Then fix it in two ways.',
         ai: true,
         code: `for (var i = 0; i < 3; i++) {
   setTimeout(() => console.log(i), 0);
 }`,
         short: '3 3 3 — var is function-scoped, so all callbacks share one i, which is 3 when they run. Fix with let (new binding per iteration), or pass i as a setTimeout argument / IIFE.',
         fix: 'for (let i = 0; i < 3; i++) setTimeout(() => console.log(i), 0);',
-        follow: 'What if the delay is i * 1000?',
+        follow: 'What if the delay is i times 1000?',
         long: `A closure captures variables (bindings), not values.
 With var there is a single i for the whole function; the loop finishes before any timer fires, leaving i === 3.
 let in a for loop creates a fresh binding per iteration and copies the value forward, so each callback sees its own i.
@@ -622,7 +622,7 @@ console.log(f(), a);`,
             answer: '2 1. The inner a is a separate variable in the function scope and shadows the outer one. Some answer 2 2, thinking the assignment leaks out. A strong answer names shadowing and explains that let creates a new binding.',
           },
           {
-            task: 'Implement makeCounter() that returns a function giving 1, 2, 3, ... on each call.',
+            task: 'Implement makeCounter. It returns a function that gives 1, then 2, then 3, and so on.',
             description: 'Checks closures keeping private state. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'The returned function closes over a private count variable. Using a global counter is the common mistake. A strong answer shows that each makeCounter() call gets independent state.',
             solution: `function makeCounter() { let c = 0; return () => ++c; }
@@ -653,7 +653,7 @@ console.log(make()());`,
             answer: '5. get reads the current value of n when called, not the value at creation time. Common wrong answer: 1.',
           },
           {
-            task: 'Implement a greeter factory: makeGreeter("Hi") returns a function name => "Hi, name".',
+            task: 'Implement a greeter factory. makeGreeter("Hi") returns a function. That function takes a name and returns "Hi, name".',
             description: 'Checks function factories. Quick live-code warm-up.',
             answer: 'The returned function closes over the greeting parameter. A strong answer shows two greeters with independent settings.',
             solution: `const makeGreeter = (greeting) => (name) => greeting + ', ' + name;
@@ -664,7 +664,7 @@ console.log(makeGreeter('Hi')('Ann'), makeGreeter('Yo')('Bob'));`,
     ],
     middle: [
       {
-        q: 'Implement once(fn) and memoize(fn). What is the memory risk of memoize?',
+        q: 'Implement once and memoize. What is the memory risk of memoize?',
         short: 'Both keep state in a closure. memoize\'s cache grows unbounded and keeps keys/results alive — bound it (LRU/TTL) or use WeakMap for object keys.',
         fix: `const once = (fn) => { let done = false, r; return (...a) => done ? r : (done = true, r = fn(...a)); };
 const memoize = (fn) => { const c = new Map(); return (k) => c.has(k) ? c.get(k) : (c.set(k, fn(k)), c.get(k)); };`,
@@ -685,7 +685,7 @@ console.log(fns.map((f) => f()));`,
             answer: '[3, 3, 3, 0, 1, 2]. var gives one shared binding; let gives a new binding per iteration. Candidates often guess [0, 1, 2, 0, 1, 2]. A strong answer explains the per-iteration binding of let and that i is 3 when the loop ends.',
           },
           {
-            task: 'Implement a private bank account: deposit(n) and balance(), where the balance cannot be changed from outside.',
+            task: 'Implement a private bank account with deposit and balance. Code outside must not be able to change the balance.',
             description: 'Checks data privacy via closures. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Keep the balance in a closure variable and expose only functions. Exposing a balance property that can be overwritten defeats the purpose. A strong answer compares this with #private fields.',
             solution: `function account() {
@@ -742,7 +742,7 @@ user = 'Bob';`,
     ],
     senior: [
       {
-        q: 'Explain the TDZ. What happens here and why?',
+        q: 'Explain the TDZ, the temporal dead zone. What happens here and why?',
         code: `let x = 1;
 {
   console.log(x);
@@ -778,7 +778,7 @@ console.log(handlers.map(function (h) { return h(); })); // [0, 1, 2]`,
         ],
       },
       {
-        q: 'Explain lexical vs dynamic scope, and how the scope chain and hoisting work in JavaScript.',
+        q: 'Explain lexical scope and dynamic scope. How do the scope chain and hoisting work in JavaScript?',
         short: 'JavaScript uses lexical scope: where a function is written determines which variables it can see, not where it is called from. Name lookup walks the chain of enclosing scopes up to the global scope; declarations are hoisted to the top of their scope (var initialized to undefined, let/const/class left uninitialized in the TDZ).',
         long: `Scopes: global, module, function, block (let/const/class), plus catch and the parameter scope.
 The scope chain is fixed when the code is parsed; this is the exception to the "lexical" rule, being determined at call time.
@@ -810,7 +810,7 @@ console.log(typeof f);`,
     ],
     techlead: [
       {
-        q: 'Closures in long-lived SPAs cause memory leaks. How would you set up a process to detect leaks before they reach production?',
+        q: 'In a long-running SPA, closures can cause memory leaks. How would you find these leaks before they reach production?',
         ai: true,
         short: 'Automated heap checks in E2E (e.g. memlab), a review checklist for cleaning up listeners/timers/subscriptions, and memory monitoring in RUM (measureUserAgentSpecificMemory) with alerts.',
         long: `Typical leak sources: event listeners and intervals not removed on unmount, subscriptions, global caches/maps, detached DOM nodes captured by closures, third-party widgets.
@@ -840,7 +840,7 @@ export function getReport(id) {
 export const clearReports = () => cache.clear();`,
           },
           {
-            task: 'Implement a subscribe() helper that returns an unsubscribe function, so teams cannot forget cleanup.',
+            task: 'Implement a subscribe helper that returns an unsubscribe function, so teams cannot forget to clean up.',
             description: 'Checks API design that enforces cleanup. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Return the cleanup from the same call that registers the listener; this matches the useEffect cleanup contract. A weak answer relies on documentation alone. A strong answer designs the API so cleanup is the default (returned disposer, AbortSignal option).',
             solution: `function createEmitter() {
@@ -857,7 +857,7 @@ em.emit(1); off(); em.emit(2); // logs 1 only`,
         ],
       },
       {
-        q: 'Code review: this React-like hook has a stale closure bug that shows up across several teams. Explain it and define a team pattern to prevent it.',
+        q: 'Code review: this React-style hook has a stale closure bug. Several teams hit it. Explain the bug and define a team pattern to prevent it.',
         code: `function useTicker() {
   let count = 0; // imagine useState
   const [state, setState] = [count, (v) => { count = v; }];
@@ -888,7 +888,7 @@ console.log(state);`,
             answer: '1. Each tick computes from the captured 0, not the latest state. A functional update that reads the current value would give 3.',
           },
           {
-            task: 'Implement a "latest ref" helper so callbacks always read the newest value.',
+            task: 'Implement a "latest ref" helper, so callbacks always read the newest value.',
             description: 'Checks the ref pattern behind useLatest/useEvent. Live-code and discuss when to use it.',
             answer: 'Store the value in a mutable box that is updated on every change; long-lived callbacks read box.current instead of a captured value.',
             solution: `function createLatest(initial) {
@@ -1010,7 +1010,7 @@ Strong candidate discusses failure semantics and concurrency; weak candidate use
 }`,
           },
           {
-            task: 'Implement withTimeout(promise, ms) that rejects if the promise does not settle within ms.',
+            task: 'Implement withTimeout with a promise and a time in ms. It rejects if the promise does not finish in time.',
             description: 'Checks promise racing and resource cleanup. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Race the promise against a timer that rejects, and clear the timer either way. Forgetting clearTimeout leaves a timer that keeps Node alive. A strong answer notes that the original operation keeps running unless it is cancelled with AbortSignal.',
             solution: `function withTimeout(p, ms) {
@@ -1054,7 +1054,7 @@ Promise.any([]).catch((e) => console.log('any', e.constructor.name));`,
     ],
     senior: [
       {
-        q: 'Implement a function that runs async tasks with max concurrency N, preserving order.',
+        q: 'Implement a function that runs async tasks, at most N at the same time. Keep the order of results.',
         code: 'async function runWithLimit(tasks /* () => Promise */, limit) {}',
         short: 'Use a worker pool: start N workers that each pull the next task index from a shared counter and write results by index, then await all workers.',
         fix: `async function runWithLimit(tasks, limit) {
@@ -1072,7 +1072,7 @@ Extensions: an AbortSignal checked before each task and passed to tasks, retry w
 Strong candidate explains why it is race-free and defines error behavior; weak candidate chunks into batches of N (slower — each batch waits for its slowest task).`,
         exercises: [
           {
-            task: 'Implement a cancellable fetchJson(url, signal) that rejects with AbortError when aborted, then show how to cancel it.',
+            task: 'Implement fetchJson with a url and a signal. It can be cancelled and rejects with AbortError. Then show how to cancel it.',
             description: 'Checks cancellation with AbortController. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Pass the signal to fetch; calling abort() makes the pending fetch reject with a DOMException named AbortError. Some think abort() resolves the promise, or that it stops server work. A strong answer distinguishes AbortError from real failures in UI handling.',
             solution: `async function fetchJson(url, signal) {
@@ -1098,7 +1098,7 @@ ctrl.abort();`,
         ],
       },
       {
-        q: 'What is backpressure, and how do you handle a producer that is faster than its consumer in JavaScript?',
+        q: 'What is backpressure? In JavaScript, how do you handle a producer that is faster than its consumer?',
         short: 'Backpressure means the consumer signals the producer to slow down so data does not pile up in memory. In JS you use pull-based designs (async iterators, ReadableStream), bounded queues, or concurrency limits instead of firing everything at once.',
         long: `Example: reading a huge file or WebSocket stream and processing it slower than it arrives; unbounded arrays of promises grow until memory runs out.
 Streams API: ReadableStream with highWaterMark and pull(); pipeTo/pipeThrough propagate backpressure automatically.
@@ -1135,7 +1135,7 @@ const stream = new ReadableStream({
     ],
     techlead: [
       {
-        q: 'Users see stale/inconsistent data from racing requests across many screens. How do you standardize async data handling across teams?',
+        q: 'Requests race each other, so users see old or mixed data on many screens. How do you make all teams handle async data the same way?',
         ai: true,
         short: 'Introduce one data layer (e.g. TanStack Query) with cache keys, cancellation, dedup, retry and invalidation policies, document the patterns, and lint against raw fetch in components.',
         long: `Root causes: out-of-order responses overwriting newer state, no cancellation on unmount/param change, duplicate caches per screen, missing invalidation after mutations.
@@ -1163,7 +1163,7 @@ async function onSearch(q) {
 }`,
           },
           {
-            task: 'Implement a stale-while-revalidate getter: return cached data right away and refresh it in the background.',
+            task: 'Implement a stale-while-revalidate getter. Return cached data right away, and refresh it in the background.',
             description: 'Checks stale-while-revalidate caching. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Serve the cached value if there is one, start a refresh, and only wait when nothing is cached yet. This is the pattern data libraries standardize. A weak version waits for the refresh every time. A strong answer discusses staleness windows, error handling of background refreshes, and dedup.',
             solution: `const cache = new Map();
@@ -1179,7 +1179,7 @@ setTimeout(() => swr('k', load).then(console.log), 10);          // 1 (refresh t
         ],
       },
       {
-        q: 'Code review: a page fires 300 requests on load and the API starts rate-limiting. What do you change in code and process?',
+        q: 'Code review: a page sends 300 requests when it loads. The API starts to block requests because of rate limits. What do you change in the code and in the process?',
         code: `async function loadDashboard(widgetIds) {
   return Promise.all(widgetIds.map((id) => fetch('/api/widget/' + id).then((r) => r.json())));
 }`,
@@ -1327,7 +1327,7 @@ async function countOrders() {
         ],
       },
       {
-        q: 'What is callback hell, and how do promises and async/await solve it? What problems remain?',
+        q: 'What is callback hell? How do promises and async and await solve it? What problems are still left?',
         short: 'Callback hell is deeply nested callbacks with repeated error handling and lost control flow. Promises flatten it into chains with one catch, and async/await makes it read like synchronous code; cancellation, floating promises and accidental sequential awaits remain problems.',
         long: `Callbacks: inversion of control (the callee may call you twice or never), manual error passing (err first), hard to compose loops and parallel work.
 Promises: guaranteed single settlement, chaining, error propagation, combinators (all, allSettled).
@@ -1362,7 +1362,7 @@ Strong candidate mentions inversion of control and the remaining issues; weak ca
     ],
     senior: [
       {
-        q: 'Promisify a Node-style callback API, and implement Promise.allSettled from scratch.',
+        q: 'Turn a Node-style callback API into a promise API. Then implement Promise.allSettled yourself.',
         short: 'promisify wraps the call in new Promise and resolves/rejects from the error-first callback; allSettled maps each input into a promise that never rejects and returns Promise.all of those.',
         fix: `const promisify = (fn) => (...a) => new Promise((res, rej) => fn(...a, (e, v) => e ? rej(e) : res(v)));
 const allSettled = (ps) => Promise.all(ps.map(p => Promise.resolve(p)
@@ -1374,7 +1374,7 @@ Edge cases: an empty array resolves to [], the spec accepts any iterable (use Ar
 Strong candidate handles values/thenables and this; weak candidate uses .then(...).catch(...), which can misreport errors thrown inside the fulfilled handler.`,
         exercises: [
           {
-            task: 'Implement Promise.all from scratch, keeping order and rejecting on the first failure.',
+            task: 'Implement Promise.all yourself. Keep the order of results, and reject on the first failure.',
             description: 'Checks combinator internals. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             code: 'function all(iterable) { /* ... */ }',
             answer: 'Count how many have resolved, store each result at its index, resolve when all are done, and reject immediately on any rejection. An empty input resolves to []. Common bugs: pushing results in completion order, never resolving for an empty input, not wrapping plain values. A strong answer covers all three and iterables.',
@@ -1404,7 +1404,7 @@ console.log('E');`,
         ],
       },
       {
-        q: 'Explain thenables, promise resolution (adoption), and why a then callback is always asynchronous.',
+        q: 'Explain thenables and how a promise adopts another value. Why is a then callback always asynchronous?',
         short: 'A thenable is any object with a then method; resolving a promise with one makes the promise adopt its state. Then callbacks always run as microtasks, even for already-settled promises, so behavior is consistent (never sometimes sync, sometimes async).',
         long: `resolve(x): if x is a promise or thenable, the outer promise follows it — that is why returning a promise from then flattens the chain.
 Resolving a promise with itself rejects with a TypeError (cycle).
@@ -1433,7 +1433,7 @@ p.then(() => console.log('B')).then(() => console.log('C'));`,
     ],
     techlead: [
       {
-        q: 'Unhandled promise rejections are silently swallowed in production. How do you get visibility and enforce correctness?',
+        q: 'In production, unhandled promise rejections disappear without any error. How do you make them visible and make sure the code handles them?',
         ai: true,
         short: 'Report window "unhandledrejection" events to error tracking (e.g. Sentry), enforce @typescript-eslint/no-floating-promises in CI, and set review norms and alert thresholds.',
         long: `Visibility: global unhandledrejection (browser) / process 'unhandledRejection' (Node) handlers forwarding to the error tracker with context (route, release, user action).
@@ -1456,7 +1456,7 @@ Strong candidate covers detection, prevention and ownership; weak candidate adds
 }`,
           },
           {
-            task: 'Implement a retry helper that only retries idempotent requests and uses exponential backoff.',
+            task: 'Implement a retry helper. It retries only idempotent requests, and the wait time doubles each time.',
             description: 'Checks safe retry policy. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Retrying a non-idempotent POST can create duplicates; limit attempts and add jitter so clients do not retry in lockstep. Retrying everything, including POSTs, is the classic mistake. A strong answer mentions idempotency keys, jitter, and caps.',
             solution: `async function request(fn, { method = 'GET', attempts = 3 } = {}) {
@@ -1473,7 +1473,7 @@ Strong candidate covers detection, prevention and ownership; weak candidate adds
         ],
       },
       {
-        q: 'Code review: a shared helper mixes callbacks and promises and is causing double-handled errors. Refactor it and propose a migration plan.',
+        q: 'Code review: a shared helper mixes callbacks and promises. Some errors are handled twice. Refactor it and suggest a migration plan.',
         code: `export function getUser(id, cb) {
   return api.get('/users/' + id)
     .then((u) => { cb && cb(null, u); return u; })
@@ -1494,7 +1494,7 @@ Measure progress (count of adapter usages) and make it part of tech-debt trackin
 Strong candidate spots the double call and proposes a staged migration; weak candidate rewrites everything in one PR.`,
         exercises: [
           {
-            task: 'Predict how many times cb is called and with what.',
+            task: 'Predict how many times the callback is called, and with what values.',
             description: 'Checks then/catch routing. Ask before running.',
             code: `Promise.resolve('u')
   .then((u) => { cb(null, u); })
@@ -1503,7 +1503,7 @@ function cb(err, v) { console.log('cb', err ? 'error' : v); if (!err) throw new 
             answer: 'Twice: "cb u" then "cb error". The throw inside the first cb rejects the chain, and catch calls cb again. A strong answer suggests then(onOk, onErr).',
           },
           {
-            task: 'Implement a codemod-friendly adapter that warns once when the legacy callback API is used.',
+            task: 'Implement an adapter that warns one time when someone uses the old callback API. It should be easy to update with a codemod.',
             description: 'Checks deprecation strategy. Discuss telemetry of usage.',
             answer: 'A once-only warning (and optional telemetry) makes remaining usages visible without spamming logs.',
             solution: `let warned = false;
@@ -1568,7 +1568,7 @@ Strong candidate gives both contexts and mentions shallow copying; weak candidat
             answer: '[\'h\', \'i\'] [1, 2] -Infinity. Spread works on any iterable; Math.max with no arguments returns -Infinity. Common wrong answer: NaN or 0 for the last one.',
           },
           {
-            task: 'Implement sum(...nums) that accepts any number of arguments.',
+            task: 'Implement a sum function that accepts any number of arguments.',
             description: 'Checks rest parameters. Quick warm-up.',
             answer: 'Rest parameters collect all arguments into a real array, unlike the old arguments object.',
             solution: `const sum = (...nums) => nums.reduce((s, n) => s + n, 0);
@@ -1599,7 +1599,7 @@ console.log({ ...defaults, ...user });`,
             answer: '{ theme: \'dark\', size: undefined }. Later spreads win, and an explicit undefined still overwrites the default. People often expect size \'m\' because undefined "doesn\'t count". A strong answer suggests filtering undefined values when merging options.',
           },
           {
-            task: 'Implement omit(obj, ...keys) using rest syntax or filtering, without mutating obj.',
+            task: 'Implement omit, which takes an object and some keys. Use rest syntax or filtering. Do not change the object.',
             description: 'Checks non-mutating property removal. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Build a new object from the entries whose keys are not listed. Using delete on the original is the common mistake. A strong answer also shows const { b, ...rest } = obj for a single known key.',
             solution: `const omit = (obj, ...keys) => Object.fromEntries(Object.entries(obj).filter(([k]) => !keys.includes(k)));
@@ -1608,7 +1608,7 @@ console.log(omit({ a: 1, b: 2, c: 3 }, 'b')); // { a: 1, c: 3 }`,
         ],
       },
       {
-        q: 'Explain how object spread merges objects: property order, overwriting, getters, and what is not copied.',
+        q: 'Explain how object spread merges objects. Talk about property order, overwriting, getters, and what is not copied.',
         short: 'Properties are copied left to right, so later objects overwrite earlier keys (even with undefined). Only own enumerable properties are copied; getters are invoked and their values copied, while prototypes, non-enumerable properties and setters are not carried over.',
         long: `{ ...a, ...b }: keys keep the order of first insertion, but values come from the last occurrence.
 Spreading null/undefined is allowed and adds nothing; spreading a string creates index keys.
@@ -1639,7 +1639,7 @@ console.log(copy.id, copy.id, n);`,
     ],
     senior: [
       {
-        q: 'Write an immutable update of a deeply nested item without a library. When would you choose Immer or structuredClone instead?',
+        q: 'Update a deeply nested item immutably, without a library. When would you use Immer or structuredClone instead?',
         code: `const state = { users: { byId: { 7: { profile: { tags: ['a'] } } } } };
 // add tag 'b' to user 7 immutably`,
         short: 'Copy every level on the path to the change and reuse everything else (structural sharing). For complex updates use Immer; structuredClone copies everything, which breaks reference equality and memoization.',
@@ -1662,7 +1662,7 @@ console.log(copy.double, copy instanceof P);`,
             answer: 'undefined false. Spread copies only own enumerable properties: the getter lives on the prototype and the prototype link is lost. Many expect 2 and true. A strong answer lists the losses: getters/setters (copied as values only if they are own properties), the prototype, and non-enumerable props.',
           },
           {
-            task: 'Implement an immutable update that removes item id 2 from a nested list and renames item 3.',
+            task: 'Implement an immutable update. Remove the item with id 2 from a nested list, and rename item 3.',
             description: 'Checks nested immutable updates with filter/map. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             code: 'const state = { list: { items: [{ id: 1, n: \'a\' }, { id: 2, n: \'b\' }, { id: 3, n: \'c\' }] } };',
             answer: 'Copy the path (state → list → items), use filter/map for the array, and copy only the changed item. Weak answers mutate with splice, or deep clone everything. A strong answer preserves the identity of unchanged items for memoization.',
@@ -1678,7 +1678,7 @@ console.log(next.list.items[0] === state.list.items[0]); // true`,
         ],
       },
       {
-        q: 'Explain shallow vs deep copying in JS and compare spread, Object.assign, structuredClone and JSON round-tripping.',
+        q: 'Explain shallow copy and deep copy in JS. Compare spread, Object.assign, structuredClone, and JSON stringify then parse.',
         short: 'Spread and Object.assign create shallow copies (nested objects are shared); structuredClone performs a deep copy that supports Dates, Maps, Sets and cycles but not functions, DOM nodes or class prototypes; JSON round-tripping is a lossy deep copy (drops undefined/functions, turns Dates into strings, fails on cycles and BigInt).',
         long: `Shallow copies are fast and are what immutable updates need (structural sharing).
 Object.assign mutates its first argument and triggers setters; spread creates a new object.
@@ -1708,7 +1708,7 @@ try { structuredClone({ f() {} }); } catch (e) { console.log(e.name); }`,
     ],
     techlead: [
       {
-        q: 'Spreading large objects in hot paths causes GC pressure in a data-heavy dashboard. How would you prove it and what would you change?',
+        q: 'A dashboard with a lot of data spreads large objects in code that runs very often. This puts pressure on garbage collection. How would you prove it? What would you change?',
         ai: true,
         short: 'Profile first (Performance and Memory/allocation tabs) to confirm allocation churn; then normalize state, use structural sharing, avoid spreading in loops/selectors, and memoize selectors.',
         long: `Prove: record a performance profile during the slow interaction — look for frequent minor GCs, allocation sampling pointing at object spread/array copies in hot functions, long tasks.
@@ -1719,7 +1719,7 @@ Communicate trade-offs: readability vs performance; only optimize measured hot p
 Strong candidate leads with measurement and targeted fixes; weak candidate bans spread globally.`,
         exercises: [
           {
-            task: 'Fix the hot path: this grouping is O(n²) because it copies the accumulator on every step.',
+            task: 'Fix this slow code path. The grouping is O of n squared, because it copies the accumulator on every step.',
             description: 'Checks quadratic allocations in reduce. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: 'const byType = rows.reduce((acc, r) => ({ ...acc, [r.type]: [...(acc[r.type] || []), r] }), {});',
             answer: 'Mutating a local accumulator is safe because nothing else can see it yet; it brings the cost down to O(n). Object.groupBy does the same. Some argue immutability is always required. A strong answer explains that local mutation inside a pure function is invisible, and backs the change with profiling data.',
@@ -1728,7 +1728,7 @@ for (const r of rows) (byType[r.type] ??= []).push(r);
 // or: Object.groupBy(rows, (r) => r.type)`,
           },
           {
-            task: 'Implement a selector that returns the same array reference when its input has not changed.',
+            task: 'Implement a selector. It returns the same array object when its input has not changed.',
             description: 'Checks memoized selectors and reference stability. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Without memoization, filter returns a new array every call and breaks React.memo/useMemo equality checks downstream. A weak answer uses JSON comparison, which is expensive. A strong answer discusses cache size 1 vs keyed caches and reselect.',
             solution: `function createSelector(fn) {
@@ -1742,7 +1742,7 @@ console.log(selectActive(users) === selectActive(users)); // true`,
         ],
       },
       {
-        q: 'Code review: a reducer updates nested state with mutation plus spread and causes missed re-renders. Fix it and set a team standard.',
+        q: 'Code review: a reducer updates nested state. It mixes mutation and spread, so some re-renders are missed. Fix it and set a team rule.',
         code: `function reducer(state, action) {
   if (action.type === 'rename') {
     state.users[action.id].name = action.name;
@@ -1774,7 +1774,7 @@ console.log(next.users === state.users, state.users[1].name);`,
             answer: 'true "B". Only the root was copied; the nested objects are shared, so the "old" state was mutated too.',
           },
           {
-            task: 'Implement a dev-only deepFreeze to catch accidental mutations early.',
+            task: 'Implement a deepFreeze that runs only in development. It should catch mutations early.',
             description: 'Checks guardrails for immutability. Discuss enabling it only in development.',
             answer: 'Freezing recursively makes mutations throw in strict mode, so bugs surface in tests instead of as missed re-renders.',
             solution: `function deepFreeze(o) {
@@ -1792,7 +1792,7 @@ try { s.a.b = 2; } catch (e) { console.log(e.name); } // TypeError in strict cod
   'Event handling, bubbling & delegation': {
     junior: [
       {
-        q: 'Explain bubbling and event delegation. Difference between event.target and event.currentTarget?',
+        q: 'Explain event bubbling and event delegation. What is the difference between event.target and event.currentTarget?',
         short: 'Events propagate from the target up through its ancestors (bubbling), so one listener on a parent can handle its children (delegation). target is where the event originated; currentTarget is the element whose listener is running.',
         long: `Propagation has three phases: capture (window → target), target, bubble (target → window).
 Delegation: attach one listener to a container and inspect event.target — fewer listeners, and it works for dynamically added children.
@@ -1855,7 +1855,7 @@ field.addEventListener('keydown', (e) => {
     ],
     middle: [
       {
-        q: 'Clicking the <span> — what is logged and in which order? How would you stop the parent handler?',
+        q: 'You click the span element. What is logged, and in what order? How would you stop the parent handler?',
         code: `parent.addEventListener('click', () => console.log('parent'));
 parent.addEventListener('click', () => console.log('parent capture'), true);
 child.addEventListener('click', (e) => console.log('child'));
@@ -1887,7 +1887,7 @@ btn.removeEventListener('click', onClick, true);`,
         ],
       },
       {
-        q: 'Explain the difference between stopPropagation, stopImmediatePropagation and preventDefault, and when each is appropriate.',
+        q: 'Explain the difference between stopPropagation, stopImmediatePropagation, and preventDefault. When should you use each one?',
         short: 'stopPropagation stops the event from reaching other elements in the propagation path; stopImmediatePropagation also prevents the remaining listeners on the current element; preventDefault cancels the browser default action (navigation, form submit, scrolling) without affecting propagation.',
         long: `They are independent: you can prevent the default and still let the event bubble.
 preventDefault only works for cancelable events, and not in passive listeners (common for touch/wheel).
@@ -1905,7 +1905,7 @@ btn.addEventListener('click', (e) => e.preventDefault());`,
             answer: '"wrap true". The event still bubbles; defaultPrevented tells the ancestor that the default was cancelled.',
           },
           {
-            task: 'Fix the bug: preventDefault in this scroll handler has no effect and the console shows a warning.',
+            task: 'Fix the bug. preventDefault in this scroll handler does nothing, and the console shows a warning.',
             description: 'Checks passive listeners. Discuss why browsers default to passive for touch/wheel.',
             code: `document.addEventListener('wheel', (e) => {
   if (zoomMode) e.preventDefault();
@@ -1920,7 +1920,7 @@ btn.addEventListener('click', (e) => e.preventDefault());`,
     ],
     senior: [
       {
-        q: 'Implement a delegated handler that works for dynamically added items with nested elements, and supports removal.',
+        q: 'Implement a delegated handler. It must work for items added later, with nested elements, and it must be removable.',
         short: 'One listener on the container, closest() to resolve nested targets to the item, a contains() guard so matches outside the container are ignored, and an AbortController signal for clean removal.',
         fix: `const ctrl = new AbortController();
 list.addEventListener('click', (e) => {
@@ -1937,7 +1937,7 @@ Note React 17+ delegates to the root container instead of document, which change
 Strong candidate covers nested targets, the guard, cleanup and a11y; weak candidate attaches a listener per item and re-attaches on every render.`,
         exercises: [
           {
-            task: 'Implement a click-outside handler for a dropdown that also works when the dropdown is inside a shadow root.',
+            task: 'Implement a click outside handler for a dropdown. It must also work when the dropdown is inside a shadow root.',
             description: 'Checks click-outside and shadow DOM. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Check event.composedPath(), which includes nodes inside shadow trees, instead of target.contains, which stops at the shadow boundary. Using target.contains fails because the target is retargeted to the host. A strong answer uses pointerdown with capture so inner stopPropagation cannot block it.',
             solution: `function onClickOutside(el, cb) {
@@ -1957,7 +1957,7 @@ f.addEventListener('focusin', () => console.log('focusin'));`,
         ],
       },
       {
-        q: 'How do custom events work in the DOM? Explain CustomEvent options (bubbles, cancelable, composed) and how they behave with shadow DOM.',
+        q: 'How do custom events work in the DOM? Explain the CustomEvent options bubbles, cancelable, and composed. How do they work with shadow DOM?',
         short: 'You create one with new CustomEvent(type, { detail, bubbles, cancelable, composed }) and dispatch it with element.dispatchEvent. By default it does not bubble, cannot be cancelled and does not cross shadow-root boundaries; composed: true lets it escape the shadow DOM, with target retargeted to the host.',
         long: `detail carries the payload; it should be serializable and versioned for public contracts.
 bubbles: true is needed for delegation on ancestors.
@@ -1990,7 +1990,7 @@ child.dispatchEvent(new CustomEvent('item:select', { detail: { id: 1 }, bubbles:
     ],
     techlead: [
       {
-        q: 'A micro-frontend and the host both stopPropagation and break each other\'s handlers. How do you set cross-team contracts for events?',
+        q: 'A micro-frontend and the host page both call stopPropagation. This breaks each other\'s handlers. How do you agree on event rules between teams?',
         ai: true,
         short: 'Ban stopPropagation as a default practice, communicate via namespaced CustomEvents or a shared, typed event bus contract, and back it with documentation and cross-app integration tests.',
         long: `Problem: DOM propagation is a shared global resource; stopping it in one app silently breaks delegated handlers, analytics and outside-click logic in another.
@@ -2001,7 +2001,7 @@ Governance: an RFC/ADR for the event catalog, contract tests in CI that mount ho
 Strong candidate proposes a contract and enforcement; weak candidate suggests more stopPropagation or setTimeout hacks.`,
         exercises: [
           {
-            task: 'Implement a typed, namespaced event bus that micro-frontends can share without touching DOM propagation.',
+            task: 'Implement a typed event bus with namespaces. Micro-frontends can share it without using DOM event propagation.',
             description: 'Checks cross-team event contracts. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Wrapping EventTarget in a small API gives a clear contract, unsubscription and no stopPropagation conflicts. A weak design uses window globals with magic strings. A strong answer adds namespacing, versioned payloads, and teardown.',
             solution: `function createBus(ns) {
@@ -2032,7 +2032,7 @@ bus.emit('add', { sku: 'A1' }); off();`,
         ],
       },
       {
-        q: 'Code review: a large table attaches a listener to every cell and re-attaches them on each re-render. What do you change and what guideline do you set?',
+        q: 'Code review: a large table adds a listener to every cell. It adds them again on each re-render. What do you change? What team rule do you set?',
         code: `function render(rows) {
   table.innerHTML = rows.map((r) => '<tr><td class="cell">' + r.name + '</td></tr>').join('');
   table.querySelectorAll('.cell').forEach((td) => td.addEventListener('click', () => edit(td)));
@@ -2199,7 +2199,7 @@ console.log(Temperature.fromFahrenheit(212).celsius); // 100`,
         ],
       },
       {
-        q: 'Explain how the prototype chain is built for class B extends A. What do B.prototype and Object.getPrototypeOf(B) point to?',
+        q: 'Class B extends class A. Explain how the prototype chain is built. What do B.prototype and Object.getPrototypeOf(B) point to?',
         short: 'Object.getPrototypeOf(B.prototype) === A.prototype, so instances inherit A\'s methods; and Object.getPrototypeOf(B) === A, so static methods are inherited too. Instances of B have [[Prototype]] B.prototype.',
         long: `There are two chains: instance chain (b → B.prototype → A.prototype → Object.prototype → null) and constructor chain (B → A → Function.prototype).
 That is why static methods are inherited and super.staticMethod() works inside statics.
@@ -2230,7 +2230,7 @@ console.log(b.who(), B.prototype.who.call(b), A.prototype.who.call(b));`,
     ],
     senior: [
       {
-        q: 'Implement inheritance without `class` (Object.create), including super method calls. What are private #fields and how do they differ from closures?',
+        q: 'Implement inheritance without `class`, using Object.create. Include calls to the parent method. What are private hash fields, and how are they different from closures?',
         short: 'Set Child.prototype = Object.create(Parent.prototype), restore constructor, call Parent.call(this, ...) in the constructor and Parent.prototype.method.call(this) for super calls. #fields are per-class hard-private slots checked at runtime; closures give privacy via scope but need a function per instance.',
         long: `Constructor inheritance: Parent.call(this, args) initializes parent state on the child instance.
 Prototype inheritance: Object.create(Parent.prototype) links the chain without running Parent; set Child.prototype.constructor = Child; optionally Object.setPrototypeOf(Child, Parent) for static inheritance.
@@ -2241,7 +2241,7 @@ Closures: privacy via captured variables; methods must be created per instance (
 Strong candidate gets the constructor fix and super call right and knows brand checks; weak candidate writes Child.prototype = Parent.prototype (shared object, mutations leak to the parent).`,
         exercises: [
           {
-            task: 'Implement a myInstanceOf(obj, Ctor) that walks the prototype chain.',
+            task: 'Implement myInstanceOf with an object and a constructor. It walks up the prototype chain.',
             description: 'Checks how instanceof works. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Compare each prototype in the chain to Ctor.prototype until you reach null. Weak versions check obj.constructor, which can be reassigned. A strong answer handles primitives and mentions Symbol.hasInstance.',
             solution: `function myInstanceOf(obj, Ctor) {
@@ -2264,7 +2264,7 @@ console.log(Box.read(new Box()), Box.read({}));`,
         ],
       },
       {
-        q: 'Find and fix the bug in this mixin-based composition: methods from the second mixin overwrite the first and super calls break.',
+        q: 'Find and fix the bug in this mixin code. Methods from the second mixin overwrite the first one, and super calls break.',
         code: `const Serializable = { toJSON() { return { ...this }; } };
 const Validated = { toJSON() { this.validate(); return Serializable.toJSON(); } };
 class Model { validate() {} }
@@ -2305,7 +2305,7 @@ console.log(u.name, typeof u.createdAt); // Ann number`,
     ],
     techlead: [
       {
-        q: 'When is OOP with classes appropriate in a modern frontend vs functional modules? Give an example from your own projects.',
+        q: 'In a modern frontend, when should you use classes, and when plain function modules? Give an example from your own projects.',
         ai: true,
         short: 'Classes fit stateful, long-lived entities with identity — services, SDK clients, domain models, custom elements; functions/hooks fit UI and data transformations. Look for a concrete, reasoned example.',
         long: `Good fits for classes: API clients with configuration and interceptors, WebSocket managers, domain models with invariants, Web Components (required), error subclasses.
@@ -2331,7 +2331,7 @@ const svc = new UserService({ logger: console, cache: new Map() });
 svc.get(1);`,
           },
           {
-            task: 'Implement a minimal custom element, the one place frontend code requires classes.',
+            task: 'Implement a minimal custom element. This is the one place where frontend code needs classes.',
             description: 'Checks where classes are required. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Web Components must extend HTMLElement; lifecycle callbacks are class methods. Some think custom elements can be functions. A strong answer covers lifecycle callbacks and observedAttributes.',
             solution: `class HelloTag extends HTMLElement {
@@ -2342,7 +2342,7 @@ customElements.define('hello-tag', HelloTag);`,
         ],
       },
       {
-        q: 'Code review: a domain model exposes mutable internals and invariants are broken across the app. How do you fix the class and guide the team?',
+        q: 'Code review: a domain model lets other code change its internal data. Its rules get broken all over the app. How do you fix the class and guide the team?',
         code: `class Cart {
   constructor() { this.items = []; this.total = 0; }
   add(item) { this.items.push(item); this.total += item.price; }
@@ -2395,7 +2395,7 @@ console.log(new Money(100, 'USD').add(new Money(50, 'USD')).cents); // 150`,
   'Set, WeakSet, Map, WeakMap': {
     junior: [
       {
-        q: 'How do you remove duplicates from an array? Difference between Map and plain object?',
+        q: 'How do you remove duplicates from an array? What is the difference between a Map and a plain object?',
         short: '[...new Set(arr)]. A Map accepts any key type (objects included), keeps insertion order, has size, is directly iterable and is optimized for frequent adds/deletes; plain object keys are only strings/symbols.',
         long: `Set stores unique values using SameValueZero equality (NaN equals NaN, objects by reference).
 Deduplicating objects by a field needs a Map keyed by that field.
@@ -2484,7 +2484,7 @@ console.log(m.get(NaN), m.get(-0), m.size);`,
         ],
       },
       {
-        q: 'Find and fix the bug: this cache keyed by DOM nodes keeps growing even after nodes are removed.',
+        q: 'Find and fix the bug. This cache uses DOM nodes as keys. It keeps growing even after the nodes are removed.',
         code: `const sizes = new Map();
 function measure(el) {
   if (!sizes.has(el)) sizes.set(el, el.getBoundingClientRect());
@@ -2528,7 +2528,7 @@ console.log(processOnce(o), processOnce(o)); // true false`,
     ],
     senior: [
       {
-        q: 'Build an LRU cache with O(1) get/put using Map.',
+        q: 'Build an LRU cache with a Map. Get and put must run in constant time, O of 1.',
         short: 'Map preserves insertion order: on access delete and re-insert to mark the key as most recent, and on overflow evict the first (least recently used) key via keys().next().value.',
         fix: `class LRU {
   constructor(max) { this.max = max; this.m = new Map(); }
@@ -2552,7 +2552,7 @@ function attach(node) { state.set(node, { open: false }); }`,
 function attach(node) { state.set(node, { open: false }); }`,
           },
           {
-            task: 'Implement groupBy that returns a Map, preserving the order in which groups first appear.',
+            task: 'Implement groupBy that returns a Map. Keep the groups in the order they first appear.',
             description: 'Checks ordered grouping. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'A Map keeps insertion order and allows any key type, including objects. Map.groupBy is the built-in version. A weak version uses an object and loses non-string keys. A strong answer mentions Map.groupBy / Object.groupBy.',
             solution: `function groupBy(arr, keyFn) {
@@ -2565,7 +2565,7 @@ console.log(groupBy([1, 2, 3, 4], (n) => (n % 2 ? 'odd' : 'even'))); // Map { od
         ],
       },
       {
-        q: 'When should you choose Map/Set over plain objects/arrays for performance and correctness? Discuss complexity, key types, iteration order and serialization.',
+        q: 'When should you choose Map or Set instead of plain objects or arrays? Think about speed, key types, iteration order, and serialization.',
         short: 'Use Map for dynamic dictionaries with frequent adds/deletes, non-string keys or untrusted keys, and Set for fast membership checks; use plain objects for fixed-shape records and JSON. Map/Set have O(1) average operations, guaranteed insertion order, and size, but do not serialize to JSON directly.',
         long: `Arrays: includes/indexOf are O(n); Set.has is O(1) average — use Sets for membership in hot paths.
 Objects: keys are strings/symbols; integer-like keys are ordered numerically first; inherited keys such as "__proto__" are risky with user input.
@@ -2597,7 +2597,7 @@ console.log(load(save({ tags: new Map([['a', 1]]) })).tags.get('a')); // 1`,
     ],
     techlead: [
       {
-        q: 'Where would WeakRef / FinalizationRegistry be justified, and would you allow them in your codebase?',
+        q: 'When is it OK to use WeakRef or FinalizationRegistry? Would you allow them in your codebase?',
         ai: true,
         short: 'Rarely — GC timing is non-deterministic and finalizers may never run. Possibly for caches of large, re-creatable objects or as a safety net for releasing external resources; require strong justification, tests and documentation.',
         long: `WeakRef lets you hold an object without preventing GC; deref() returns the object or undefined.
@@ -2617,7 +2617,7 @@ expect(ref.deref()).toBeUndefined();`,
             answer: 'It is not reliable. Garbage collection is non-deterministic and the object may still be alive right after obj = null, so the test is flaky. Some try to force GC with --expose-gc in tests. A strong answer explains why tests must not depend on GC timing at all.',
           },
           {
-            task: 'Implement a resource wrapper with explicit dispose and a FinalizationRegistry only as a leak warning.',
+            task: 'Implement a resource wrapper with a dispose method. Use a FinalizationRegistry only to warn about leaks.',
             description: 'Checks explicit disposal vs finalizers. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Correctness comes from dispose(); the registry just reports handles that were never disposed. Relying on the finalizer for cleanup is the mistake. A strong answer mentions the "using" declaration (Symbol.dispose) as the future direction.',
             solution: `const leaks = new FinalizationRegistry((id) => console.warn('Handle', id, 'was not disposed'));
@@ -2630,7 +2630,7 @@ new Resource(1).dispose();`,
         ],
       },
       {
-        q: 'Code review: a feature-flag service uses a plain object filled from user-controlled keys. What risks do you see and what do you change?',
+        q: 'Code review: a feature flag service uses a plain object. The user controls its keys. What risks do you see? What do you change?',
         code: `const flags = {};
 for (const [k, v] of Object.entries(JSON.parse(userInput))) flags[k] = v;
 if (flags.isAdmin) showAdminPanel();`,
@@ -2691,7 +2691,7 @@ console.log(it.next(), it.next(), it.next());`,
             answer: '{ value: 1, done: false } { value: 2, done: false } { value: undefined, done: true }. Some think the last call throws, or returns value 2 with done true. A strong answer explains that done becomes true only after the last yield.',
           },
           {
-            task: 'Implement a hidden, non-colliding "id" property using a Symbol.',
+            task: 'Use a Symbol to implement a hidden "id" property that does not clash with other keys.',
             description: 'Checks symbols as property keys. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'A Symbol key cannot clash with string keys and is skipped by Object.keys and JSON.stringify. Some believe symbols make properties private. A strong answer notes they are still reachable via Object.getOwnPropertySymbols.',
             solution: `const ID = Symbol('id');
@@ -2772,7 +2772,7 @@ console.log(out); // [0, 1, 1, 2, 3, 5]`,
         ],
       },
       {
-        q: 'Explain well-known symbols such as Symbol.iterator, Symbol.toPrimitive, Symbol.toStringTag and Symbol.hasInstance. Why do they exist?',
+        q: 'Explain well-known symbols, like Symbol.iterator, Symbol.toPrimitive, Symbol.toStringTag, and Symbol.hasInstance. Why do they exist?',
         short: 'Well-known symbols are built-in Symbol values that the language looks up to customize behavior: iteration (Symbol.iterator), conversion to primitives (Symbol.toPrimitive), Object.prototype.toString output (Symbol.toStringTag) and instanceof (Symbol.hasInstance). Symbols were used so new hooks could not collide with existing string-named properties.',
         long: `Symbol.iterator / Symbol.asyncIterator: for...of, spread, for await.
 Symbol.toPrimitive(hint): controls +obj, template literals and comparisons; hint is "number", "string" or "default".
@@ -2789,7 +2789,7 @@ console.log(Object.prototype.toString.call(new Temp()), String(new Temp()));`,
             answer: '"[object Temperature]" twice. toString uses Symbol.toStringTag for the tag, and String() falls back to Object.prototype.toString.',
           },
           {
-            task: 'Implement Symbol.toPrimitive so a Money object prints nicely and adds as a number.',
+            task: 'Implement Symbol.toPrimitive so a Money object prints nicely and works as a number when you add it.',
             description: 'Checks conversion hooks. Discuss whether implicit conversion is a good idea.',
             answer: 'Return a formatted string for the "string" hint and a number otherwise.',
             solution: `class Money {
@@ -2804,7 +2804,7 @@ console.log(String(m), m + 50); // $2.50 300`,
     ],
     senior: [
       {
-        q: 'Implement paginated API iteration with an async generator and for await. How do you cancel it?',
+        q: 'Use an async generator and for await to read a paginated API. How do you cancel it?',
         short: 'An async generator fetches one page, yields its items and follows the next link; consumers pull lazily with for await. Cancel by breaking out of the loop (which calls return() on the generator) or by aborting an AbortSignal passed to fetch.',
         fix: `async function* pages(url, signal) {
   while (url) {
@@ -2822,7 +2822,7 @@ Generators are single-consumer and sequential; for prefetching, start the next r
 Strong candidate distinguishes break vs abort and mentions finally; weak candidate loads all pages into an array first.`,
         exercises: [
           {
-            task: 'Implement a lazy map/filter pipeline with generators that processes only as many items as needed.',
+            task: 'Use generators to implement a lazy map and filter pipeline. It should process only the items that are needed.',
             description: 'Checks lazy pipelines. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Each stage pulls one item at a time, so taking 2 results stops the source early. Weak answers use array map/filter, which process everything. A strong answer explains pull-based evaluation and early return() cleanup.',
             solution: `function* map(it, f) { for (const x of it) yield f(x); }
@@ -2847,7 +2847,7 @@ console.log([...take(filter(map(src, (x) => x * 10), (x) => x > 20), 2)]); // [3
         ],
       },
       {
-        q: 'Explain the full generator protocol: next(value), return(value), throw(error), and how finally blocks behave. Where is this useful?',
+        q: 'Explain the full generator protocol: next, return, and throw. How do finally blocks behave? Where is this useful?',
         short: 'next(v) resumes the generator and makes the paused yield evaluate to v; return(v) forces completion, running finally blocks; throw(e) raises e at the paused yield, where the generator can catch it. This powers coroutines (redux-saga, co), cleanup on early exit, and two-way protocols.',
         long: `The first next() starts execution; its argument is ignored.
 return() runs finally blocks; a yield inside finally can even delay completion.
@@ -2881,7 +2881,7 @@ console.log([...outer()]);`,
     ],
     techlead: [
       {
-        q: 'Generators/sagas vs async/await vs observables (RxJS) — which would you standardize on for complex async flows and why?',
+        q: 'For complex async flows, you can use generators or sagas, async and await, or observables like RxJS. Which one would you pick for the team, and why?',
         ai: true,
         short: 'It depends on flow complexity and team skills: async/await plus a query library covers most apps; RxJS shines for streams, cancellation and composing events; sagas are mostly legacy. Look for honest trade-offs including onboarding cost.',
         long: `async/await: native, easy to read and debug; weak at cancellation (needs AbortController) and multi-value streams.
@@ -2905,7 +2905,7 @@ Strong candidate gives criteria and a migration story; weak candidate picks base
 }`,
           },
           {
-            task: 'Implement a minimal observable with subscribe/unsubscribe, to discuss what RxJS adds on top.',
+            task: 'Implement a minimal observable with subscribe and unsubscribe. Then discuss what RxJS adds on top.',
             description: 'Checks what observables really are. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'An observable is a function that takes an observer and returns a teardown. RxJS adds operators, schedulers and error/complete semantics. Some think observables are just promises. A strong answer covers multiple values, laziness, and teardown.',
             solution: `function interval(ms) {
@@ -2917,7 +2917,7 @@ setTimeout(unsub, 35); // logs 0 1 2`,
         ],
       },
       {
-        q: 'Code review: a library uses string property names like "_meta" on user objects, causing collisions with app data. How would you redesign it?',
+        q: 'Code review: a library puts string keys like "_meta" on user objects. These keys clash with app data. How would you redesign it?',
         code: `export function tag(obj, info) {
   obj._meta = info;
   return obj;
@@ -2946,7 +2946,7 @@ try { o[META] = 1; } catch (e) { console.log(e.name); }`,
             answer: 'TypeError. Frozen objects reject new properties, including Symbol keys; a WeakMap side table would still work.',
           },
           {
-            task: 'Implement a brand check using a module-private Symbol so library objects can be recognized safely.',
+            task: 'Implement a brand check with a Symbol that is private to the module. It lets you safely recognize library objects.',
             description: 'Checks Symbol-based branding. Discuss realms and Symbol.for.',
             answer: 'A private Symbol works as a brand only the module can set. Symbol.for would allow cross-bundle checks but can be forged.',
             solution: `const BRAND = Symbol('lib.brand');
@@ -2996,7 +2996,7 @@ requestAnimationFrame(() => setTimeout(() => {
         ],
       },
       {
-        q: 'What are the call stack, the task (macrotask) queue and the microtask queue? How do they work together?',
+        q: 'What are the call stack, the task queue, also called macrotask queue, and the microtask queue? How do they work together?',
         short: 'The call stack runs the current synchronous code; when it is empty, the event loop first drains all microtasks (promise callbacks, queueMicrotask), may render, then takes the next macrotask (timers, events, network callbacks).',
         long: `JavaScript has one main thread, so only one piece of code runs at a time.
 Macrotasks: setTimeout/setInterval callbacks, DOM events, message events, I/O.
@@ -3073,7 +3073,7 @@ console.log('end');`,
         ],
       },
       {
-        q: 'Where do requestAnimationFrame, requestIdleCallback and MutationObserver fit into the event loop? When would you use each?',
+        q: 'Where do requestAnimationFrame, requestIdleCallback, and MutationObserver fit in the event loop? When would you use each one?',
         short: 'requestAnimationFrame callbacks run once per frame right before style/layout/paint, which makes them ideal for visual updates; requestIdleCallback runs when the browser is idle after a frame, for low-priority work; MutationObserver callbacks are microtasks fired after DOM changes.',
         long: `rAF: synchronize animations and DOM writes with the display refresh; paused in background tabs.
 rIC: analytics, prefetching, cache warming; has a deadline (timeRemaining()) and an optional timeout; not supported in Safari.
@@ -3092,7 +3092,7 @@ console.log('sync');`,
             answer: 'sync, mutation, timeout. The observer callback is queued as a microtask, so it runs before the timer task.',
           },
           {
-            task: 'Implement a smooth progress bar update that writes the DOM at most once per frame.',
+            task: 'Implement a smooth progress bar. It writes to the DOM at most once per frame.',
             description: 'Checks rAF batching. Discuss why multiple writes per frame are wasted.',
             answer: 'Store the latest value and schedule a single rAF; only the final value of each frame is rendered.',
             solution: `let latest = 0, scheduled = false;
@@ -3122,7 +3122,7 @@ Measure with the Performance panel (long tasks, INP).
 Strong candidate explains microtask vs task and time-sliced chunking; weak candidate adds more async/await.`,
         exercises: [
           {
-            task: 'Implement yieldToMain() that uses scheduler.yield when available and falls back to MessageChannel.',
+            task: 'Implement yieldToMain. Use scheduler.yield when it exists. Otherwise use MessageChannel.',
             description: 'Checks yielding strategies. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'scheduler.yield resumes with priority; MessageChannel posts a task without the roughly 4ms clamp that nested setTimeout gets. Using setTimeout(0) in tight loops adds clamping delay. A strong answer mentions feature detection and priority.',
             solution: `function yieldToMain() {
@@ -3142,7 +3142,7 @@ spin();`,
         ],
       },
       {
-        q: 'How does the Node.js event loop differ from the browser\'s? Explain its phases and process.nextTick vs setImmediate.',
+        q: 'How is the Node.js event loop different from the browser one? Explain its phases. Compare process.nextTick and setImmediate.',
         short: 'Node uses libuv with phases (timers, pending callbacks, poll, check, close callbacks); setImmediate runs in the check phase after poll, while process.nextTick callbacks run before promise microtasks, after the current operation. Browsers have task queues plus rendering steps instead of these phases.',
         long: `Phases: timers (setTimeout/setInterval) → pending callbacks → poll (I/O) → check (setImmediate) → close.
 Between callbacks Node drains the nextTick queue first, then promise microtasks.
@@ -3173,7 +3173,7 @@ console.log('sync');`,
     ],
     techlead: [
       {
-        q: 'INP is bad in production on low-end devices. How would you organize the investigation across teams?',
+        q: 'INP is bad in production on cheap, slow devices. How would you organize the investigation across teams?',
         ai: true,
         short: 'Collect RUM data with attribution (web-vitals library, Long Animation Frames API), map slow interactions to owning teams, set budgets, and fix via yielding, workers and code splitting — tracking INP per release.',
         long: `Measure first: field data (CrUX + own RUM) segmented by device class, page and interaction; lab tests with CPU throttling do not fully reflect reality.
@@ -3184,7 +3184,7 @@ Governance: budgets and alerts in CI/RUM, regression tracking per release, postm
 Strong candidate talks about field data, attribution and ownership; weak candidate runs Lighthouse once and minifies code.`,
         exercises: [
           {
-            task: 'Implement collecting slow interactions in the field with PerformanceObserver event timing.',
+            task: 'Use PerformanceObserver event timing to collect slow interactions from real users.',
             description: 'Checks field attribution of slow interactions. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Event Timing entries carry the duration and the target, which attribute slow interactions to features and owners. The web-vitals library wraps this for INP. Lab-only measurement is the weak answer. A strong answer covers sampling, privacy, and mapping targets to owners.',
             solution: `new PerformanceObserver((list) => {
@@ -3194,7 +3194,7 @@ Strong candidate talks about field data, attribution and ownership; weak candida
 }).observe({ type: 'event', durationThreshold: 104, buffered: true });`,
           },
           {
-            task: 'Fix this handler so the visual update ships quickly and the analytics do not hurt INP.',
+            task: 'Fix this handler. The screen should update quickly, and the analytics must not hurt INP.',
             description: 'Checks interaction-to-next-paint optimization. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: `button.onclick = () => {
   trackAnalytics();   // 80ms
@@ -3210,7 +3210,7 @@ Strong candidate talks about field data, attribution and ownership; weak candida
         ],
       },
       {
-        q: 'Code review: an analytics SDK runs heavy work synchronously in every click handler, hurting INP across all products that embed it. What do you change and how do you govern third-party scripts?',
+        q: 'Code review: an analytics SDK does heavy synchronous work in every click handler. This hurts INP in every product that uses it. What do you change? What rules do you set for third-party scripts?',
         code: `document.addEventListener('click', (e) => {
   const payload = buildPayload(e); // 60ms: serializes the DOM path, computes hashes
   navigator.sendBeacon('/collect', JSON.stringify(payload));
@@ -3242,7 +3242,7 @@ Strong candidate fixes the code and sets up vendor governance; weak candidate on
             answer: 'Every click anywhere in the app gets at least 60ms of processing delay before any app handler can respond, which directly worsens INP. A strong answer suggests measuring it with Event Timing attribution.',
           },
           {
-            task: 'Implement a kill switch so a misbehaving third-party script can be disabled remotely.',
+            task: 'Implement a kill switch, so you can turn off a broken third-party script remotely.',
             description: 'Checks operational control over third parties. Discuss the config source and its fallback.',
             answer: 'Load third-party scripts through a loader that checks a remote config first, so ops can disable them without a deploy.',
             solution: `async function loadThirdParty(name, src) {
@@ -3260,7 +3260,7 @@ Strong candidate fixes the code and sets up vendor governance; weak candidate on
   'Performance Optimization': {
     junior: [
       {
-        q: 'What is debounce vs throttle? Where would you use each?',
+        q: 'What is the difference between debounce and throttle? Where would you use each one?',
         short: 'Debounce runs the function only after calls stop for a given delay (search input, autosave); throttle runs it at most once per interval while calls continue (scroll, resize, mousemove).',
         long: `Debounce resets a timer on each call; the function fires once after a quiet period (trailing) or optionally immediately (leading).
 Throttle guarantees a steady rate during continuous events — useful for scroll position tracking or infinite-scroll checks.
@@ -3291,7 +3291,7 @@ window.addEventListener('resize', () => {
         ],
       },
       {
-        q: 'Find and fix the performance bug: the search filters a 50k-item list on every keystroke and the input lags.',
+        q: 'Find and fix the performance bug. The search filters a list of 50 thousand items on every key press, so the input is slow.',
         code: `input.addEventListener('input', (e) => {
   render(items.filter((i) => i.name.includes(e.target.value)));
 });`,
@@ -3331,7 +3331,7 @@ items.forEach((el) => io.observe(el));`,
     ],
     middle: [
       {
-        q: 'Implement debounce. What is wrong with this list rendering?',
+        q: 'Implement debounce. What is wrong with how this list renders?',
         code: 'items.forEach(i => { list.innerHTML += \'<li>\' + i + \'</li>\'; });',
         short: 'innerHTML += re-serializes and re-parses the whole list on every iteration (O(n²)) and injects unescaped strings (XSS). Build nodes with textContent in a DocumentFragment and insert once.',
         fix: 'const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };',
@@ -3366,7 +3366,7 @@ function onInput(e) { runSearch(e.target.value); }`,
         ],
       },
       {
-        q: 'What are the main causes of slow page loads in a SPA, and which techniques address each?',
+        q: 'What are the main causes of slow page loads in a SPA? What fixes each one?',
         short: 'The usual causes are large JavaScript bundles, render-blocking resources, unoptimized images and fonts, request waterfalls, and slow server responses. They are addressed by code splitting, compression and caching, lazy loading, preloading critical resources, image optimization, and SSR or streaming.',
         long: `Big bundles: code splitting by route, tree-shaking, removing heavy dependencies, analyzing with a bundle visualizer.
 Render-blocking CSS/JS: defer/async scripts, critical CSS, font-display: swap.
@@ -3431,7 +3431,7 @@ el.style.color = 'red';    // 4`,
         ],
       },
       {
-        q: 'How do you find and fix a memory leak in a long-running SPA? Walk through the tools and common root causes.',
+        q: 'How do you find and fix a memory leak in a long-running SPA? Explain the tools and the common causes.',
         short: 'Reproduce with a repeatable scenario, take heap snapshots before and after (DevTools Memory panel), compare retained objects and follow retainer paths to the root. Common causes are uncleaned listeners/timers/subscriptions, growing caches, detached DOM nodes and closures capturing large objects.',
         long: `Workflow: baseline snapshot → repeat the action N times → force GC → snapshot → compare "Objects allocated between snapshots".
 Look for detached DOM trees, growing arrays/maps, and listeners in the "Retainers" panel.
@@ -3456,7 +3456,7 @@ Strong candidate describes the snapshot-diff and retainer workflow; weak candida
 }`,
           },
           {
-            task: 'Predict whether the large array can be garbage-collected after run() returns.',
+            task: 'After run returns, can the large array be garbage collected? Predict the answer.',
             description: 'Checks closure retention. Ask the candidate to explain what keeps it alive.',
             code: `let handler;
 function run() {
@@ -3471,7 +3471,7 @@ run();`,
     ],
     techlead: [
       {
-        q: 'How do you build a performance culture: budgets, monitoring, ownership? What did you do in a previous team?',
+        q: 'How do you make a team care about performance? Think about budgets, monitoring, and ownership. What did you do in a past team?',
         ai: true,
         short: 'Define budgets enforced in CI (bundle size, Lighthouse/Web Vitals), RUM dashboards with SLOs, perf review for big features, and clear ownership. Look for real experience and measurable outcomes.',
         long: `Make performance visible: RUM dashboards for LCP/INP/CLS by page and device, shared in team rituals.
@@ -3483,7 +3483,7 @@ Tie performance to business metrics (conversion, retention) to keep it prioritiz
 Strong candidate tells a concrete story with numbers; weak candidate lists tools without process or results.`,
         exercises: [
           {
-            task: 'Implement a CI check that fails when the gzipped size of the main bundle grows more than 5% over the baseline.',
+            task: 'Implement a CI check. It fails when the gzipped main bundle grows more than 5 percent over the baseline.',
             description: 'Checks bundle size budgets in CI. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Compare against a committed baseline so regressions are caught in review, not in production. A weak answer checks only the raw size. A strong answer uses compressed sizes, a baseline process, and owners for overrides.',
             solution: `import { gzipSync } from 'node:zlib';
@@ -3493,7 +3493,7 @@ const base = JSON.parse(readFileSync('size-baseline.json', 'utf8')).main;
 if (size > base * 1.05) { console.error('Bundle grew', size, 'vs', base); process.exit(1); }`,
           },
           {
-            task: 'Fix this RUM snippet so it does not lose data when the page unloads.',
+            task: 'Fix this real user monitoring (RUM) snippet so it does not lose data when the page closes.',
             description: 'Checks reliable RUM beacons. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: `window.addEventListener('unload', () => {
   fetch('/rum', { method: 'POST', body: JSON.stringify(metrics) });
@@ -3506,7 +3506,7 @@ if (size > base * 1.05) { console.error('Bundle grew', size, 'vs', base); proces
         ],
       },
       {
-        q: 'Code review: a PR adds a 300KB date library for one formatting call on the landing page. How do you respond, and how do you prevent this systematically?',
+        q: 'Code review: a PR adds a 300 KB date library. It is used for one date format on the landing page. What do you say? How do you stop this from happening again?',
         code: `import moment from 'moment';
 export const formatDate = (d) => moment(d).format('MMM D, YYYY');`,
         short: 'Replace it with the built-in Intl.DateTimeFormat (zero bytes added), and if a library is truly needed, choose a tree-shakeable one. Prevent it systematically with bundle-size budgets in CI, size-diff comments on PRs, and a dependency review step.',
@@ -3608,7 +3608,7 @@ console.log(x);`,
             answer: '"log.js evaluated" once, then 1. Modules are cached by URL and evaluated only once, no matter how many times they are imported.',
           },
           {
-            task: 'Implement exporting a constant and a function as named exports and importing them with an alias.',
+            task: 'Export a constant and a function as named exports. Then import them with an alias.',
             description: 'Checks named export/import syntax. Quick warm-up.',
             answer: 'Named exports can be renamed at import time with "as", which avoids name clashes.',
             solution: `// config.js
@@ -3634,7 +3634,7 @@ Verify with a bundle analyzer rather than assumptions.
 Strong candidate explains sideEffects and how to verify; weak candidate says "Webpack removes unused code automatically".`,
         exercises: [
           {
-            task: 'Implement route-level code splitting so the admin page code loads only on navigation.',
+            task: 'Implement code splitting by route, so the admin page code loads only when the user goes there.',
             description: 'Checks dynamic import and chunking. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Dynamic import() creates a separate chunk that is fetched on demand. Static imports defeat splitting. A strong answer mentions preloading on hover, and error handling for failed chunk loads.',
             solution: `async function openAdmin() {
@@ -3643,7 +3643,7 @@ Strong candidate explains sideEffects and how to verify; weak candidate says "We
 }`,
           },
           {
-            task: 'Fix the barrel import that pulls an entire icon library into the bundle.',
+            task: 'Fix the barrel import. It adds the whole icon library to the bundle.',
             description: 'Checks barrel files and side effects. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: 'import { CloseIcon } from \'icons\'; // index.js re-exports 2000 icons with side effects',
             answer: 'Import the module directly (a deep import), or make sure the package declares sideEffects: false so the bundler can prune it. Some blame tree-shaking in general. A strong answer verifies the result with a bundle analyzer.',
@@ -3652,7 +3652,7 @@ Strong candidate explains sideEffects and how to verify; weak candidate says "We
         ],
       },
       {
-        q: 'Find and fix the bug: this CommonJS/ESM interop code breaks after switching the project to ESM.',
+        q: 'Find and fix the bug. This code mixes CommonJS and ESM. It breaks after the project moves to ESM.',
         code: `// package.json: "type": "module"
 const fs = require('fs');
 const data = JSON.parse(fs.readFileSync(__dirname + '/data.json', 'utf8'));
@@ -3694,7 +3694,7 @@ const page = await pages[pageName]();`,
     ],
     senior: [
       {
-        q: 'When would you use a Web Worker, Service Worker, or WebAssembly? Give a concrete case for each.',
+        q: 'When would you use a Web Worker, a Service Worker, or WebAssembly? Give a real example for each.',
         short: 'Web Worker: CPU-heavy work off the main thread (parsing a large CSV, search indexing). Service Worker: a network proxy for offline caching, background sync and push. WebAssembly: performance-critical or ported native code (image/video codecs, CAD, SQLite).',
         long: `Web Worker: a separate thread without DOM access; communicates via postMessage (structured clone) or transferables/SharedArrayBuffer (requires cross-origin isolation). Use it for anything causing long tasks.
 Service Worker: event-driven, intercepts fetch within its scope, lives independently of pages, enables offline/PWA, caching strategies (stale-while-revalidate) and push notifications. Pitfalls: update lifecycle, stale caches, HTTPS only.
@@ -3771,7 +3771,7 @@ onmessage = (e) => {
     ],
     techlead: [
       {
-        q: 'Micro-frontends: when are they worth it, and when are they a mistake? How would you integrate them (Module Federation, iframes, web components)?',
+        q: 'When are micro-frontends worth it, and when are they a mistake? How would you connect them: Module Federation, iframes, or web components?',
         ai: true,
         short: 'Worth it when many independent teams need autonomous deploys on a large product; a mistake for small teams because of complexity, duplicated dependencies and inconsistent UX. The integration choice trades isolation (iframes) against depth of integration (Module Federation, web components).',
         long: `The primary driver is organizational — team autonomy and independent release cadence — not technology.
@@ -3782,7 +3782,7 @@ Alternative to try first: a well-modularized monorepo with enforced boundaries.
 Strong candidate starts from organizational needs and acknowledges costs; weak candidate recommends micro-frontends for any growing app.`,
         exercises: [
           {
-            task: 'Implement a host-side loader that mounts a remote micro-frontend and isolates its failures.',
+            task: 'Implement a loader in the host page. It mounts a remote micro-frontend and keeps its failures contained.',
             description: 'Checks resilient micro-frontend mounting. Live-code it; let the candidate write it first, then compare with the solution and discuss edge cases.',
             answer: 'Load the remote dynamically, enforce a mount/unmount contract and fall back gracefully, so one team cannot take down the shell. Without isolation, one remote failure crashes the shell. A strong answer adds timeouts, error boundaries, and monitoring.',
             solution: `async function mountRemote(url, el) {
@@ -3798,7 +3798,7 @@ Strong candidate starts from organizational needs and acknowledges costs; weak c
 }`,
           },
           {
-            task: 'Fix this shared-dependency setup that ships two copies of React.',
+            task: 'Fix this shared dependency setup. Right now it ships two copies of React.',
             description: 'Checks shared dependency governance. Show the snippet, ask the candidate to explain the bug first, then write the fix.',
             code: `// host: react@18.2, remote: react@18.3, both bundle their own copy
 // symptom: 'Invalid hook call' and +130KB`,
@@ -3812,7 +3812,7 @@ shared: {
         ],
       },
       {
-        q: 'Code review: a team integrates a third-party widget by injecting its script with full access to the page. What risks do you see and what integration strategy would you choose?',
+        q: 'Code review: a team adds a third-party widget. They inject its script with full access to the page. What risks do you see? How would you add the widget instead?',
         code: `const s = document.createElement('script');
 s.src = 'https://cdn.vendor.example/widget.js';
 document.body.append(s);

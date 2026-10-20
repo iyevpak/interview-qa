@@ -5,7 +5,7 @@ export default {
   "Browser storages": {
     junior: [
       {
-        q: "Compare localStorage, sessionStorage and cookies.",
+        q: "Compare localStorage, sessionStorage, and cookies.",
         short: "localStorage persists (~5MB) per origin; sessionStorage lives per tab; cookies are small (~4KB), sent with every request and support HttpOnly/Secure/SameSite.",
         long: `localStorage and sessionStorage are synchronous key/value string stores scoped to the origin.
 localStorage survives restarts; sessionStorage is cleared when the tab closes and is not shared between tabs.
@@ -29,7 +29,7 @@ localStorage.setItem('count', '1');
 Number(localStorage.getItem('count')) + 1;     // 2`,
           },
           {
-            task: "Implement a cross-tab listener that updates the theme when another tab changes it — and explain why it does not fire in the tab that made the change.",
+            task: "Write a listener that updates the theme when another tab changes it. Explain why it does not run in the tab that made the change.",
             description: "Checks knowledge of the storage event and cross-tab sync. Ask them to write the listener from scratch, then ask which tab receives the event.",
             answer: "The storage event fires only in other same-origin documents, never in the one that called setItem, so the writing tab must apply the change itself. Many candidates assume the event fires everywhere including the writer. Strong answers mention BroadcastChannel as an alternative for richer cross-tab messaging.",
             solution: `window.addEventListener('storage', (e) => {
@@ -41,7 +41,7 @@ Number(localStorage.getItem('count')) + 1;     // 2`,
         ],
       },
       {
-        q: "Why does this code crash for some users, and how do you fix it?",
+        q: "Why does this code crash for some users? How do you fix it?",
         code: `const prefs = JSON.parse(localStorage.getItem('prefs'));
 document.body.dataset.theme = prefs.theme;`,
         fix: `function readPrefs() {
@@ -69,7 +69,7 @@ console.log(JSON.parse(undefined));`,
             answer: "null, null, then SyntaxError: getItem returns null for missing keys, JSON.parse(null) coerces to 'null' and returns null, but JSON.parse(undefined) coerces to 'undefined', which isn't valid JSON. Strong answers know the coercion rule.",
           },
           {
-            task: "Implement a `remember(key, value, ttlMs)` / `recall(key)` pair that expires values.",
+            task: "Write two functions, remember and recall. Remember saves a key and value with a time limit. Recall reads it. Old values expire.",
             description: "Checks designing a small storage wrapper. Ask how expired entries get cleaned up.",
             answer: "Store the value with an expiry timestamp and delete it on read when expired. Strong answers mention that expired keys linger until read and that clock changes affect Date.now().",
             solution: `export function remember(key, value, ttlMs) {
@@ -88,7 +88,7 @@ export function recall(key) {
     ],
     middle: [
       {
-        q: "Where would you store a JWT and why? What is wrong with this?",
+        q: "Where would you store a JWT token, and why? What is wrong with this code?",
         code: "localStorage.setItem('token', jwt);",
         short: "Anything in localStorage is readable by any XSS. Prefer an HttpOnly Secure SameSite cookie plus CSRF protection, or an in-memory access token with a refresh cookie.",
         long: `localStorage has no access control: one injected script (XSS, compromised npm dependency) can exfiltrate the token.
@@ -111,7 +111,7 @@ Weak answer: "localStorage is fine because the token is encrypted".`,
 });`,
           },
           {
-            task: "Fix the refresh logic so ten parallel requests after page load trigger only one /auth/refresh call.",
+            task: "Fix the refresh logic. After page load, ten parallel requests should cause only one call to the auth refresh endpoint.",
             description: "Checks async concurrency reasoning around token refresh. Describe the scenario (dashboard fires 10 requests on load) and let them find the race.",
             code: `let accessToken = null;
 async function authFetch(url) {
@@ -139,7 +139,7 @@ async function authFetch(url) {
         ],
       },
       {
-        q: "What do the SameSite cookie values (Strict, Lax, None) do, and which do you choose for a session cookie?",
+        q: "The SameSite cookie setting can be Strict, Lax, or None. What does each do? Which do you choose for a session cookie?",
         short: "Strict never sends the cookie on cross-site requests; Lax sends it on top-level GET navigations; None always sends it (requires Secure). Lax is the browser default and a good session default; Strict for sensitive actions; None only for genuine third-party embeds.",
         long: `SameSite controls whether cookies are attached to requests initiated from other sites — the core CSRF mitigation.
 Strict: even following a link from email arrives "logged out", which hurts UX.
@@ -150,7 +150,7 @@ Strong answer: explains site vs origin, Lax default, and that state-changing GET
 Weak answer: "SameSite prevents XSS".`,
         exercises: [
           {
-            task: "For each request, say whether a `SameSite=Lax` cookie for app.example.com is sent.",
+            task: "A cookie for app dot example dot com has SameSite set to Lax. For each request, is the cookie sent?",
             description: "Checks precise SameSite semantics. Read the scenarios aloud and ask for yes/no with reasoning.",
             code: `// 1. User clicks a link on evil.com to https://app.example.com/dashboard
 // 2. evil.com auto-submits <form method="POST" action="https://app.example.com/transfer">
@@ -159,7 +159,7 @@ Weak answer: "SameSite prevents XSS".`,
             answer: "1 yes (top-level GET navigation), 2 no (cross-site POST), 3 no (cross-site fetch), 4 yes (api.example.com is same-site). A common mistake is answering by origin instead of site.",
           },
           {
-            task: "Find the CSRF hole that SameSite=Lax doesn't cover and fix it.",
+            task: "Find the CSRF hole that SameSite Lax does not protect against. Fix it.",
             description: "Checks that safe-method semantics matter. Show the route and ask what an attacker can do.",
             code: `app.get('/account/delete', requireSession, (req, res) => {
   deleteAccount(req.user.id);
@@ -176,7 +176,7 @@ Weak answer: "SameSite prevents XSS".`,
     ],
     senior: [
       {
-        q: "Offline-first app needs to store 200MB of data. Which storage and how do you handle quota & schema migrations?",
+        q: "An offline-first app must store 200 megabytes of data. Which storage do you use? How do you handle storage limits and schema changes?",
         short: "Use IndexedDB (via idb/Dexie) for data and the Cache API for assets, request persistent storage, check quota with navigator.storage.estimate, and run versioned migrations in onupgradeneeded.",
         long: `localStorage is too small and synchronous; IndexedDB is async, transactional, indexable and can hold hundreds of MB.
 Browsers may evict "best-effort" storage under pressure — call navigator.storage.persist() and handle denial.
@@ -187,7 +187,7 @@ Strong answer: covers eviction, multi-tab "versionchange" handling, sync/conflic
 Weak answer: "just use localStorage and compress it".`,
         exercises: [
           {
-            task: "Explain why this IndexedDB code throws TransactionInactiveError and fix it.",
+            task: "Why does this IndexedDB code throw TransactionInactiveError? Fix it.",
             description: "Checks deep IndexedDB transaction lifetime knowledge. Ask what error appears and why before asking for a fix.",
             code: `const tx = db.transaction('orders', 'readwrite');
 const store = tx.objectStore('orders');
@@ -204,7 +204,7 @@ orders.forEach((o) => tx.objectStore('orders').put(o));
 await tx.done; // idb wrapper`,
           },
           {
-            task: "Add version 4 to an existing idb schema that splits `fullName` into `firstName`/`lastName` for existing records without data loss.",
+            task: "Add version 4 to an existing IndexedDB schema. Split fullName into firstName and lastName for old records. Do not lose any data.",
             description: "Checks schema migration design with real data transformation. Let the candidate write the upgrade callback, then ask what happens for a user upgrading from v1 directly.",
             answer: "Data migrations run inside the upgrade transaction using a cursor; only fall-through `if (oldVersion < n)` steps keep users who skip versions working. Don't await anything other than requests on that tx. Weak answers use a switch without fall-through or recreate the store and lose data. Strong answers mention testing migrations from every old version and handling blocked upgrades in other tabs.",
             solution: `openDB('app', 4, {
@@ -225,7 +225,7 @@ await tx.done; // idb wrapper`,
         ],
       },
       {
-        q: "Why might this service worker show users stale data forever, and how do you design caching for an app shell plus API data?",
+        q: "Why can this service worker show old data to users forever? How do you design caching for the app shell and API data?",
         code: `self.addEventListener('fetch', (e) => {
   e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
 });`,
@@ -257,7 +257,7 @@ Strong answer: per-resource strategy, update lifecycle, logout/PII concerns; men
 Weak answer: "just unregister the service worker".`,
         exercises: [
           {
-            task: "Implement stale-while-revalidate for /api/config.",
+            task: "Use the stale-while-revalidate strategy for the API config endpoint.",
             description: "Checks Cache API and fetch event mechanics. Ask them to write the handler and explain what the user sees.",
             answer: "Return the cached response immediately if any, while fetching and updating the cache in the background via waitUntil. Strong answers handle the no-cache case and errors.",
             solution: `self.addEventListener('fetch', (e) => {
@@ -274,7 +274,7 @@ Weak answer: "just unregister the service worker".`,
 });`,
           },
           {
-            task: "Users report they keep seeing the old app after deploys. Explain the SW lifecycle cause and design an update UX.",
+            task: "Users still see the old app after deploys. Explain how the service worker lifecycle causes this. Design how users get the update.",
             description: "Checks waiting/activate lifecycle. No single code answer required; ask for the sequence of events.",
             answer: "The new SW installs but waits while any tab is controlled by the old one. Detect registration.waiting, show a 'reload to update' banner, post a SKIP_WAITING message and reload on controllerchange. Forcing skipWaiting silently can mix old HTML with new assets.",
           },
@@ -283,7 +283,7 @@ Weak answer: "just unregister the service worker".`,
     ],
     techlead: [
       {
-        q: "Your app stores PII in the browser. What policy do you define (GDPR, logout, shared devices)?",
+        q: "Your app stores personal data in the browser. What rules do you set for GDPR, logout, and shared devices?",
         short: "Minimize what is stored, keep a data inventory, encrypt or avoid sensitive fields, enforce TTLs, wipe everything on logout, and make it part of security review.",
         long: `Start with data minimization: does this PII need to be on the device at all?
 Maintain an inventory of keys/stores/caches and their owners so GDPR deletion requests are actually honored.
@@ -294,7 +294,7 @@ Strong answer: policy + enforcement (lint rules, review checklist, automated tes
 Weak answer: "we encrypt it so it's fine".`,
         exercises: [
           {
-            task: "Review this logout implementation for a shared-device kiosk and list what PII can survive it.",
+            task: "Review this logout code for a shared kiosk device. What personal data can stay after logout?",
             description: "Checks threat modelling on shared devices. Present the code as a real PR and ask the candidate to review it as the approver.",
             code: `function logout() {
   localStorage.removeItem('token');
@@ -303,7 +303,7 @@ Weak answer: "we encrypt it so it's fine".`,
             answer: "Other localStorage keys, sessionStorage, IndexedDB, Cache API/service-worker caches, HttpOnly cookies and the HTTP cache all survive, as does the server session. Invalidate server-side and send Clear-Site-Data plus a client wipe of all stores. A weak answer only suggests localStorage.clear(). Strong answers cover server-side invalidation, the back/forward cache and HTTP cache, and turning the review into a team checklist.",
           },
           {
-            task: "Design an automated check that proves logout leaves no app data behind, suitable for CI.",
+            task: "Design an automated check for CI. It proves that logout leaves no app data behind.",
             description: "Checks ability to turn a policy into enforceable automation. Ask how they would make the policy impossible to regress, not just documented.",
             answer: "A Playwright test logs in, exercises PII-heavy pages, logs out, then asserts localStorage/sessionStorage are empty, indexedDB.databases() and caches.keys() are empty, and cookies are cleared. Weak answers stop at 'add it to docs'. Strong answers make the test a required CI gate with a named owner and extend it whenever a new storage mechanism is introduced.",
             solution: `test('logout wipes client data', async ({ page, context }) => {
@@ -323,7 +323,7 @@ Weak answer: "we encrypt it so it's fine".`,
         ai: true,
       },
       {
-        q: "A product team wants to cache full API responses (including applicant records) in IndexedDB for offline use. What questions do you ask and what guardrails do you set before approving?",
+        q: "A product team wants to save full API responses in IndexedDB for offline use. This includes applicant records. What do you ask? What limits do you set before you approve?",
         ai: true,
         short: "Ask what data is truly needed offline, who uses which devices, retention and deletion requirements; approve only with minimized fields, TTLs, wipe on logout, encryption consideration, a data inventory entry and security review.",
         long: `Clarify the user need: which screens must work offline, for how long, on managed or shared devices?
@@ -335,12 +335,12 @@ Strong answer: balances product value and risk, defines measurable guardrails an
 Weak answer: flat yes or flat no.`,
         exercises: [
           {
-            task: "Write the acceptance criteria you would attach to this feature ticket.",
+            task: "Write the acceptance criteria for this feature ticket.",
             description: "Checks turning policy into testable requirements. Ask for 4–6 concrete criteria.",
             answer: "E.g. only listed fields cached; entries expire after N hours; all stores wiped on logout and session expiry (automated test); no caching on devices flagged shared; store registered in data inventory; security review sign-off. Weak answers are vague ('secure caching').",
           },
           {
-            task: "A teammate proposes encrypting IndexedDB with a key stored in localStorage. Evaluate it.",
+            task: "A teammate wants to encrypt IndexedDB with a key saved in localStorage. Is this a good idea?",
             description: "Checks threat-model reasoning. Ask what attacks it does and doesn't stop.",
             answer: "It protects little: any XSS can read both key and data, and disk-level attackers get the key too. It helps only if the key is non-extractable (CryptoKey in IDB) or derived from server-held material, and even then mainly against offline disk access. Strong answers state the threat model first.",
           },
@@ -361,7 +361,7 @@ Strong answer: gives a concrete example of each and notes the tension between th
 Weak answer: recites the acronyms without examples.`,
         exercises: [
           {
-            task: "Refactor to remove the duplicated knowledge.",
+            task: "Change the code to remove the repeated logic.",
             description: "Checks DRY as 'single source of truth for knowledge'. Ask what happens when product changes the minimum to 10.",
             code: `if (password.length < 8) showError('Too short');
 // ... elsewhere
@@ -384,7 +384,7 @@ if (!isPasswordLongEnough(password)) showError('Too short');`,
         ],
       },
       {
-        q: "This function does too much. Which principle does it break and how would you split it?",
+        q: "This function does too much. Which principle does it break? How would you split it?",
         code: `function handleSignup(form) {
   if (!form.email.includes('@')) return alert('Bad email');
   fetch('/api/users', { method: 'POST', body: JSON.stringify(form) });
@@ -410,7 +410,7 @@ Strong answer: names SRP, splits by reason to change, spots the missing await/er
 Weak answer: "add comments".`,
         exercises: [
           {
-            task: "Rename these to follow clean naming and explain each change.",
+            task: "Give these better names. Explain each change.",
             description: "Checks naming as a principle (readability). Ask for better names and why.",
             code: `const d = 18;
 function getData2() { /* fetches active users */ }
@@ -444,7 +444,7 @@ const MAX_RETRIES = 3;`,
     ],
     middle: [
       {
-        q: "Which SOLID principle is violated? Refactor.",
+        q: "Which SOLID principle is broken? Fix the code.",
         code: `function pay(type, amount) {
   if (type === 'card') { /* ... */ }
   else if (type === 'paypal') { /* ... */ }
@@ -459,7 +459,7 @@ Strong answer: names OCP, shows a registry, mentions testing and error handling 
 Weak answer: "use a switch instead of if/else".`,
         exercises: [
           {
-            task: "Which SOLID principle is violated and how do you fix it?",
+            task: "Which SOLID principle is broken? How do you fix it?",
             description: "Checks Liskov Substitution with the classic square/rectangle trap. Ask which principle is broken and why inheritance looked tempting.",
             code: `class Rectangle { setWidth(w) { this.w = w; } setHeight(h) { this.h = h; } area() { return this.w * this.h; } }
 class Square extends Rectangle {
@@ -472,7 +472,7 @@ class Square extends Rectangle {
 const square = (s) => ({ area: () => s * s });`,
           },
           {
-            task: "Refactor this hook so it is testable without hitting the network (Dependency Inversion).",
+            task: "Change this hook so you can test it without network calls. Use dependency inversion.",
             description: "Checks Dependency Inversion in a React context. Ask how they would unit-test the hook today and what makes it hard.",
             code: `function useUser(id) {
   const [u, setU] = useState(null);
@@ -492,7 +492,7 @@ function useUser(id) {
         ],
       },
       {
-        q: "Explain the Law of Demeter and separation of concerns. How do they show up in frontend code?",
+        q: "Explain the Law of Demeter and separation of concerns. Where do you see them in frontend code?",
         short: "Law of Demeter: a unit should talk only to its direct collaborators, not reach through chains (a.b.c.d). Separation of concerns: keep UI, state, data access and domain logic in distinct layers. Both reduce coupling to structures you don't own.",
         long: `Long chains like order.customer.address.city couple the caller to the whole object graph; any shape change breaks it.
 In React, prop drilling deep objects and components reaching into store internals are Demeter violations; selectors and adapters fix them.
@@ -502,7 +502,7 @@ Strong answer: concrete frontend examples and awareness of over-application.
 Weak answer: "don't use dots".`,
         exercises: [
           {
-            task: "Refactor this component so it doesn't depend on the full API response shape.",
+            task: "Change this component so it does not depend on the full shape of the API response.",
             description: "Checks Demeter and adapters. Show the component and ask what breaks when the API changes.",
             code: `function ShippingLabel({ order }) {
   return <p>{order.data.customer.addresses[0].city}, {order.data.customer.addresses[0].zip}</p>;
@@ -517,7 +517,7 @@ function ShippingLabel({ city, zip }) {
 }`,
           },
           {
-            task: "Identify the mixed concerns in this hook and propose layers.",
+            task: "This hook does several different jobs. Find them and suggest layers.",
             description: "Checks separation of concerns. Ask them to sketch where each piece moves.",
             code: `function useInvoices() {
   const [rows, setRows] = useState([]);
@@ -535,7 +535,7 @@ function ShippingLabel({ city, zip }) {
     ],
     senior: [
       {
-        q: "When is DRY harmful? Give an example of a wrong abstraction you had to undo.",
+        q: "When is DRY bad? Give an example of a wrong abstraction you had to remove.",
         short: "When code merely looks alike but changes for different reasons; \"duplication is cheaper than the wrong abstraction\". Expect a concrete story of inlining a bad abstraction.",
         long: `Two pieces of code that are coincidentally similar will diverge; merging them forces flags and conditionals into the shared helper.
 Signs of a wrong abstraction: boolean parameters, "mode" arguments, callers passing nulls, every change touching all consumers.
@@ -546,7 +546,7 @@ Strong answer: real example, how they noticed, how they undid it safely.
 Weak answer: "DRY is always good".`,
         exercises: [
           {
-            task: "Two teams share this helper and both keep adding options. Refactor it.",
+            task: "Two teams share this helper. Both keep adding options. Fix the design.",
             description: "Checks recognising a wrong abstraction in shared code. Present it as a real cross-team helper and ask how they would undo it safely.",
             code: `export function formatDate(d, { short, withTime, utc, forReport, legacyUS } = {}) {
   // 60 lines of branching
@@ -557,7 +557,7 @@ export const formatReportDate = (d) => fmt({ dateStyle: 'medium', timeZone: 'UTC
 export const formatActivityTime = (d) => fmt({ dateStyle: 'short', timeStyle: 'short' }).format(d);`,
           },
           {
-            task: "Two validators look identical today — should you merge them? Justify with the 'reason to change' test.",
+            task: "Two validators look the same today. Should you merge them? Use the reason to change test to explain.",
             description: "Checks judgement about coincidental duplication. There is no single correct code answer — evaluate reasoning.",
             code: `const isValidApplicantZip = (z) => /^\\d{5}$/.test(z);
 const isValidWarehouseZip = (z) => /^\\d{5}$/.test(z);`,
@@ -567,7 +567,7 @@ const isValidWarehouseZip = (z) => /^\\d{5}$/.test(z);`,
         ai: true,
       },
       {
-        q: "Refactor this code to depend on abstractions and make the business rule testable. What principles are you applying?",
+        q: "Change this code so it depends on abstractions and the business rule is easy to test. Which principles do you use?",
         code: `export async function canEnroll(studentId) {
   const res = await fetch(\`/api/students/\${studentId}\`);
   const s = await res.json();
@@ -591,7 +591,7 @@ Strong answer: names the principles, shows the split, mentions server-side enfor
 Weak answer: "mock fetch with jest".`,
         exercises: [
           {
-            task: "Write tests for `isEligible` covering the deadline boundary.",
+            task: "Write tests for isEligible. Cover the exact deadline edge.",
             description: "Checks how the refactor pays off in tests. Ask which edge cases matter.",
             answer: "Because it is pure, tests pass plain objects and a fixed date. Strong answers test exactly-at-deadline, one ms before/after and the blocked flag.",
             solution: `const now = new Date('2026-09-01T00:00:00Z');
@@ -603,7 +603,7 @@ it('rejects blocked', () =>
   expect(isEligible({ credits: 99, deadline: '2030-01-01' }, now, true)).toBe(false));`,
           },
           {
-            task: "This 'utility' module has 40 unrelated exports used everywhere. Plan how to break it up safely.",
+            task: "This utility module has 40 unrelated exports used everywhere. Plan how to split it safely.",
             description: "Checks large-scale refactoring with cohesion in mind. Ask for steps, not code.",
             answer: "Group exports by domain/reason to change, move each group into its feature or a cohesive shared module, keep re-exports from the old path with deprecation, migrate callers with a codemod, then delete. Strong answers mention lint rules preventing new imports from the old module.",
           },
@@ -612,7 +612,7 @@ it('rejects blocked', () =>
     ],
     techlead: [
       {
-        q: "How do you balance principles with delivery speed when the team is under pressure?",
+        q: "The team is under pressure. How do you balance good principles with fast delivery?",
         short: "Make trade-offs explicit: an agreed quality bar, tracked tech debt with owners, refactor capacity in each sprint, and a preference for reversible decisions.",
         long: `Principles are tools for long-term speed; under pressure, the question is which shortcuts are reversible.
 Agree a non-negotiable floor (tests for critical paths, no security shortcuts, code review) and allow flexibility above it.
@@ -623,12 +623,12 @@ Strong answer: concrete mechanisms and a story of a negotiated trade-off with pr
 Weak answer: "we never compromise" or "we always ship first".`,
         exercises: [
           {
-            task: "Product asks to skip tests for a 2-day deadline feature. Walk through how you negotiate the trade-off.",
+            task: "A feature is due in two days. Product asks to skip tests. How do you discuss this trade-off?",
             description: "Checks negotiation and quality leadership under pressure. Role-play as the product manager and push back on their first proposal.",
             answer: "Separate the non-negotiable floor (tests for money/auth paths, review) from the flexible part, offer scope cuts or a flagged release, and record any debt as a ticket with an owner and date agreed with product. Weak answers either refuse flatly or give in completely. Strong answers offer concrete alternatives, quantify risk and agree on a written follow-up.",
           },
           {
-            task: "Your team's tech-debt backlog has 300 tickets and nobody touches it. Propose a mechanism to make it actionable.",
+            task: "Your tech debt backlog has 300 tickets, and nobody works on them. Suggest a process to make it useful.",
             description: "Checks ability to make tech debt visible and prioritised. Ask how they would report progress to leadership.",
             answer: "Triage by cost of delay (incidents, velocity drag), cap the list, tag by area owner, reserve a fixed capacity per sprint and report impact (e.g. build time, bug rate) so paying debt is visible business value. Weak answers propose a 'debt sprint'. Strong answers tie debt to measurable outcomes and continuous capacity with owners.",
           },
@@ -636,7 +636,7 @@ Weak answer: "we never compromise" or "we always ship first".`,
         ai: true,
       },
       {
-        q: "Your team argues endlessly in code review about style and principles. How do you set and enforce engineering principles without slowing delivery?",
+        q: "Your team argues a lot in code review about style and principles. How do you set and enforce rules without slowing delivery?",
         ai: true,
         short: "Write down a short set of agreed principles with rationale, automate everything automatable (formatter, lint, architecture rules), use ADRs for contested decisions, and coach reviewers to distinguish blocking issues from preferences.",
         long: `Most review friction is about things a tool can decide: formatting, import order, naming — automate them (Prettier, ESLint, dependency-cruiser).
@@ -648,12 +648,12 @@ Strong answer: mix of automation, documentation and culture, with a story.
 Weak answer: "I tell them who is right".`,
         exercises: [
           {
-            task: "Draft the review-comment convention you'd introduce and how you'd roll it out.",
+            task: "Write a convention for review comments. How would you introduce it to the team?",
             description: "Checks practical review culture design. Ask for the convention and adoption plan.",
             answer: "E.g. prefixes like 'blocking:', 'suggestion:', 'nit:', 'question:' (Conventional Comments), documented in CONTRIBUTING, demoed in a team meeting and modelled by leads; measure PR cycle time before and after.",
           },
           {
-            task: "Two seniors disagree on whether to adopt a state-management library. Facilitate the decision.",
+            task: "Two senior engineers disagree about adding a state management library. Lead them to a decision.",
             description: "Checks conflict facilitation. Role-play one of the seniors.",
             answer: "Clarify the problem and criteria first, have each write their option against the criteria, run a small spike if needed, decide with a named decider and record an ADR with revisit conditions. Strong answers keep it about trade-offs, not people.",
           },
@@ -664,7 +664,7 @@ Weak answer: "I tell them who is right".`,
   "Functional programming": {
     junior: [
       {
-        q: "What is a pure function? Is Array.prototype.sort pure?",
+        q: "What is a pure function? Is the array sort method pure?",
         short: "A pure function returns the same output for the same input and has no side effects. sort mutates the array in place, so it isn't pure — use toSorted() or copy first.",
         long: `Purity makes code predictable, cacheable (memoization) and trivially testable.
 Side effects include mutating arguments, I/O, reading Date.now()/Math.random(), touching the DOM or globals.
@@ -732,7 +732,7 @@ Weak answer: uses map with an if and gets undefined entries.`,
     ],
     middle: [
       {
-        q: "Implement compose/pipe and curry.",
+        q: "Write the compose, pipe, and curry functions.",
         short: "pipe/compose chain unary functions left-to-right/right-to-left via reduce; curry collects arguments until the original function's arity is reached.",
         long: `pipe(f, g)(x) === g(f(x)); compose(f, g)(x) === f(g(x)) — compose uses reduceRight.
 curry relies on fn.length, which ignores default and rest parameters — a common gotcha.
@@ -742,7 +742,7 @@ Strong answer: correct implementation, mentions fn.length limits and a real use 
 Weak answer: memorized code without explaining arity.`,
         exercises: [
           {
-            task: "Predict the output and explain.",
+            task: "Predict the output and explain it.",
             description: "Checks deep understanding of fn.length and currying limits. Ask to predict the output, then explain.",
             code: `const curry = (fn) => function c(...a) {
   return a.length >= fn.length ? fn(...a) : (...b) => c(...a, ...b);
@@ -752,7 +752,7 @@ console.log(sum(1), typeof sum(1));`,
             answer: "1 'number': fn.length counts parameters before the first default/rest, so it is 1 and curry calls fn immediately. Pass the arity explicitly for such functions. Candidates often expect a function to be returned. A strong answer proposes curry(fn, arity = fn.length) and notes TypeScript typing issues.",
           },
           {
-            task: "Implement a `memoize` for single-argument pure functions and explain when it is unsafe.",
+            task: "Write a memoize function for pure functions with one argument. Explain when it is not safe.",
             description: "Checks memoization implementation and its trade-offs. Ask them to write it, then ask where it would break.",
             answer: "Cache results in a Map keyed by the argument. It is unsafe for impure functions and leaks memory for unbounded inputs; object arguments are keyed by reference. Weak answers use JSON.stringify keys everywhere without noting cost. Strong answers mention cache bounds (LRU/WeakMap) and referential arguments.",
             solution: `const memoize = (fn) => {
@@ -768,7 +768,7 @@ console.log(sum(1), typeof sum(1));`,
 const curry = (fn) => function c(...a) { return a.length >= fn.length ? fn(...a) : (...b) => c(...a, ...b); };`,
       },
       {
-        q: "What are higher-order functions and closures, and how do they enable partial application?",
+        q: "What are higher-order functions and closures? How do they make partial application possible?",
         short: "A higher-order function takes or returns functions; a closure is a function that remembers variables from the scope where it was created. Returning a closure that captures some arguments is partial application.",
         long: `map, filter, setTimeout, addEventListener and React hooks all accept functions — they are higher-order.
 Closures let a returned function keep access to outer variables even after the outer function returned.
@@ -790,7 +790,7 @@ Weak answer: "a closure is a function inside a function".`,
 }`,
           },
           {
-            task: "Implement `once(fn)` that calls fn only the first time and returns the cached result afterwards.",
+            task: "Write a once function. It calls the given function only the first time. After that, it returns the saved result.",
             description: "Checks closures holding private state. Ask about `this` and arguments forwarding.",
             answer: "Keep a called flag and result in the closure; forward this and arguments. Strong answers release the fn reference after the first call to avoid holding memory.",
             solution: `function once(fn) {
@@ -806,7 +806,7 @@ Weak answer: "a closure is a function inside a function".`,
     ],
     senior: [
       {
-        q: "Rewrite this imperative code functionally — and discuss whether you should.",
+        q: "Rewrite this imperative code in a functional style. Should you do it? Discuss.",
         code: `let total = 0;
 for (const o of orders) { if (o.paid) { total += o.items.length * o.price; } }`,
         short: "filter + reduce expresses intent declaratively, but it makes multiple passes and allocates; for hot paths over huge arrays a loop can be better. Readability first, not dogma.",
@@ -830,7 +830,7 @@ next.user.address.city = 'Boston';`,
 };`,
           },
           {
-            task: "Implement `groupBy(items, keyFn)` without O(n²) copying and compare with the built-in.",
+            task: "Write a groupBy function that takes items and a key function. Avoid copying that is O of n squared. Compare it with the built-in one.",
             description: "Checks pragmatic FP: local mutation vs observable purity. Ask for an O(n) implementation.",
             answer: "Mutating a local accumulator inside the function is fine — purity is about observable behaviour. ES2024 Object.groupBy / Map.groupBy do exactly this. Weak answers use reduce with spread (O(n²)). Strong answers know Object.groupBy and explain why the local mutation is acceptable.",
             solution: `const groupBy = (items, keyFn) => {
@@ -844,7 +844,7 @@ next.user.address.city = 'Boston';`,
         fix: "const total = orders.filter(o => o.paid).reduce((s, o) => s + o.items.length * o.price, 0);",
       },
       {
-        q: "Why is this React component showing a stale count, and how does it relate to closures and immutability?",
+        q: "Why does this React component show an old count? How is this related to closures and immutability?",
         code: `function Counter() {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -867,7 +867,7 @@ Strong answer: explains render snapshots, offers the updater and discusses trade
 Weak answer: "make count a global".`,
         exercises: [
           {
-            task: "Fix the stale closure in this event listener without re-adding the listener on every change.",
+            task: "Fix the stale closure in this event listener. Do not add the listener again on every change.",
             description: "Checks stale closures with external subscriptions. Ask for two possible fixes.",
             code: `function Search({ query }) {
   useEffect(() => {
@@ -888,7 +888,7 @@ Weak answer: "make count a global".`,
 }`,
           },
           {
-            task: "Write a reducer for a todo list that never mutates state, supporting add, toggle and remove.",
+            task: "Write a reducer for a todo list. It must never change state directly. Support add, toggle, and remove.",
             description: "Checks immutable updates in practice. Ask them to write it and explain why immutability matters for React.",
             answer: "Return new arrays/objects for every change; React and memoized selectors rely on reference changes to detect updates.",
             solution: `function todos(state, action) {
@@ -905,7 +905,7 @@ Weak answer: "make count a global".`,
     ],
     techlead: [
       {
-        q: "Would you adopt fp-ts/Effect in a product team? Why/why not?",
+        q: "Would you use fp-ts or Effect in a product team? Why or why not?",
         short: "Only if the safety benefits (typed errors, composable effects) outweigh onboarding cost, hiring pool and consistency; often a lighter subset of FP patterns is the better trade-off.",
         long: `These libraries give typed errors, dependency injection and composable async, which reduce whole classes of bugs.
 Cost: steep learning curve, unfamiliar syntax, harder hiring and onboarding, and "two styles" in one codebase.
@@ -916,12 +916,12 @@ Strong answer: frames it as a team/organizational decision with a pilot and crit
 Weak answer: pure preference ("it's cool" / "FP is too academic").`,
         exercises: [
           {
-            task: "A senior engineer opens a PR rewriting the API layer with Effect. How do you respond?",
+            task: "A senior engineer opens a pull request that rewrites the API layer with Effect. What do you say?",
             description: "Checks how the candidate handles a paradigm-changing proposal from a strong engineer. Role-play as the author defending the PR.",
             answer: "Thank them, but move the decision to an RFC with team input: goals, pilot scope, onboarding plan, success metrics and exit plan. Avoid merging a paradigm shift through a single PR. Weak answers approve because it's 'better code' or reject dismissively. Strong answers keep the engineer motivated while moving the decision to a transparent process.",
           },
           {
-            task: "Define 3 lightweight FP conventions you would make team-wide instead of a full library, and how you'd enforce them.",
+            task: "Instead of a full library, define three simple functional programming rules for the team. How would you enforce them?",
             description: "Checks ability to extract value from FP without heavy frameworks. Ask how each convention is enforced, not just stated.",
             answer: "E.g. no mutation of props/state (immutability lint rules), Result/discriminated unions for expected errors in the domain layer, and pure domain modules without I/O (enforced by import-boundary lint rules). Weak answers list conventions with no enforcement. Strong answers tie each one to tooling and code review guidelines.",
           },
@@ -929,7 +929,7 @@ Weak answer: pure preference ("it's cool" / "FP is too academic").`,
         ai: true,
       },
       {
-        q: "How do you introduce functional patterns (immutability, pure domain logic, explicit error types) into a large legacy imperative codebase without a rewrite?",
+        q: "You have a large old imperative codebase. How do you add functional patterns like immutability, pure business logic, and clear error types without a rewrite?",
         ai: true,
         short: "Incrementally: start at boundaries and new code, extract pure functions from hot spots with tests, add lint rules for new code only, provide examples and pairing, and measure outcomes like bug rate in refactored modules.",
         long: `Pick high-value areas: complex business rules with frequent bugs benefit most from pure, tested functions.
@@ -942,7 +942,7 @@ Strong answer: phased plan with metrics and team buy-in.
 Weak answer: "rewrite it in Elm".`,
         exercises: [
           {
-            task: "Propose ESLint configuration that enforces immutability only in new domain code.",
+            task: "Suggest an ESLint config that enforces immutability only in new business logic code.",
             description: "Checks pragmatic tooling rollout. Ask how they scope it.",
             answer: "Use flat-config file globs to apply rules like no-param-reassign (props: true) and prefer-const only to src/domain/**, expanding gradually.",
             solution: `export default [
@@ -956,7 +956,7 @@ Weak answer: "rewrite it in Elm".`,
 ];`,
           },
           {
-            task: "After six months, how do you show leadership the FP initiative was worth it?",
+            task: "After six months, how do you show leaders that the functional programming effort was worth it?",
             description: "Checks outcome measurement. Ask for concrete metrics.",
             answer: "Compare refactored vs untouched modules on defect rate, test coverage of business rules, change lead time and incident count; include developer survey data. Strong answers admit confounders and set expectations up front.",
           },
@@ -967,7 +967,7 @@ Weak answer: "rewrite it in Elm".`,
   OOP: {
     junior: [
       {
-        q: "Name the four OOP pillars.",
+        q: "Name the four main ideas of object-oriented programming.",
         short: "Encapsulation, abstraction, inheritance and polymorphism.",
         long: `Encapsulation hides internal state behind a public interface (in JS: #private fields, closures).
 Abstraction exposes what an object does, not how it does it.
@@ -1004,7 +1004,7 @@ new Dog('Rex');`,
         ],
       },
       {
-        q: "Fix this class so it works and explain what `this` and `new` do.",
+        q: "Fix this class so it works. Explain what the this keyword and the new keyword do.",
         code: `function User(name) {
   name = name;
   greet = function () { return 'Hi ' + this.name; };
@@ -1038,7 +1038,7 @@ console.log(a.m === b.m, a.f === b.f);`,
             answer: "true, false: class methods live on the prototype and are shared; arrow class fields are created per instance. Strong answers mention the memory/binding trade-off.",
           },
           {
-            task: "Add a static factory and a getter to this class.",
+            task: "Add a static factory method and a getter to this class.",
             description: "Checks static members and accessors. Ask for an implementation.",
             code: `class Temperature {
   constructor(celsius) { this.celsius = celsius; }
@@ -1056,7 +1056,7 @@ Temperature.fromFahrenheit(212).celsius; // 100`,
     ],
     middle: [
       {
-        q: "Composition vs inheritance — which do you prefer and why?",
+        q: "Composition or inheritance: which do you prefer, and why?",
         short: "Composition by default: it's flexible and loosely coupled. Use inheritance only for a true is-a relationship with genuinely shared behaviour.",
         long: `Inheritance couples the subclass to parent internals (fragile base class problem) and hierarchies get deep and rigid.
 Composition assembles behaviour from small parts that can be swapped or tested independently.
@@ -1081,7 +1081,7 @@ Weak answer: "inheritance is bad" without reasoning.`,
 }`,
           },
           {
-            task: "Refactor this inheritance chain to composition.",
+            task: "Change this inheritance chain to use composition.",
             description: "Checks composition over inheritance with dependency injection. Ask how they would test HttpClient without console output.",
             code: `class Logger { log(m) { console.log(m); } }
 class HttpClient extends Logger { get(u) { this.log(u); return fetch(u); } }
@@ -1098,7 +1098,7 @@ class AuthClient extends HttpClient { /* adds token */ }`,
         ],
       },
       {
-        q: "How do prototypes and the prototype chain work in JavaScript, and how do classes relate to them?",
+        q: "How do prototypes and the prototype chain work in JavaScript? How are classes related to them?",
         short: "Every object has an internal [[Prototype]] link; property lookup walks this chain until found or null. Classes are syntax over constructor functions and prototypes: methods go on Class.prototype, extends links prototypes.",
         long: `obj.prop checks own properties first, then Object.getPrototypeOf(obj), and so on up to Object.prototype and null.
 class B extends A sets B.prototype's prototype to A.prototype and B's prototype to A (for statics).
@@ -1120,7 +1120,7 @@ console.log(a.kind, b.kind, Object.getPrototypeOf(a) === base);`,
             answer: "'proto', 'own', 'proto', true: lookup finds the prototype value until an own property shadows it; other objects still see the prototype value.",
           },
           {
-            task: "Rewrite this class using only Object.create / constructor functions.",
+            task: "Rewrite this class with only Object dot create or constructor functions.",
             description: "Checks understanding of what class syntax does. Ask them to write equivalent code.",
             code: `class Animal { constructor(n) { this.n = n; } speak() { return this.n; } }
 class Dog extends Animal { speak() { return super.speak() + ' woofs'; } }`,
@@ -1137,7 +1137,7 @@ Dog.prototype.speak = function () { return Animal.prototype.speak.call(this) + '
     ],
     senior: [
       {
-        q: "Which design patterns do you actually use in frontend? (Observer, Strategy, Adapter, Facade) Show where.",
+        q: "Which design patterns do you really use in frontend code, like Observer, Strategy, Adapter, or Facade? Show where.",
         short: "E.g. Observer in stores/event emitters, Strategy for interchangeable algorithms, Adapter to map API DTOs to domain models, Facade around third-party SDKs. Real examples required.",
         long: `Patterns are vocabulary for solutions you probably already use; the interview value is in concrete examples.
 Observer: state stores, EventTarget, subscriptions (Redux, Zustand, RxJS).
@@ -1148,7 +1148,7 @@ Strong answer: specific projects, why the pattern helped, and when it was overki
 Weak answer: textbook definitions with no real usage.`,
         exercises: [
           {
-            task: "Implement a Facade around an analytics SDK so it can be swapped and is a no-op in tests.",
+            task: "Write a Facade around an analytics SDK. You should be able to replace it. In tests it should do nothing.",
             description: "Checks the Facade pattern for third-party SDKs. Ask them to design the API and explain how it is tested.",
             answer: "Expose a small domain-level API (track/identify) that hides the vendor; choose the implementation at startup and inject a no-op or spy in tests. Weak answers just re-export the vendor object. Strong answers expose domain events, handle the SDK not being loaded and keep vendor types out of the app.",
             solution: `export function createAnalytics(vendor) {
@@ -1174,7 +1174,7 @@ export const analytics = createAnalytics(import.meta.env.PROD ? window.amplitude
         ai: true,
       },
       {
-        q: "Refactor this class to follow SOLID and make it testable.",
+        q: "Change this class so it follows SOLID and is easy to test.",
         code: `class ReportService {
   async generate(userId) {
     const user = await fetch('/api/users/' + userId).then((r) => r.json());
@@ -1206,7 +1206,7 @@ Strong answer: identifies principles, correct refactor, spots CSV escaping and U
 Weak answer: splits into methods within the same class only.`,
         exercises: [
           {
-            task: "Fix the CSV formatter so values containing commas, quotes or newlines are valid.",
+            task: "Fix the CSV formatter. Values with commas, quotes, or line breaks must stay valid.",
             description: "Checks attention to data correctness in the extracted Strategy. Ask what breaks with a name like 'Smith, John'.",
             code: "const toCsv = (rows) => rows.map((r) => r.join(',')).join('\\n');",
             answer: "Quote fields containing special characters and double internal quotes (RFC 4180). Strong answers also mention CSV injection (prefix cells starting with =,+,-,@).",
@@ -1236,7 +1236,7 @@ const toCsv = (rows) => rows.map((r) => r.map(cell).join(',')).join('\\n');`,
     ],
     techlead: [
       {
-        q: "How would you model a complex domain (e.g. admissions workflow) on the frontend?",
+        q: "How would you model a complex business area, like an admissions workflow, on the frontend?",
         short: "Explicit domain types and state machines (e.g. XState) for workflow states, domain logic separated from UI, and tests focused on the domain layer.",
         long: `Workflows with many states and transitions become bug-prone as scattered booleans; a state machine makes illegal states unrepresentable.
 Keep domain logic in framework-agnostic modules (pure functions/types) so it survives UI rewrites (e.g. Vue → React).
@@ -1247,12 +1247,12 @@ Strong answer: shows state modelling, boundaries and ownership; mentions where t
 Weak answer: "put everything in Redux".`,
         exercises: [
           {
-            task: "Model the rule 'decided applications can't be edited, withdrawn ones can be reopened only by admins' and decide where it lives.",
+            task: "Model this rule: decided applications cannot be edited, and only admins can reopen withdrawn ones. Where should this rule live?",
             description: "Checks domain modelling and source-of-truth decisions. Let the candidate sketch the model, then add a new rule to see if it scales.",
             answer: "Encode states and transitions in a shared domain module (state machine or transition table with guards), backed by the backend as source of truth; the frontend uses it for UX only and never as the security boundary. Weak answers scatter if-checks in components. Strong answers centralise transitions with guards and keep the backend authoritative.",
           },
           {
-            task: "Backend adds a new status 'waitlisted'. How do you make sure the frontend can't silently mishandle it?",
+            task: "The backend adds a new status, waitlisted. How do you make sure the frontend does not handle it wrong without anyone noticing?",
             description: "Checks resilience to backend schema evolution. Ask how they would detect the gap at compile time and at runtime.",
             answer: "Use a discriminated union with exhaustive switch checks (assertNever) so the compiler flags every unhandled place, validate API responses at the boundary (zod) and render a safe fallback for unknown values in production. Weak answers rely on QA to notice. Strong answers combine exhaustive type checks, boundary validation and monitoring for unknown values.",
             solution: `function label(s) {
@@ -1268,7 +1268,7 @@ Weak answer: "put everything in Redux".`,
         ai: true,
       },
       {
-        q: "Your frontend codebase mixes class-based services, functional hooks and plain modules with no consistent paradigm. Do you standardize, and how?",
+        q: "Your frontend code mixes class services, hooks, and plain modules. There is no single style. Do you make it consistent? How?",
         ai: true,
         short: "Standardize where inconsistency costs (onboarding, testing, DI) but not for its own sake: define a target style per layer, document it with examples, apply to new code, migrate opportunistically when touching code, and enforce with lint/architecture rules.",
         long: `First find the actual cost: bugs from inconsistent patterns, onboarding time, duplicated infrastructure.
@@ -1280,12 +1280,12 @@ Strong answer: pragmatic, cost-driven, with enforcement and an endpoint.
 Weak answer: "rewrite everything to classes/functions".`,
         exercises: [
           {
-            task: "Write a short ADR outline for 'Service layer conventions'.",
+            task: "Write a short outline of an architecture decision record about service layer rules.",
             description: "Checks decision documentation. Ask for headings and key content.",
             answer: "Context (current mix and its costs), decision (e.g. factory functions with injected deps), alternatives considered (classes, singletons), consequences (migration approach, lint rule), status and revisit date.",
           },
           {
-            task: "A senior dev insists on adding an IoC container library. Evaluate the proposal.",
+            task: "A senior developer strongly wants to add a dependency injection container library. Evaluate the idea.",
             description: "Checks judging tooling against needs. Role-play the advocate.",
             answer: "Ask which problem it solves that module-level DI or React context doesn't; consider bundle size, learning curve and decorators/reflect-metadata requirements. Usually reject or pilot in one area with clear success criteria.",
           },
@@ -1306,7 +1306,7 @@ Strong answer: explains why feature-first scales and mentions path aliases and c
 Weak answer: "whatever create-react-app generates".`,
         exercises: [
           {
-            task: "Reorganise these files into a feature-first structure.",
+            task: "Move these files into folders grouped by feature.",
             description: "Checks basic project structuring. Give the list and ask them to reorganise it, explaining where tests would go.",
             code: `src/components/UserList.jsx
 src/components/OrderTable.jsx
@@ -1321,7 +1321,7 @@ src/features/orders/{OrderTable.jsx,useOrders.js,api.js}
 src/shared/ui/Button.jsx`,
           },
           {
-            task: "What is wrong with this import and how do you improve it?",
+            task: "What is wrong with this import? How do you make it better?",
             description: "Checks tooling basics for maintainable imports. Ask what breaks when this file moves.",
             code: "import { Button } from '../../../../shared/ui/Button';",
             answer: "Deep relative paths are brittle when files move and hard to read. Configure a path alias (e.g. @/) in the bundler and tsconfig. Weak answers suggest copying files to avoid long paths. Strong answers mention configuring both the bundler and TypeScript/ESLint resolvers.",
@@ -1330,7 +1330,7 @@ src/shared/ui/Button.jsx`,
         ],
       },
       {
-        q: "What's wrong with this component's structure? Refactor it.",
+        q: "What is wrong with the structure of this component? Fix it.",
         code: `function UserPage() {
   const [users, setUsers] = useState([]);
   useEffect(() => { fetch('/api/users').then((r) => r.json()).then(setUsers); }, []);
@@ -1391,7 +1391,7 @@ function Weather() {
 }`,
           },
           {
-            task: "Explain where you'd put a `formatCurrency` helper used by three features.",
+            task: "Three features use a formatCurrency helper. Where would you put it?",
             description: "Checks shared vs feature code decisions. Ask for the folder and naming.",
             answer: "In shared/ (e.g. shared/lib/formatCurrency.js) because it is generic and used across features; if only one feature used it, it would stay in that feature folder.",
           },
@@ -1400,7 +1400,7 @@ function Weather() {
     ],
     middle: [
       {
-        q: "Where should API calls live? Why not inside components?",
+        q: "Where should API calls go? Why not inside components?",
         short: "In a service/API layer consumed through query hooks: it's testable, reusable and gives one place for auth, errors and caching.",
         long: `Fetching directly in components mixes concerns, duplicates logic and makes race conditions and caching hard.
 An API module defines endpoints and DTO mapping; hooks (e.g. TanStack Query) handle caching, loading and retries.
@@ -1426,7 +1426,7 @@ Weak answer: "useEffect with fetch is fine everywhere".`,
 }, [query]);`,
           },
           {
-            task: "After saving a user, the list still shows old data. Fix it with TanStack Query.",
+            task: "After you save a user, the list still shows old data. Fix it with TanStack Query.",
             description: "Checks server-state cache invalidation. Ask why the list didn't update and how to fix it.",
             code: "const save = useMutation({ mutationFn: updateUser });",
             answer: "The cached ['users'] query isn't invalidated. Invalidate (or update via setQueryData) on success. Weak answers call refetch from the component manually. Strong answers invalidate by key or apply an optimistic update with rollback.",
@@ -1439,7 +1439,7 @@ const save = useMutation({
         ],
       },
       {
-        q: "How do you decide where state lives: local component state, lifted state, context, a global store or server-state cache?",
+        q: "How do you decide where state lives? Options are local state, lifted state, context, a global store, or a server data cache.",
         short: "Keep state as close as possible to where it's used; lift it only when siblings need it; context for low-frequency app-wide values (theme, user); server data in a server-state cache (TanStack Query); a global client store only for complex shared client state; URL for shareable UI state like filters.",
         long: `Most "global state" is actually server cache — treat it as such (caching, refetching, invalidation).
 URL state (search params) for filters, pagination and tabs makes views shareable and back-button friendly.
@@ -1478,7 +1478,7 @@ Weak answer: "always use Redux" or "always use context".`,
     ],
     senior: [
       {
-        q: "Design a real-time dashboard with thousands of updates/minute. Draw it.",
+        q: "Design a real-time dashboard with thousands of updates per minute. Draw it.",
         short: "WebSocket/SSE feed, batched/throttled updates into a normalized store, heavy work in a Web Worker, virtualized rendering, plus reconnection with resync.",
         long: `Rendering per message will melt the main thread; buffer messages and flush on requestAnimationFrame or every N ms.
 Normalize by id so updates are O(1) and only affected rows re-render (selectors/memoization).
@@ -1489,7 +1489,7 @@ Strong answer: draws data flow end-to-end and discusses failure modes and observ
 Weak answer: "use WebSockets and setState".`,
         exercises: [
           {
-            task: "The batching code below grows memory forever when the tab is in the background. Explain and fix.",
+            task: "When the tab is in the background, this batching code uses more and more memory. Explain why and fix it.",
             description: "Checks real-time UI under browser throttling. Ask what happens when the tab is hidden for an hour.",
             code: `socket.onmessage = (e) => {
   buffer.push(JSON.parse(e.data));
@@ -1508,7 +1508,7 @@ socket.onmessage = (e) => {
 };`,
           },
           {
-            task: "Design how the dashboard recovers after a 2-minute network outage without showing stale or duplicated data.",
+            task: "The network is down for two minutes. How does the dashboard recover without showing old or duplicate data?",
             description: "Checks resilient real-time design. There is no single code answer — ask them to walk through the reconnect timeline.",
             answer: "Track the last applied sequence number; on reconnect request events since that seq, or a fresh snapshot if the gap is too large, discard events with seq <= last applied, and show a 'reconnecting/stale' indicator meanwhile. Weak answers simply reconnect and keep streaming. Strong answers handle gaps, duplicates and user-visible staleness.",
           },
@@ -1516,7 +1516,7 @@ socket.onmessage = (e) => {
         ai: true,
       },
       {
-        q: "This app crashes entirely when one widget fails. Make the architecture resilient.",
+        q: "When one widget fails, the whole app crashes. Make the architecture more robust.",
         code: `function Dashboard() {
   return (
     <>
@@ -1560,7 +1560,7 @@ Strong answer: boundaries + validation + observability + async error handling.
 Weak answer: "wrap everything in try/catch".`,
         exercises: [
           {
-            task: "Explain which of these errors an error boundary catches.",
+            task: "Which of these errors does an error boundary catch?",
             description: "Checks error boundary limits. Ask yes/no for each with reasoning.",
             code: `// 1. A child throws during render
 // 2. onClick handler throws
@@ -1569,7 +1569,7 @@ Weak answer: "wrap everything in try/catch".`,
             answer: "Only 1 is caught. Event handler errors (2), async errors in effects/promises (3) and errors in the boundary itself (4) are not; handle them with try/catch, error state or a higher boundary. Strong answers mention showBoundary from react-error-boundary to forward async errors.",
           },
           {
-            task: "Add runtime validation so malformed API data shows an error state instead of crashing.",
+            task: "Add runtime validation. Bad API data should show an error state, not crash the app.",
             description: "Checks boundary validation design. Ask them to write the parsing layer.",
             answer: "Parse responses with a schema at the API layer; failures become rejected queries handled by the UI's error state and reported with details.",
             solution: `import { z } from 'zod';
@@ -1585,7 +1585,7 @@ export const getRevenue = async () => {
     ],
     techlead: [
       {
-        q: "Plan an incremental Vue 2 → React migration while shipping features. What do you decide first?",
+        q: "Plan a step-by-step move from Vue 2 to React while you keep shipping features. What do you decide first?",
         short: "Strangler-fig approach: decide the routing/integration boundary, shared design system and API layer, feature flags, parity tests, telemetry and a clear definition of done per page.",
         long: `First decisions: integration strategy (route-level vs micro-frontend vs embedded components) and how auth/session/state are shared.
 Freeze new features in Vue (or build them only in React) to avoid moving targets.
@@ -1596,12 +1596,12 @@ Strong answer: sequencing, risk management, team enablement and a measurable end
 Weak answer: "rewrite everything in a new repo".`,
         exercises: [
           {
-            task: "Halfway through the migration, Vue and React pages show different validation messages for the same form. What process change do you make?",
+            task: "In the middle of the migration, Vue and React pages show different validation messages for the same form. What process do you change?",
             description: "Checks how the candidate fixes process issues during a migration. Present it as an escalation from QA.",
             answer: "Extract business rules into a framework-agnostic shared module (or schema from the backend) consumed by both, add parity tests per migrated page, and make 'no duplicated business logic' part of the definition of done. Weak answers fix the one form. Strong answers address the systemic cause and add parity gates.",
           },
           {
-            task: "Leadership asks for a date when Vue is gone. How do you produce a credible estimate?",
+            task: "Leaders ask when Vue will be fully gone. How do you give an estimate they can trust?",
             description: "Checks estimation and stakeholder communication. Push back on any single date they give.",
             answer: "Inventory pages with complexity/traffic scores, use throughput from already migrated pages as a baseline, add risk buffers for shared infrastructure, and publish a burn-down that is re-forecast every sprint. Weak answers give a gut-feel date. Strong answers give a range based on data and a re-forecast cadence.",
           },
@@ -1609,7 +1609,7 @@ Weak answer: "rewrite everything in a new repo".`,
         ai: true,
       },
       {
-        q: "Several teams want to build features in the same frontend. When would you choose micro-frontends over a modular monolith, and what would you standardize either way?",
+        q: "Several teams build features in the same frontend. When would you pick micro-frontends instead of a modular monolith? What would you standardize in both cases?",
         ai: true,
         short: "Prefer a modular monolith (one repo/build, enforced module boundaries) unless teams truly need independent deployments or tech stacks. Micro-frontends add runtime, version and UX-consistency costs. Either way standardize design system, routing, auth, observability and contracts between modules.",
         long: `Micro-frontends solve organizational problems (independent deploys, autonomy) at the cost of duplicated dependencies, runtime integration, inconsistent UX and harder debugging.
@@ -1621,7 +1621,7 @@ Strong answer: frames as Conway's law trade-off with migration path.
 Weak answer: "micro-frontends are the modern way".`,
         exercises: [
           {
-            task: "Write the architecture rule that prevents features from importing each other's internals, and how you'd enforce it.",
+            task: "Write an architecture rule that stops features from importing each other's inner files. How would you enforce it?",
             description: "Checks module boundary enforcement. Ask for a concrete tool configuration.",
             answer: "Features expose a public index; internals are private. Enforce with eslint-plugin-boundaries / no-restricted-imports or dependency-cruiser in CI.",
             solution: `// eslint.config.js
@@ -1634,7 +1634,7 @@ export default [{
 }];`,
           },
           {
-            task: "Two teams' micro-frontends ship different React versions and users see broken hooks. How do you prevent this organizationally and technically?",
+            task: "Two teams ship micro-frontends with different React versions. Users see broken hooks. How do you prevent this, both in process and in code?",
             description: "Checks shared dependency governance. Ask for both the policy and the mechanism.",
             answer: "Declare React as a shared singleton with a required version range in Module Federation, owned by a platform team; upgrade in lockstep via a shared dependency policy and CI checks that fail on mismatches.",
           },
@@ -1645,7 +1645,7 @@ export default [{
   CSS: {
     junior: [
       {
-        q: "Explain the box model and box-sizing. Center a div.",
+        q: "Explain the box model and the box-sizing property. Then center a div.",
         short: "A box is content + padding + border + margin; box-sizing: border-box makes width include padding and border. Center with flex or grid alignment.",
         long: `With content-box (default) width applies only to content, so padding/border make the element wider than declared.
 border-box is the common global reset because sizes become predictable.
@@ -1656,13 +1656,13 @@ Strong answer: explains both box-sizing values and two centering techniques.
 Weak answer: "use margin: auto" only.`,
         exercises: [
           {
-            task: "Predict the rendered width of .box.",
+            task: "What is the rendered width of the box class?",
             description: "Checks the box model calculation. Ask for the width and how to make it exactly 200px.",
             code: ".box { width: 200px; padding: 20px; border: 5px solid; }",
             answer: "250px with the default content-box (200 + 2×20 + 2×5). With box-sizing: border-box it would be 200px. A common wrong answer is 200px or 240px. Strong answers explain why border-box is a global reset in most projects.",
           },
           {
-            task: "Predict the gap between the two paragraphs and explain.",
+            task: "What is the gap between the two paragraphs? Explain.",
             description: "Checks margin collapsing. Ask to predict the gap before showing it rendered.",
             code: `p { margin: 20px 0; }
 .second { margin-top: 30px; }
@@ -1672,7 +1672,7 @@ Weak answer: "use margin: auto" only.`,
         ],
       },
       {
-        q: "Explain CSS specificity and the cascade. Why doesn't this button turn red?",
+        q: "Explain CSS specificity and the cascade. Why does this button not turn red?",
         code: `#app .btn { color: blue; }
 .btn.danger { color: red; }
 /* <div id="app"><button class="btn danger">Delete</button></div> */`,
@@ -1698,7 +1698,7 @@ ul li.active:first-child  /* careful */
             answer: "(0,1,1), (1,0,1), (0,2,1), (0,0,1): :hover counts as a class, ::before as an element, :where() contributes zero.",
           },
           {
-            task: "Make this utility always win over component styles without !important.",
+            task: "Make this utility class always win over component styles. Do not use the important flag.",
             description: "Checks modern specificity tools. Ask for at least one approach.",
             code: `.card .title { margin: 16px; }
 .mt-0 { margin-top: 0; }  /* loses */`,
@@ -1711,7 +1711,7 @@ ul li.active:first-child  /* careful */
     ],
     middle: [
       {
-        q: "Why does z-index: 9999 not put the modal on top?",
+        q: "Why does a z-index of 9999 not put the modal on top?",
         code: `.card { transform: translateZ(0); }
 .card .modal { position: fixed; z-index: 9999; }`,
         short: "transform creates a new stacking context (and a containing block for fixed elements), so the modal's z-index only competes inside .card. Portal the modal to body.",
@@ -1724,7 +1724,7 @@ Strong answer: names stacking contexts, the fixed containing block, and portal/<
 Weak answer: "increase z-index more".`,
         exercises: [
           {
-            task: "Explain why the dropdown is clipped and fix it.",
+            task: "Why is the dropdown cut off? Fix it.",
             description: "Checks overflow clipping and positioning. Show it as a bug report: 'menu cut off inside card'.",
             code: `.card { position: relative; overflow: hidden; border-radius: 8px; }
 .card .menu { position: absolute; top: 100%; }`,
@@ -1769,7 +1769,7 @@ Weak answer: adds three media queries.`,
             solution: ".row .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }",
           },
           {
-            task: "Explain the difference between auto-fill and auto-fit with 2 items in a wide container.",
+            task: "A wide container has two items. What is the difference between auto-fill and auto-fit here?",
             description: "Checks grid track sizing. Draw or describe the container and ask what happens.",
             answer: "auto-fill creates as many tracks as fit, leaving empty ones so the 2 items stay at min size; auto-fit collapses empty tracks so the 2 items stretch to fill the row.",
           },
@@ -1778,7 +1778,7 @@ Weak answer: adds three media queries.`,
     ],
     senior: [
       {
-        q: "Flexbox vs Grid, container queries, :has(), cascade layers — when do you use each?",
+        q: "When do you use Flexbox, Grid, container queries, the has selector, and cascade layers?",
         short: "Flex for 1D, Grid for 2D layout; container queries for component-level responsiveness; :has() for parent/state selection; @layer to control cascade order instead of specificity hacks.",
         long: `Flexbox distributes items along one axis and is content-driven; Grid defines rows and columns and is layout-driven.
 Container queries let a component adapt to its container width rather than the viewport — key for reusable components.
@@ -1789,7 +1789,7 @@ Strong answer: concrete use case for each and browser-support awareness.
 Weak answer: "Grid replaced Flexbox".`,
         exercises: [
           {
-            task: "Make this card layout responsive to its container instead of the viewport.",
+            task: "Make this card layout respond to its container size, not the screen size.",
             description: "Checks container queries for component-level responsiveness. Describe the card used both in a sidebar and in main content.",
             code: "@media (min-width: 600px) { .card { flex-direction: row; } }",
             answer: "Media queries react to the viewport, so a card in a narrow sidebar still switches. Declare a query container on the wrapper and use @container. Weak answers add more media queries. Strong answers set container-type and mention container query units.",
@@ -1798,7 +1798,7 @@ Weak answer: "Grid replaced Flexbox".`,
 @container (min-width: 600px) { .card { flex-direction: row; } }`,
           },
           {
-            task: "A third-party widget's `.btn` styles override yours. Fix it without !important or specificity hacks.",
+            task: "A third-party widget has btn class styles that override yours. Fix it without the important flag or specificity tricks.",
             description: "Checks cascade layers. Ask how to win without !important or higher specificity.",
             answer: "Put third-party CSS in a lower cascade layer; later layers (and unlayered styles) win regardless of specificity. Weak answers increase specificity or use !important. Strong answers explain layer order and that unlayered styles beat layered ones.",
             solution: `@import url('widget.css') layer(vendor);
@@ -1808,7 +1808,7 @@ Weak answer: "Grid replaced Flexbox".`,
         ],
       },
       {
-        q: "How do you build an accessible, performant animation strategy in CSS? What makes an animation janky?",
+        q: "How do you make CSS animations that are accessible and fast? What makes an animation stutter?",
         short: "Animate compositor-friendly properties (transform, opacity), avoid layout properties (width, top, height), respect prefers-reduced-motion, use will-change sparingly, and verify in the Performance panel. Jank comes from layout/paint on every frame or main-thread work.",
         long: `Rendering pipeline: style → layout → paint → composite. Changing width/top triggers layout each frame; transform/opacity can run on the compositor.
 will-change promotes layers but costs memory — apply just before animating, remove after.
@@ -1819,7 +1819,7 @@ Strong answer: pipeline explanation, property choice, accessibility and measurem
 Weak answer: "use a library".`,
         exercises: [
           {
-            task: "Rewrite this animation to be compositor-friendly and accessible.",
+            task: "Rewrite this animation so the GPU can run it smoothly and it is accessible.",
             description: "Checks property choice and reduced motion. Ask why the original janks.",
             code: `.drawer { position: fixed; left: -300px; transition: left 300ms; }
 .drawer.open { left: 0; }`,
@@ -1831,7 +1831,7 @@ Weak answer: "use a library".`,
 }`,
           },
           {
-            task: "Animate an element from display: none to visible with pure CSS.",
+            task: "Animate an element from display none to visible, using only CSS.",
             description: "Checks modern CSS (@starting-style, transition-behavior). Ask whether it is possible without JS.",
             answer: "Use @starting-style for the entry state and transition-behavior: allow-discrete so display participates in the transition; works in current evergreen browsers with graceful fallback.",
             solution: `.toast { transition: opacity 200ms, display 200ms allow-discrete; opacity: 1; }
@@ -1843,7 +1843,7 @@ Weak answer: "use a library".`,
     ],
     techlead: [
       {
-        q: "CSS-in-JS vs CSS modules vs Tailwind for a large org — your pick and migration plan?",
+        q: "For a large company, which do you pick: CSS-in-JS, CSS modules, or Tailwind? What is your migration plan?",
         short: "Decide by runtime cost (runtime CSS-in-JS conflicts with RSC/streaming), DX, design tokens and consistency; usually zero-runtime options (CSS modules, Tailwind, compiled CSS-in-JS) with a gradual migration.",
         long: `Runtime CSS-in-JS (styled-components, Emotion) adds JS cost and has friction with React Server Components.
 CSS modules are simple and standards-based; Tailwind gives consistency via constrained tokens but needs conventions.
@@ -1854,12 +1854,12 @@ Strong answer: criteria, pilot, metrics (bundle size, lint rules) and a timeline
 Weak answer: personal preference only.`,
         exercises: [
           {
-            task: "Write the success metrics and guardrails for migrating from Emotion to CSS modules across 6 teams.",
+            task: "Six teams move from Emotion to CSS modules. Write the success metrics and the safety rules.",
             description: "Checks migration planning and measurable outcomes. Ask how they would know the migration is done and worth it.",
             answer: "Metrics: % components migrated, runtime style JS removed from bundle, INP/LCP change, visual-regression diffs; guardrails: lint rule banning new Emotion imports, codemods, per-team owners and a deadline with review checkpoints. Weak answers have no metrics or end date. Strong answers combine adoption, performance and quality metrics with enforcement.",
           },
           {
-            task: "Two product teams define their own blue. How do you set up tokens so the brand can change in one place and dark mode works?",
+            task: "Two product teams each define their own blue color. How do you set up tokens so the brand changes in one place and dark mode works?",
             description: "Checks design token architecture. Ask how dark mode and rebranding are handled.",
             answer: "Create primitive tokens (palette) and semantic tokens (--color-action) mapped to primitives per theme; components only use semantic tokens, enforced by stylelint disallowing raw hex. Weak answers have a single flat list of hex values. Strong answers separate primitive and semantic tokens and enforce usage.",
             solution: `:root { --blue-600: #1a56db; --color-action: var(--blue-600); }
@@ -1870,7 +1870,7 @@ Weak answer: personal preference only.`,
         ai: true,
       },
       {
-        q: "The design system's CSS has grown to 600KB and teams override it with !important everywhere. How do you fix this without stopping feature work?",
+        q: "The design system CSS is now 600 kilobytes. Teams override it with the important flag everywhere. How do you fix this without stopping feature work?",
         ai: true,
         short: "Measure what's used, introduce cascade layers so overrides work without !important, publish tokens and component APIs that cover real override needs, deprecate and remove dead CSS incrementally, and add lint/budget guardrails.",
         long: `Audit: coverage tools to find unused CSS, grep !important overrides to learn what teams actually need.
@@ -1883,12 +1883,12 @@ Strong answer: data-driven plan, migration path and governance.
 Weak answer: "tell teams to stop using !important".`,
         exercises: [
           {
-            task: "Write the stylelint rules you'd add and how you'd roll them out without blocking 500 existing violations.",
+            task: "Which stylelint rules would you add? How would you introduce them without blocking on 500 existing errors?",
             description: "Checks guardrail rollout with baselines. Ask about existing violations.",
             answer: "Enable declaration-no-important and selector rules for new files or with a baseline (warnings for existing code, errors for new), track the count down per team over time.",
           },
           {
-            task: "Propose the layer order for app, design system, third-party and reset CSS and explain it.",
+            task: "Suggest the cascade layer order for reset, third-party, design system, and app CSS. Explain it.",
             description: "Checks cascade layer architecture. Ask for the @layer declaration.",
             answer: "@layer reset, third-party, design-system, app, overrides; later layers win, so app styles beat the design system without specificity games, and a small overrides layer replaces !important.",
             solution: "@layer reset, third-party, design-system, app, overrides;",
@@ -1900,7 +1900,7 @@ Weak answer: "tell teams to stop using !important".`,
   "Networking (Fetch API or others)": {
     junior: [
       {
-        q: "Does fetch reject on 404/500?",
+        q: "Does fetch reject on a 404 or 500 response?",
         short: "No — fetch only rejects on network failures (or abort). You must check response.ok / response.status yourself.",
         long: `fetch resolves for any HTTP response, including 4xx and 5xx.
 response.ok is true for 200–299; anything else should be turned into an error by your code.
@@ -1910,7 +1910,7 @@ Strong answer: shows a wrapper that throws with status and parses error bodies s
 Weak answer: "yes, catch handles it".`,
         exercises: [
           {
-            task: "Fix the bug: errors from the server are never shown.",
+            task: "Fix the bug. Errors from the server are never shown.",
             description: "Checks that fetch doesn't reject on HTTP errors. Ask what the user sees when the server returns 500.",
             code: `try {
   const data = await fetch('/api/save', { method: 'POST' }).then((r) => r.json());
@@ -1928,7 +1928,7 @@ Weak answer: "yes, catch handles it".`,
 }`,
           },
           {
-            task: "Send a JSON body with fetch and explain each part.",
+            task: "Send a JSON body with fetch. Explain each part.",
             description: "Checks basic fetch usage for POST JSON. Ask them to write it from memory.",
             answer: "Use method POST, a Content-Type: application/json header, and JSON.stringify the body; without the header many servers won't parse it. Weak answers forget the header or pass an object directly as body. Strong answers also check the response status.",
             solution: `await fetch('/api/users', {
@@ -1940,7 +1940,7 @@ Weak answer: "yes, catch handles it".`,
         ],
       },
       {
-        q: "What do HTTP status code classes mean, and which codes should a frontend handle explicitly?",
+        q: "What do the HTTP status code groups mean? Which codes should a frontend handle on purpose?",
         short: "1xx informational, 2xx success, 3xx redirection, 4xx client error, 5xx server error. Frontends commonly handle 200/201/204, 400/422 (validation), 401 (re-auth), 403 (forbidden), 404, 409 (conflict), 429 (rate limit) and 5xx (retry/report).",
         long: `201 Created usually returns the new resource or Location; 204 No Content has no body — don't call res.json().
 401 means unauthenticated (refresh/login); 403 means authenticated but not allowed (don't retry).
@@ -1951,13 +1951,13 @@ Strong answer: maps codes to concrete UI behaviour.
 Weak answer: "200 is good, others are errors".`,
         exercises: [
           {
-            task: "Map each status to the UI behaviour you'd implement.",
+            task: "For each status, what should the UI do?",
             description: "Checks practical status handling. Read the codes and ask for behaviour.",
             code: "401, 403, 422, 429, 503",
             answer: "401 → refresh token or redirect to login; 403 → 'no access' message; 422 → field errors; 429 → wait for Retry-After and retry; 503 → friendly error with retry. Weak answers show the same generic toast for all.",
           },
           {
-            task: "Fix this code that breaks on a successful DELETE.",
+            task: "Fix this code. It breaks when a DELETE request succeeds.",
             description: "Checks 204 handling. Ask why it throws even though the request succeeded.",
             code: `const res = await fetch('/api/items/1', { method: 'DELETE' });
 const data = await res.json();`,
@@ -1971,7 +1971,7 @@ const data = res.status === 204 ? null : await res.json();`,
     ],
     middle: [
       {
-        q: "Explain CORS. Why does a preflight request happen?",
+        q: "Explain CORS. Why is a preflight request sent?",
         short: "Browsers block cross-origin reads unless the server opts in via Access-Control-Allow-* headers. A preflight OPTIONS request is sent for non-simple methods, headers or content types.",
         long: `CORS is enforced by the browser, not the server — curl/Postman ignore it.
 Simple requests (GET/POST/HEAD with simple headers and form/text content types) go straight through; the response is just blocked if not allowed.
@@ -1982,13 +1982,13 @@ Strong answer: explains simple vs preflighted requests and credentials rules.
 Weak answer: "install a CORS browser extension".`,
         exercises: [
           {
-            task: "Will this request trigger a preflight? Why does the cookie never get sent?",
+            task: "Will this request cause a preflight? Why is the cookie never sent?",
             description: "Checks simple vs preflighted requests and credentials. Ask two separate questions: preflight? cookie?",
             code: "fetch('https://api.example.com/me', { headers: { Accept: 'application/json' } });",
             answer: "No preflight: GET with only a safelisted header is a simple request. Cookies aren't sent cross-origin because credentials defaults to 'same-origin'; add credentials: 'include' and the server must reply with Allow-Credentials: true and an explicit origin. Candidates often say any cross-origin request is preflighted. Strong answers know the safelisted headers and credentials modes.",
           },
           {
-            task: "Find the misconfiguration.",
+            task: "Find the wrong setting.",
             description: "Checks CORS with credentials. Ask what the browser does with this response.",
             code: `Access-Control-Allow-Origin: *
 Access-Control-Allow-Credentials: true`,
@@ -1997,7 +1997,7 @@ Access-Control-Allow-Credentials: true`,
         ],
       },
       {
-        q: "Fix this search so it doesn't flood the server and never shows results for an old query.",
+        q: "Fix this search. It should not send too many requests. It should never show results for an old query.",
         code: `input.addEventListener('input', async (e) => {
   const res = await fetch('/api/search?q=' + e.target.value);
   render(await res.json());
@@ -2025,7 +2025,7 @@ Strong answer: combines debounce, abort, encoding and error handling.
 Weak answer: debounce only.`,
         exercises: [
           {
-            task: "Implement debounce.",
+            task: "Write a debounce function.",
             description: "Checks closures and timers. Ask them to write it from scratch and explain leading vs trailing.",
             answer: "Clear the pending timer on each call and schedule a new one; the function runs after calls stop for `ms`. Strong answers forward this/args and mention cancel().",
             solution: `function debounce(fn, ms) {
@@ -2039,7 +2039,7 @@ Weak answer: debounce only.`,
 }`,
           },
           {
-            task: "Explain how AbortSignal.timeout differs from setTimeout + controller.abort and when you'd combine signals.",
+            task: "How is AbortSignal timeout different from setTimeout with controller abort? When would you combine signals?",
             description: "Checks modern abort APIs. Ask for code combining a user cancel with a timeout.",
             answer: "AbortSignal.timeout creates a signal that aborts with a TimeoutError after the delay; AbortSignal.any merges it with a user signal so either cancels the request.",
             solution: `const res = await fetch(url, {
@@ -2051,7 +2051,7 @@ Weak answer: debounce only.`,
     ],
     senior: [
       {
-        q: "Implement fetch with timeout, retry with exponential backoff, and cancellation.",
+        q: "Write a fetch wrapper with a timeout, retries with growing delays, and cancel support.",
         short: "Retry only idempotent requests and 5xx/network errors, use exponential backoff with jitter, and combine a timeout with user cancellation via AbortSignal.any.",
         long: `AbortSignal.timeout gives per-attempt timeouts; AbortSignal.any merges it with a user/component signal.
 Do not retry 4xx (except 408/429) or non-idempotent POSTs without an idempotency key.
@@ -2062,7 +2062,7 @@ Strong answer: correct cancellation semantics, idempotency awareness, jitter and
 Weak answer: a while(true) loop with fixed setTimeout.`,
         exercises: [
           {
-            task: "Implement a request deduplicator so concurrent identical GETs share one network call.",
+            task: "Write a helper so that identical GET requests at the same time share one network call.",
             description: "Checks promise sharing and response body semantics. Ask for an implementation and then for edge cases.",
             answer: "Keep a Map of in-flight promises keyed by URL and delete the entry when settled; share parsed JSON rather than the Response because a body can be read only once. Weak answers return the same Response to everyone and hit 'body already used'. Strong answers handle errors and clean up the map.",
             solution: `const inflight = new Map();
@@ -2076,7 +2076,7 @@ export function dedupedJson(url) {
 }`,
           },
           {
-            task: "Why is retrying this POST dangerous and how do you make retries safe?",
+            task: "Why is it dangerous to retry this POST request? How do you make retries safe?",
             description: "Checks idempotency in retries. Describe a timeout after the payment server processed the request.",
             code: "await fetchRetry('/api/payments', { method: 'POST', body });",
             answer: "If the first attempt reached the server but the response was lost, a retry charges twice. Send an Idempotency-Key generated once per logical operation so the server deduplicates. Weak answers say 'just don't retry'. Strong answers use idempotency keys reused across retries of the same operation.",
@@ -2102,7 +2102,7 @@ await fetchRetry('/api/payments', {
 }`,
       },
       {
-        q: "Compare WebSockets, Server-Sent Events and long polling. How do you choose, and what production concerns apply?",
+        q: "Compare WebSockets, Server-Sent Events, and long polling. How do you choose? What should you think about in production?",
         short: "SSE: simple one-way server→client over HTTP with auto-reconnect; WebSockets: full-duplex, binary, lower overhead per message but more infra work; long polling: fallback with highest overhead. Production concerns: reconnection/resync, auth, proxies/load balancers, backpressure and scaling connections.",
         long: `SSE (EventSource) is great for notifications and live feeds; it uses HTTP, works with HTTP/2 multiplexing, reconnects automatically and supports Last-Event-ID for resume.
 EventSource can't set custom headers — use cookies or a token in the URL (with care), or fetch-based SSE.
@@ -2113,7 +2113,7 @@ Strong answer: choice by requirements, plus reconnection, auth and scaling detai
 Weak answer: "WebSockets are always better".`,
         exercises: [
           {
-            task: "Implement an SSE client that resumes from the last event after reconnect.",
+            task: "Write a Server-Sent Events client. After it reconnects, it continues from the last event.",
             description: "Checks EventSource semantics. Ask what the browser does automatically.",
             answer: "EventSource auto-reconnects and sends Last-Event-ID if the server set ids, so the server can replay missed events. Strong answers handle onerror and closing on unmount.",
             solution: `const es = new EventSource('/api/stream', { withCredentials: true });
@@ -2123,7 +2123,7 @@ es.onerror = () => { /* browser retries automatically; show 'reconnecting' */ };
 // later: es.close();`,
           },
           {
-            task: "Add a heartbeat to detect dead WebSocket connections.",
+            task: "Add a heartbeat to find WebSocket connections that stopped working.",
             description: "Checks connection liveness. Ask why onclose may never fire.",
             answer: "Half-open connections (network drop, sleeping laptop) may not fire close for minutes. Send periodic pings and close/reconnect if no pong arrives in time.",
             solution: `function withHeartbeat(ws, interval = 15000) {
@@ -2141,7 +2141,7 @@ es.onerror = () => { /* browser retries automatically; show 'reconnecting' */ };
     ],
     techlead: [
       {
-        q: "REST vs GraphQL vs tRPC for your next product — how do you decide?",
+        q: "For your next product, how do you choose between REST, GraphQL, and tRPC?",
         short: "Decide on team and backend ownership, number and type of clients, caching needs and tooling: REST for broad/public APIs and HTTP caching, GraphQL for many clients with varied data needs, tRPC for a full-stack TypeScript monorepo.",
         long: `REST: simple, cacheable at the HTTP/CDN layer, universal tooling; risk of over/under-fetching.
 GraphQL: flexible queries and strong schema for many clients; costs include server complexity, N+1, caching and security (query depth/cost limits).
@@ -2152,12 +2152,12 @@ Strong answer: decision matrix tied to context, plus contract testing/OpenAPI or
 Weak answer: "GraphQL is modern, REST is old".`,
         exercises: [
           {
-            task: "Mobile and web teams complain the REST API needs 6 calls per screen. Evaluate options and pick one.",
+            task: "Mobile and web teams say the REST API needs 6 calls for each screen. Compare the options and pick one.",
             description: "Checks API strategy decisions with multiple clients. Let the candidate ask clarifying questions first.",
             answer: "Options: BFF per client, composite endpoints, GraphQL gateway. A BFF or GraphQL is justified if several clients have divergent needs; weigh ownership, caching and the team's ability to operate it. Weak answers pick GraphQL by default. Strong answers compare options against ownership, caching and operational cost.",
           },
           {
-            task: "Define how breaking API changes are rolled out without breaking deployed frontends.",
+            task: "How do you release breaking API changes without breaking frontends that are already deployed?",
             description: "Checks API evolution and backward compatibility. Ask about users with a tab open for a week.",
             answer: "Expand/contract: add the new field/endpoint, migrate clients, monitor usage, then remove after a deprecation window; contract tests (OpenAPI/Pact) in CI catch accidental breaks. Weak answers coordinate releases by date. Strong answers use expand/contract, deprecation telemetry and contract tests.",
           },
@@ -2165,7 +2165,7 @@ Weak answer: "GraphQL is modern, REST is old".`,
         ai: true,
       },
       {
-        q: "Your SPA makes 40 API calls on dashboard load and the backend team is overloaded. What do you do across teams?",
+        q: "Your single-page app makes 40 API calls when the dashboard loads. The backend team is overloaded. What do you do with the other teams?",
         ai: true,
         short: "Measure the waterfall and duplicates, fix client-side issues (deduplication, caching, parallelism, prefetch), then agree with backend on aggregated endpoints or a BFF, plus shared API standards (pagination, field selection) and observability.",
         long: `Start with data: HAR/RUM traces showing sequential waterfalls, duplicated calls, oversized payloads.
@@ -2177,12 +2177,12 @@ Strong answer: data-driven, collaborative, clear ownership and success metrics.
 Weak answer: "ask backend to make it faster".`,
         exercises: [
           {
-            task: "Given a waterfall where 12 calls happen sequentially after /me, propose fixes.",
+            task: "After the me endpoint, 12 calls run one after another. Suggest fixes.",
             description: "Checks network waterfall analysis. Describe the trace and ask for prioritized fixes.",
             answer: "Parallelize calls that don't depend on each other, prefetch /me data in HTML or with preload, include needed data in /me, and lazy-load widgets below the fold. Strong answers prioritize by critical path.",
           },
           {
-            task: "Draft the API guidelines you'd propose to backend teams to reduce chattiness.",
+            task: "Write API guidelines for backend teams to reduce the number of calls.",
             description: "Checks cross-team standards. Ask for 4–5 rules.",
             answer: "E.g. consistent cursor pagination, sparse fieldsets/include parameters, batch endpoints for common screens, ETag/Cache-Control on GETs, and documented SLOs per endpoint; agreed via RFC and checked in API review.",
           },
@@ -2212,7 +2212,7 @@ Weak answer: "compress images".`,
      sizes="100vw" width="1600" height="900" fetchpriority="high" alt="Campus at sunset">`,
           },
           {
-            task: "Name two ways to avoid loading JavaScript for a page the user may never visit.",
+            task: "Name two ways to avoid loading JavaScript for a page the user may never open.",
             description: "Checks code-splitting fundamentals. Ask how they would verify the chunk is loaded lazily.",
             answer: "Route-level code splitting with dynamic import() (React.lazy) and deferring third-party scripts until interaction or idle. Weak answers suggest minification only. Strong answers mention dynamic import and checking the Network tab.",
             solution: "const Reports = lazy(() => import('./pages/Reports'));",
@@ -2220,7 +2220,7 @@ Weak answer: "compress images".`,
         ],
       },
       {
-        q: "Why is this page slow to show content? Fix the script loading.",
+        q: "Why is this page slow to show content? Fix how scripts load.",
         code: `<head>
   <script src="/analytics.js"></script>
   <script src="/app.js"></script>
@@ -2241,7 +2241,7 @@ Strong answer: explains blocking, defer vs async, and module default.
 Weak answer: "move scripts to the bottom" without knowing why.`,
         exercises: [
           {
-            task: "Predict the execution order.",
+            task: "In what order does the code run?",
             description: "Checks defer vs async semantics. Ask to predict the possible orders.",
             code: `<script async src="a.js"></script>
 <script defer src="b.js"></script>
@@ -2250,7 +2250,7 @@ Weak answer: "move scripts to the bottom" without knowing why.`,
             answer: "inline runs immediately during parsing; b.js and c.js run after parsing in order b, c (defer); a.js runs whenever it downloads, possibly before or after. Strong answers note DOMContentLoaded waits for deferred scripts but not async.",
           },
           {
-            task: "Add resource hints for a third-party font CDN and the hero image.",
+            task: "Add resource hints for a font CDN from another company and for the hero image.",
             description: "Checks preconnect/preload usage. Ask which hint fits each case.",
             answer: "preconnect to the font origin to save DNS/TLS time, preload the hero image with fetchpriority high. Overusing preload competes with critical resources.",
             solution: `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2261,7 +2261,7 @@ Weak answer: "move scripts to the bottom" without knowing why.`,
     ],
     middle: [
       {
-        q: "Explain Core Web Vitals (LCP, INP, CLS) and how to improve each.",
+        q: "Explain the Core Web Vitals: LCP, INP, and CLS. How do you improve each one?",
         short: "LCP measures main content load (preload hero, SSR, fast TTFB); INP measures interaction responsiveness (break up long tasks); CLS measures layout stability (reserve space).",
         long: `Good thresholds: LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 at the 75th percentile of real users.
 LCP: reduce TTFB, preload the LCP resource, avoid client-only rendering for above-the-fold content.
@@ -2272,7 +2272,7 @@ Strong answer: knows thresholds, causes and fixes, and measures with the web-vit
 Weak answer: confuses INP with FID or can't name what CLS measures.`,
         exercises: [
           {
-            task: "This click handler gives INP of 600ms. Improve it.",
+            task: "This click handler has an INP of 600 milliseconds. Make it better.",
             description: "Checks INP and main-thread work. Ask what the user experiences and how to improve it.",
             code: `button.onclick = () => {
   const result = heavyCompute(data); // 500ms
@@ -2289,14 +2289,14 @@ Weak answer: confuses INP with FID or can't name what CLS measures.`,
 };`,
           },
           {
-            task: "A cookie banner pushes content down after load (CLS 0.25). Fix it.",
+            task: "A cookie banner pushes the content down after load. CLS is 0.25. Fix it.",
             description: "Checks CLS causes and fixes. Ask how they'd measure the improvement.",
             answer: "Reserve space for it up front, or render it as an overlay (position: fixed) so it doesn't shift content. Weak answers hide the banner. Strong answers reserve space or overlay and verify with field data.",
           },
         ],
       },
       {
-        q: "How do you analyze and reduce JavaScript bundle size?",
+        q: "How do you check and reduce the JavaScript bundle size?",
         short: "Visualize the bundle (rollup-plugin-visualizer / source-map-explorer), code-split by route and heavy component, replace or tree-shake large dependencies, avoid barrel-file and CommonJS pitfalls, and enforce a size budget in CI.",
         long: `Measure first: which modules dominate, what's in the initial chunk vs lazy chunks.
 Route-level splitting with dynamic import; lazy-load heavy widgets (charts, editors) on interaction.
@@ -2308,7 +2308,7 @@ Strong answer: process with tools and concrete techniques.
 Weak answer: "minify it".`,
         exercises: [
           {
-            task: "Explain why this import may bloat the bundle and fix it.",
+            task: "Why can this import make the bundle too big? Fix it.",
             description: "Checks tree-shaking awareness. Ask what ends up in the bundle.",
             code: `import _ from 'lodash';
 const d = _.debounce(fn, 300);`,
@@ -2317,7 +2317,7 @@ const d = _.debounce(fn, 300);`,
 const d = debounce(fn, 300);`,
           },
           {
-            task: "Lazy-load a heavy chart component only when its tab is opened, with a fallback.",
+            task: "Load a large chart component only when its tab opens. Show a fallback while it loads.",
             description: "Checks code-splitting in React. Ask them to write it.",
             answer: "Use React.lazy with dynamic import and Suspense; the chart chunk downloads only when rendered. Strong answers prefetch on hover.",
             solution: `const RevenueChart = lazy(() => import('./RevenueChart'));
@@ -2335,7 +2335,7 @@ function ReportsTab({ active }) {
     ],
     senior: [
       {
-        q: "A 5,000-row table with filters lags when typing. Diagnose and fix step by step with tools.",
+        q: "A table has 5,000 rows and filters. It is slow when you type. Find and fix the problem step by step, with tools.",
         short: "Profile first (React Profiler, Performance tab), then virtualize rows, defer filtering with useDeferredValue/debounce, memoize rows, colocate state, or move filtering to the server.",
         long: `Reproduce and record a Performance trace: is time spent in filtering, React rendering or layout?
 React Profiler shows which components re-render per keystroke and why.
@@ -2347,7 +2347,7 @@ Strong answer: measure → hypothesize → fix → verify with numbers.
 Weak answer: "add useMemo everywhere".`,
         exercises: [
           {
-            task: "Explain why React.memo doesn't stop re-renders here and fix it.",
+            task: "Why does React memo not stop re-renders here? Fix it.",
             description: "Checks React.memo pitfalls. Ask why the Profiler still shows every Row rendering.",
             code: `const Row = memo(({ row, onSelect, style }) => /* ... */);
 // parent
@@ -2358,7 +2358,7 @@ const onSelect = useCallback((id) => select(id), [select]);
 {rows.map((r) => <Row key={r.id} row={r} onSelect={onSelect} style={ROW_STYLE} />)}`,
           },
           {
-            task: "A Performance trace shows long 'Layout' blocks inside a scroll handler. Diagnose the code.",
+            task: "A performance trace shows long Layout blocks inside a scroll handler. Find the problem in the code.",
             description: "Checks layout thrashing diagnosis from a trace. Ask what the trace's purple blocks mean.",
             code: `items.forEach((el) => {
   el.style.width = container.offsetWidth / 3 + 'px';
@@ -2368,11 +2368,11 @@ const onSelect = useCallback((id) => select(id), [select]);
 items.forEach((el) => { el.style.width = w + 'px'; });`,
           },
         ],
-        follow: "Rows are now editable — what changes?",
+        follow: "Now the rows can be edited. What changes?",
         ai: true,
       },
       {
-        q: "This SPA's memory grows every time users navigate between pages until the tab crashes. Find the leaks and fix them.",
+        q: "In this single-page app, memory grows each time users change pages, until the tab crashes. Find the leaks and fix them.",
         code: `function LiveTasks() {
   const [tasks, setTasks] = useState([]);
   useEffect(() => {
@@ -2407,12 +2407,12 @@ Strong answer: systematic heap-snapshot process and correct cleanup patterns.
 Weak answer: "restart the browser".`,
         exercises: [
           {
-            task: "Describe the exact DevTools steps to confirm and locate a leak in a route transition.",
+            task: "Describe the exact DevTools steps to confirm and find a leak when changing routes.",
             description: "Checks hands-on memory profiling. Ask for a step-by-step procedure.",
             answer: "Take a heap snapshot on page A, navigate to B and back N times, force GC, take another snapshot, use Comparison view to find growing constructors, inspect Retainers to find the holding reference (listener, closure, cache), fix and repeat to verify flat memory.",
           },
           {
-            task: "Replace this unbounded cache with a bounded one.",
+            task: "This cache has no size limit. Replace it with one that has a limit.",
             description: "Checks cache design for long-lived SPAs. Ask for an LRU implementation.",
             code: `const cache = new Map();
 export const getCached = (k, load) => cache.get(k) ?? (cache.set(k, load(k)), cache.get(k));`,
@@ -2430,7 +2430,7 @@ export const getCached = (k, load) => cache.get(k) ?? (cache.set(k, load(k)), ca
     ],
     techlead: [
       {
-        q: "How do you make performance a team responsibility rather than a hero project?",
+        q: "How do you make performance the job of the whole team, not one hero?",
         short: "Make it measurable and owned: performance budgets enforced in CI, RUM dashboards with alerts, clear ownership per area, and performance as part of release/design reviews.",
         long: `What isn't measured regresses; set budgets (bundle size, LCP/INP targets) agreed with product.
 Enforce budgets in CI (size-limit, Lighthouse CI) so regressions block PRs instead of being found months later.
@@ -2441,12 +2441,12 @@ Strong answer: mechanisms + culture + examples of regressions caught.
 Weak answer: "I'll optimize it myself when it gets slow".`,
         exercises: [
           {
-            task: "RUM shows p75 LCP regressed from 2.1s to 3.4s after a release; nobody owns it. Describe your first week.",
+            task: "After a release, real user data shows LCP at the 75th percentile went from 2.1 to 3.4 seconds. Nobody owns it. Describe your first week.",
             description: "Checks incident leadership for performance regressions. Ask about day 1 vs day 5.",
             answer: "Correlate by route/device/release to find the cause, assign an owner, roll back or flag-off if severe, then add the missing guardrail (budget/alert) and write a blameless review. Weak answers jump straight to optimising code. Strong answers mitigate, find root cause and add a guardrail.",
           },
           {
-            task: "Marketing wants to add three tag-manager scripts. How do you decide and govern this?",
+            task: "Marketing wants to add three tag manager scripts. How do you decide, and how do you control them?",
             description: "Checks governance of third-party scripts. Role-play as the marketing lead.",
             answer: "Measure their cost (lab + RUM experiment), require a performance and privacy review, load them deferred/consented or server-side, and include them in a third-party budget with an owner. Weak answers block or allow outright. Strong answers measure, set rules and own a budget.",
           },
@@ -2454,7 +2454,7 @@ Weak answer: "I'll optimize it myself when it gets slow".`,
         ai: true,
       },
       {
-        q: "You have one quarter and a small team to improve performance of a large legacy app. How do you choose what to work on?",
+        q: "You have three months and a small team to make a large old app faster. How do you choose what to work on?",
         ai: true,
         short: "Tie it to business outcomes: use RUM to find the slowest high-traffic journeys, estimate impact vs effort, pick a few measurable goals (e.g. p75 LCP on top 3 routes), ship incrementally with guardrails so gains aren't lost, and report results.",
         long: `Don't start with tools; start with user journeys that matter (conversion, task completion) and their field metrics.
@@ -2467,12 +2467,12 @@ Strong answer: prioritization framework, measurable goals, guardrails, stakehold
 Weak answer: "rewrite in a faster framework".`,
         exercises: [
           {
-            task: "Write three quarterly OKRs for this performance initiative.",
+            task: "Write three quarterly goals with key results for this performance work.",
             description: "Checks goal setting with measurable outcomes. Ask for objectives and key results.",
             answer: "E.g. Objective: fast core journeys — KR1 p75 LCP on top 3 routes ≤ 2.5s (from 3.8s); KR2 p75 INP ≤ 200ms on the applicant table; KR3 budgets enforced in CI for all routes with zero unowned regressions.",
           },
           {
-            task: "Product questions whether performance work is worth delaying features. Make the case.",
+            task: "Product asks if performance work is worth delaying features. Explain why it is.",
             description: "Checks business framing. Role-play as the product manager.",
             answer: "Use your own data: correlation between load time and task completion/conversion, support tickets about slowness, competitive benchmarks; propose a capped investment with measured checkpoints rather than an open-ended project.",
           },
@@ -2493,19 +2493,19 @@ Strong answer: distinguishes delivery vs deployment and explains why each step e
 Weak answer: "CI/CD is Jenkins".`,
         exercises: [
           {
-            task: "Explain why CI uses `npm ci` instead of `npm install`.",
+            task: "Why does CI use npm ci instead of npm install?",
             description: "Checks reproducible installs. Ask what happens if the lockfile is outdated.",
             answer: "npm ci installs exactly what package-lock.json specifies, fails if it is out of sync with package.json, and starts from a clean node_modules — reproducible and usually faster. Weak answers say they are the same. Strong answers mention lockfile strictness and clean installs.",
           },
           {
-            task: "Order these pipeline steps to fail fast and explain: build, lint, e2e, install, unit tests, typecheck.",
+            task: "Put these pipeline steps in order so it fails fast: build, lint, end-to-end tests, install, unit tests, type check. Explain.",
             description: "Checks pipeline ordering. Ask them to order the steps and justify it.",
             answer: "install → lint/typecheck (cheap, parallel) → unit tests → build → e2e. Cheap checks first give feedback in seconds and save compute. Weak answers put e2e first. Strong answers optimise for fast feedback and parallelism.",
           },
         ],
       },
       {
-        q: "This GitHub Actions workflow passes even when tests fail and is slow. Fix it.",
+        q: "This GitHub Actions workflow passes even when tests fail. It is also slow. Fix it.",
         code: `on: push
 jobs:
   build:
@@ -2543,7 +2543,7 @@ Weak answer: only removes || true.`,
             answer: "Branch protection can require named checks to pass before merging; without it, a red CI run is advisory and broken code can still be merged.",
           },
           {
-            task: "Make the test job run against Node 20 and 22 in parallel.",
+            task: "Make the test job run on Node 20 and Node 22 at the same time.",
             description: "Checks matrix builds. Ask them to write the YAML.",
             answer: "A strategy.matrix runs one job per value in parallel; reference it via the matrix context.",
             solution: `jobs:
@@ -2564,7 +2564,7 @@ Weak answer: only removes || true.`,
     ],
     middle: [
       {
-        q: "Preview deployments and environment variables — how do you handle secrets in a frontend build?",
+        q: "Think about preview deployments and environment variables. How do you handle secrets in a frontend build?",
         short: "Everything in the bundle is public. Only expose non-secret config (e.g. VITE_* vars); real secrets stay on the server or in a backend proxy, stored in the CI secret store.",
         long: `Build-time env vars are inlined into JS — anyone can read them in DevTools.
 Vite only exposes vars prefixed with VITE_, a guardrail against leaking secrets accidentally.
@@ -2575,7 +2575,7 @@ Strong answer: explains inlining, prefix rules, proxying and CI secret scoping.
 Weak answer: "we obfuscate the key".`,
         exercises: [
           {
-            task: "Spot the leak in this Vite env file and fix it.",
+            task: "Find the secret leak in this Vite env file. Fix it.",
             description: "Checks build-time env var exposure. Show the .env and ask if it is safe.",
             code: `# .env
 VITE_API_URL=https://api.example.com
@@ -2583,7 +2583,7 @@ VITE_SENDGRID_KEY=SG.xxxxx`,
             answer: "Every VITE_* variable is inlined into the public bundle, so the email API key is exposed. Rotate it and call SendGrid from a backend endpoint that holds the secret. Weak answers say .env isn't committed so it's safe. Strong answers know VITE_ vars are inlined and rotate the key.",
           },
           {
-            task: "Explain how to deploy the same build artifact to staging and production when API URLs differ.",
+            task: "Staging and production use different API URLs. How do you deploy the same build to both?",
             description: "Checks build-once-deploy-many. Ask how they ensure staging and prod run the same artifact.",
             answer: "Build once, then inject runtime config (e.g. /config.json served per environment) instead of baking env vars at build time, so what you tested is exactly what you ship. Weak answers rebuild per environment. Strong answers inject runtime config.",
             solution: `const config = await fetch('/config.json').then((r) => r.json());
@@ -2592,7 +2592,7 @@ createApp({ apiUrl: config.apiUrl });`,
         ],
       },
       {
-        q: "What are preview (ephemeral) environments and how do you set them up for a frontend app safely?",
+        q: "What are preview environments that exist only for a short time? How do you set them up safely for a frontend app?",
         short: "A per-PR deployment with a unique URL so reviewers, QA and designers test changes before merge. Build the PR, deploy to a unique path/subdomain, post the URL to the PR, point it at a non-production API, protect access, and tear it down on close.",
         long: `Benefits: faster feedback, visual review, E2E against a real deployment, product sign-off.
 Configuration: runtime config or build-time env pointing to staging/mock APIs, never production data.
@@ -2603,7 +2603,7 @@ Strong answer: workflow, security around forks, data isolation and cleanup.
 Weak answer: "Vercel does it".`,
         exercises: [
           {
-            task: "Explain why this workflow is dangerous for a public repo.",
+            task: "Why is this workflow dangerous for a public repository?",
             description: "Checks GitHub Actions security with forks. Ask what an attacker could do.",
             code: `on: pull_request_target
 jobs:
@@ -2616,7 +2616,7 @@ jobs:
             answer: "pull_request_target runs with repository secrets, and checking out the PR head executes untrusted code (npm install scripts, build) with those secrets. Use pull_request for untrusted code or never check out the head in pull_request_target.",
           },
           {
-            task: "Add a job that deletes the preview when the PR is closed.",
+            task: "Add a job that deletes the preview when the pull request is closed.",
             description: "Checks lifecycle automation. Ask them to write the trigger and step.",
             answer: "Trigger on pull_request closed and remove the environment named by the PR number.",
             solution: `on:
@@ -2633,7 +2633,7 @@ jobs:
     ],
     senior: [
       {
-        q: "Pipeline takes 25 minutes. How do you make it 5?",
+        q: "The pipeline takes 25 minutes. How do you make it take 5?",
         short: "Measure each step, then cache dependencies and build outputs, run jobs in parallel and shard tests, run only affected projects, use a remote cache, split slow E2E and fail fast.",
         long: `Start with data: which jobs/steps dominate, and what's on the critical path?
 Cache npm/pnpm store and build artifacts; use remote caching (Nx/Turborepo) for monorepos.
@@ -2657,14 +2657,14 @@ Weak answer: "buy bigger runners".`,
 - run: npm ci`,
           },
           {
-            task: "E2E tests fail randomly ~5% of runs and devs click 'rerun'. Describe what you change in the pipeline.",
+            task: "End-to-end tests fail at random in about 5 percent of runs. Developers just click rerun. What do you change in the pipeline?",
             description: "Checks flaky test management. Ask how they would measure flakiness.",
             answer: "Detect flakes (retries with reporting), quarantine flaky tests out of the blocking path with owners, collect traces on failure, and fix root causes (network waits, shared test data). Weak answers increase retries. Strong answers quarantine with owners and fix root causes.",
           },
         ],
       },
       {
-        q: "This deploy script can leave production in a broken state. Make the deployment atomic and rollback-friendly.",
+        q: "This deploy script can leave production broken. Make the deploy happen all at once and easy to roll back.",
         code: `npm run build
 aws s3 sync dist/ s3://app-prod --delete
 aws cloudfront create-invalidation --distribution-id ABC --paths "/*"`,
@@ -2686,7 +2686,7 @@ Strong answer: explains ordering, caching headers, old-tab problem and rollback.
 Weak answer: "deploy at night".`,
         exercises: [
           {
-            task: "Handle ChunkLoadError in the client after a deploy.",
+            task: "After a deploy, handle ChunkLoadError in the client.",
             description: "Checks client-side resilience to deploys. Ask what users experience without it.",
             answer: "Lazy imports for chunks that no longer exist fail; catch the error and reload once (guarding against loops) so the user gets the new index.html.",
             solution: `const lazyWithReload = (factory) => lazy(() =>
@@ -2699,7 +2699,7 @@ Weak answer: "deploy at night".`,
   }));`,
           },
           {
-            task: "Describe a rollback procedure that takes under one minute.",
+            task: "Describe a rollback process that takes less than one minute.",
             description: "Checks operational readiness. Ask for exact steps and how it's tested.",
             answer: "Keep each release in a versioned prefix; rollback switches the CDN origin path or index.html pointer to the previous version via a single pipeline job, rehearsed regularly; invalidate only index.html.",
           },
@@ -2708,7 +2708,7 @@ Weak answer: "deploy at night".`,
     ],
     techlead: [
       {
-        q: "Design a release process for 5 teams shipping daily safely.",
+        q: "Design a safe release process for 5 teams that ship every day.",
         short: "Trunk-based development with feature flags, automated quality gates, canary/progressive rollout, fast rollback, clear ownership and automated release notes.",
         long: `Decouple deploy from release: code ships dark behind flags, product turns features on.
 Short-lived branches into trunk, required checks and CODEOWNERS reviews.
@@ -2720,12 +2720,12 @@ Strong answer: covers process, tooling, metrics (DORA) and incident learning loo
 Weak answer: "we deploy every Friday after QA sign-off".`,
         exercises: [
           {
-            task: "A bad release reached 100% of users in 2 minutes. Propose pipeline changes that prevent a repeat.",
+            task: "A bad release reached all users in 2 minutes. Suggest pipeline changes so this does not happen again.",
             description: "Checks release safety design after an incident. Ask what they would change first.",
             answer: "Progressive rollout with automated health gates and auto-rollback, feature flags to decouple release, and a blameless postmortem; track change failure rate and MTTR. Weak answers add manual QA. Strong answers add progressive delivery and automated rollback.",
           },
           {
-            task: "Write the policy for stale feature flags across 5 teams.",
+            task: "Write the rules for old feature flags across 5 teams.",
             description: "Checks flag lifecycle governance. Ask how the policy is enforced.",
             answer: "Each flag has an owner and expiry at creation; CI/lint warns on expired flags, a monthly report lists them, and removal is part of the feature's definition of done. Weak answers rely on reminders. Strong answers automate expiry warnings and ownership.",
           },
@@ -2733,7 +2733,7 @@ Weak answer: "we deploy every Friday after QA sign-off".`,
         ai: true,
       },
       {
-        q: "How would you measure and improve your organization's delivery performance using DORA metrics without turning them into a weapon?",
+        q: "How would you use DORA metrics to measure and improve delivery? How do you avoid using them to punish teams?",
         ai: true,
         short: "Track deployment frequency, lead time for changes, change failure rate and time to restore (plus rework rate) automatically at team level, use them for improvement conversations not individual performance, and pair them with qualitative signals like developer experience surveys.",
         long: `Instrument from the pipeline and incident tools so metrics are cheap and trusted.
@@ -2746,12 +2746,12 @@ Strong answer: measurement design, cultural safeguards and an improvement story.
 Weak answer: "we track story points".`,
         exercises: [
           {
-            task: "Lead time is 9 days; deploys are daily. Find where time goes and propose improvements.",
+            task: "Lead time is 9 days, but deploys happen every day. Find where the time goes and suggest fixes.",
             description: "Checks value-stream analysis. Ask what data they'd collect.",
             answer: "Break lead time into coding, waiting for review, review, waiting for merge/deploy; typically review wait dominates. Improve with smaller PRs, review SLAs, pairing, and automated checks that speed up reviews.",
           },
           {
-            task: "A director wants to rank teams by deployment frequency. Respond.",
+            task: "A director wants to rank teams by how often they deploy. What do you say?",
             description: "Checks protecting metric integrity. Role-play as the director.",
             answer: "Explain that cross-team ranking invites gaming and ignores context; propose trend-based team goals, combined speed/stability metrics and a quarterly review of improvements instead.",
           },
@@ -2762,7 +2762,7 @@ Weak answer: "we track story points".`,
   "Testing (Unit, Integration, E2E, Visual regression, Accessibility, Performance etc)": {
     junior: [
       {
-        q: "Unit vs integration vs E2E tests?",
+        q: "What is the difference between unit, integration, and end-to-end tests?",
         short: "Unit tests check an isolated function/component; integration tests check pieces working together; E2E tests drive a real browser through user flows.",
         long: `Unit tests are fast and precise but can miss wiring bugs.
 Integration tests (e.g. component + store + mocked network) catch most real-world bugs at reasonable cost.
@@ -2773,7 +2773,7 @@ Strong answer: explains trade-offs (speed, confidence, cost) and when to use eac
 Weak answer: definitions without trade-offs.`,
         exercises: [
           {
-            task: "Write a unit test for `sum(a, b)` including an edge case.",
+            task: "Write a unit test for a sum function with two numbers. Include an edge case.",
             description: "Checks basic unit test writing. Ask them to write tests including an edge case.",
             answer: "A good test covers the normal case and edge cases (negatives, floats) with clear names. Weak answers use toBe for floats. Strong answers use toBeCloseTo and name tests clearly.",
             solution: `import { it, expect } from 'vitest';
@@ -2781,7 +2781,7 @@ it('adds numbers', () => expect(sum(2, 3)).toBe(5));
 it('handles floats', () => expect(sum(0.1, 0.2)).toBeCloseTo(0.3));`,
           },
           {
-            task: "Explain why this test passes even though fetchUser rejects, and fix it.",
+            task: "Why does this test pass even when fetchUser fails? Fix it.",
             description: "Checks async testing. Ask why the test passes when it shouldn't.",
             code: `it('loads user', () => {
   fetchUser(1).then((u) => expect(u.name).toBe('Ann'));
@@ -2795,7 +2795,7 @@ it('handles floats', () => expect(sum(0.1, 0.2)).toBeCloseTo(0.3));`,
         ],
       },
       {
-        q: "What is mocking, and when should you mock in frontend tests?",
+        q: "What is mocking? When should you mock in frontend tests?",
         short: "Mocking replaces a real dependency with a controlled fake to isolate the code under test. Mock things you don't control or that are slow/non-deterministic (network, time, randomness, browser APIs); avoid mocking your own components and modules too much.",
         long: `Mocks, stubs and spies: stubs return fixed data, spies record calls, mocks combine both with expectations.
 Good candidates to mock: HTTP (prefer MSW), timers (fake timers), Date, Math.random, localStorage in some environments.
@@ -2806,7 +2806,7 @@ Strong answer: explains what to mock and why, mentions MSW and fake timers.
 Weak answer: "mock everything so tests are fast".`,
         exercises: [
           {
-            task: "Write a test that verifies `onSave` is called with the form data when the button is clicked.",
+            task: "Write a test. When the button is clicked, onSave must be called with the form data.",
             description: "Checks spies with Testing Library. Ask them to write it.",
             answer: "Pass a vi.fn() as the callback, interact like a user, and assert on the call arguments.",
             solution: `it('calls onSave with the name', async () => {
@@ -2818,7 +2818,7 @@ Weak answer: "mock everything so tests are fast".`,
 });`,
           },
           {
-            task: "Make this test deterministic.",
+            task: "Make this test give the same result every time.",
             description: "Checks controlling time in tests. Ask why it fails on some days.",
             code: `it('shows greeting', () => {
   render(<Greeting />); // 'Good morning' before 12:00
@@ -2850,7 +2850,7 @@ Strong answer: rewrites the test behaviourally and explains why it is more robus
 Weak answer: "use a better selector".`,
         exercises: [
           {
-            task: "Fix this flaky Testing Library test.",
+            task: "Fix this Testing Library test. It sometimes passes and sometimes fails.",
             description: "Checks async queries in Testing Library. Ask why the test fails intermittently.",
             code: `render(<Users />);
 expect(screen.getByText('Ann')).toBeInTheDocument();`,
@@ -2859,7 +2859,7 @@ expect(screen.getByText('Ann')).toBeInTheDocument();`,
 expect(await screen.findByText('Ann')).toBeInTheDocument();`,
           },
           {
-            task: "Test that a debounced search calls the API once after typing stops.",
+            task: "Test that a debounced search calls the API one time after typing stops.",
             description: "Checks fake timers with userEvent. Ask them to write the test.",
             answer: "Use fake timers wired into userEvent, type, advance time past the debounce, and assert the call count. Weak answers use real timers with sleeps. Strong answers configure advanceTimers in userEvent.setup.",
             solution: `vi.useFakeTimers();
@@ -2873,7 +2873,7 @@ expect(spy).toHaveBeenCalledWith('ann');`,
         ],
       },
       {
-        q: "Rewrite this test with proper async handling, user-centric queries and network mocking.",
+        q: "Rewrite this test. Handle async code correctly, find elements the way users see them, and mock the network.",
         code: `jest.mock('axios');
 axios.get.mockResolvedValue({ data: [{ id: 1, name: 'Ann' }] });
 const { container } = render(<UserList />);
@@ -2908,7 +2908,7 @@ Weak answer: increases the timeout.`,
 });`,
           },
           {
-            task: "Explain getBy vs queryBy vs findBy and when to use each.",
+            task: "Explain getBy, queryBy, and findBy. When do you use each one?",
             description: "Checks Testing Library query semantics. Ask for an example of each.",
             answer: "getBy throws if not found (assert presence now), queryBy returns null (assert absence), findBy returns a promise that waits (async appearance). A common mistake is using getBy for elements that appear after fetches.",
           },
@@ -2917,7 +2917,7 @@ Weak answer: increases the timeout.`,
     ],
     senior: [
       {
-        q: "Show a test you wrote that caught a real bug. What did you intentionally not test?",
+        q: "Show a test you wrote that found a real bug. What did you choose not to test?",
         short: "Expect a concrete story: behaviour-focused tests, network mocked with MSW, deliberate trade-offs about what wasn't worth testing, and use of visual/a11y tests where valuable.",
         long: `Good candidates describe the bug, why the test caught it, and how the test was designed (behaviour, not internals).
 They should consciously skip low-value tests: trivial getters, third-party library behaviour, pure markup.
@@ -2928,7 +2928,7 @@ Strong answer: specific, reflective, explains the cost/benefit.
 Weak answer: generic "I write unit tests for everything".`,
         exercises: [
           {
-            task: "This E2E test is flaky in CI. Identify the problems and rewrite it.",
+            task: "This end-to-end test sometimes fails in CI. Find the problems and rewrite it.",
             description: "Checks E2E flakiness causes. Ask them to rewrite the test.",
             code: `await page.click('.save');
 await page.waitForTimeout(2000);
@@ -2938,7 +2938,7 @@ expect(await page.textContent('.toast')).toBe('Saved');`,
 await expect(page.getByRole('status')).toHaveText('Saved');`,
           },
           {
-            task: "A visual regression suite produces 40 diffs per PR from font anti-aliasing. Explain how you make it useful again.",
+            task: "Visual regression tests show 40 differences on each pull request because of font smoothing. How do you make them useful again?",
             description: "Checks visual regression stability. Ask how to reduce noise.",
             answer: "Run in a pinned Docker image/browser, disable animations, mask dynamic regions, use a small threshold, and scope screenshots to components (Storybook) rather than full pages. Weak answers raise thresholds a lot. Strong answers pin environments and scope screenshots.",
           },
@@ -2946,7 +2946,7 @@ await expect(page.getByRole('status')).toHaveText('Saved');`,
         ai: true,
       },
       {
-        q: "How do you test custom hooks, context-dependent components and code with complex async flows effectively?",
+        q: "How do you test custom hooks, components that need context, and code with complex async logic?",
         short: "Prefer testing hooks through a small component or renderHook with real providers (query client, router, theme) via a custom render wrapper; mock only the network; control time with fake timers; assert user-observable outcomes and state transitions.",
         long: `A shared renderWithProviders helper avoids duplicated setup and keeps tests close to production wiring.
 renderHook is fine for reusable hooks; for app-specific hooks testing the component is often more meaningful.
@@ -2957,7 +2957,7 @@ Strong answer: robust test utilities, isolation strategy and async control.
 Weak answer: "I mock useContext".`,
         exercises: [
           {
-            task: "Write a `renderWithProviders` helper for a React Query + Router app.",
+            task: "Write a renderWithProviders helper for an app with React Query and React Router.",
             description: "Checks test infrastructure design. Ask what must be fresh per test.",
             answer: "Create a new QueryClient per call with retry disabled and wrap with QueryClientProvider and MemoryRouter; return render's result plus the client.",
             solution: `export function renderWithProviders(ui, { route = '/' } = {}) {
@@ -2971,7 +2971,7 @@ Weak answer: "I mock useContext".`,
 }`,
           },
           {
-            task: "Test a polling hook that refetches every 5 seconds and stops on unmount.",
+            task: "Test a polling hook. It fetches every 5 seconds and stops on unmount.",
             description: "Checks fake timers with hooks. Ask how to verify it stops.",
             answer: "Use renderHook with fake timers, advance time and count calls; unmount and advance again to verify no further calls.",
             solution: `vi.useFakeTimers();
@@ -2988,7 +2988,7 @@ expect(fetcher).toHaveBeenCalledTimes(3);`,
     ],
     techlead: [
       {
-        q: "Define the testing strategy (trophy vs pyramid), flaky test policy, and coverage targets for the org.",
+        q: "Define the testing strategy for the company: trophy or pyramid. Also set rules for unstable tests and coverage targets.",
         short: "Integration-heavy (testing trophy) with static analysis at the base, a thin E2E layer, quarantine flaky tests with owners and deadlines, meaningful rather than vanity coverage, and visual/a11y/perf checks where they add value.",
         long: `Pyramid (many unit, few E2E) vs trophy (static + mostly integration): for UI apps the trophy usually gives best confidence per cost.
 Static checks (TypeScript, ESLint) are the cheapest tests — make them strict.
@@ -3000,12 +3000,12 @@ Strong answer: a written strategy with ownership and metrics (flake rate, escape
 Weak answer: "more tests is better".`,
         exercises: [
           {
-            task: "Escaped defects are rising despite 85% coverage. Describe how you investigate and what you change.",
+            task: "Coverage is 85 percent, but more bugs reach production. How do you investigate? What do you change?",
             description: "Checks test strategy analysis from data. Ask what metrics they would track.",
             answer: "Classify escaped bugs by layer and cause, compare with where tests actually exist, then shift investment (contract/integration tests, E2E for top flows) and track escaped-defect rate instead of coverage. Weak answers push coverage higher. Strong answers analyse escaped defects and shift test investment.",
           },
           {
-            task: "Define acceptance criteria for adding a new test type (e.g. accessibility scans) to the blocking pipeline.",
+            task: "Define the criteria for adding a new test type, like accessibility scans, to the pipeline as a blocking step.",
             description: "Checks gating policy design. Ask how to introduce a11y scans without blocking all teams.",
             answer: "It must be fast enough, stable (flake rate below threshold during a non-blocking trial), actionable (clear failures with owners) and start from a baseline so existing violations don't block everyone. Weak answers turn it on blocking immediately. Strong answers start non-blocking with a baseline.",
           },
@@ -3013,7 +3013,7 @@ Weak answer: "more tests is better".`,
         ai: true,
       },
       {
-        q: "Your E2E suite takes 90 minutes and is 15% flaky; teams have stopped trusting it. What's your plan?",
+        q: "Your end-to-end tests take 90 minutes. 15 percent of runs fail at random. Teams do not trust them anymore. What is your plan?",
         ai: true,
         short: "Stop the bleeding (quarantine flakes, make the suite non-blocking temporarily), measure flake rate per test, cut the suite to critical journeys, push coverage down to integration tests, parallelize and isolate test data, and restore it as a fast, trusted blocking gate with ownership.",
         long: `Trust is the asset: a red build nobody believes is worse than no build.
@@ -3026,7 +3026,7 @@ Strong answer: phased plan with metrics and ownership.
 Weak answer: "add more retries".`,
         exercises: [
           {
-            task: "Rewrite the login step that every E2E test repeats through the UI.",
+            task: "Every end-to-end test logs in through the UI. Rewrite this login step.",
             description: "Checks E2E speed techniques. Ask how to authenticate once.",
             answer: "Log in once in a setup project, save storage state, and reuse it in all tests.",
             solution: `// auth.setup.js
@@ -3040,7 +3040,7 @@ setup('authenticate', async ({ page }) => {
 // playwright.config.js: projects use { storageState: '.auth/user.json', dependencies: ['setup'] }`,
           },
           {
-            task: "Define the metrics dashboard you'd show weekly to track progress.",
+            task: "What metrics dashboard would you show every week to track progress?",
             description: "Checks outcome tracking. Ask which numbers matter.",
             answer: "Suite duration p50/p95, flake rate (tests passing on retry), quarantined test count and age, escaped defects in covered journeys, and rerun count per PR.",
           },
@@ -3062,7 +3062,7 @@ Strong answer: explains history shape, the golden rule and force-with-lease.
 Weak answer: "they do the same thing".`,
         exercises: [
           {
-            task: "You committed to main instead of a feature branch (not pushed). Move the commit.",
+            task: "You committed to main instead of a feature branch. You did not push. Move the commit.",
             description: "Checks basic branch/reset mechanics. Ask for the exact commands.",
             answer: "Create a branch at the current commit, then reset main back one commit. Weak answers suggest re-cloning. Strong answers create the branch before resetting.",
             solution: `git branch feature/login
@@ -3079,7 +3079,7 @@ git pull origin main`,
         ],
       },
       {
-        q: "You have a merge conflict. What does this mean and how do you resolve it?",
+        q: "You have a merge conflict. What does it mean? How do you fix it?",
         code: `<<<<<<< HEAD
 const timeout = 5000;
 =======
@@ -3100,7 +3100,7 @@ Strong answer: explains markers, resolution steps, abort option and verification
 Weak answer: "delete one side".`,
         exercises: [
           {
-            task: "Write the commands to see what changed in your working tree, stage only one file and commit it.",
+            task: "Write the commands to see your changes, stage only one file, and commit it.",
             description: "Checks the basic staging workflow. Ask for exact commands.",
             answer: "git status / git diff show changes; git add <file> stages one file; git commit -m creates the commit. Strong answers mention git add -p for partial staging.",
             solution: `git status
@@ -3109,7 +3109,7 @@ git add src/login.js
 git commit -m "Fix login redirect"`,
           },
           {
-            task: "Explain what this .gitignore does and fix the mistake.",
+            task: "Explain what this gitignore file does. Fix the mistake.",
             description: "Checks .gitignore basics. Ask why .env is still tracked.",
             code: `node_modules/
 dist/
@@ -3123,7 +3123,7 @@ git commit -m "Stop tracking .env"`,
     ],
     middle: [
       {
-        q: "You ran git reset --hard and lost your last commits, and your branch history is messy. Recover the work and clean up the history.",
+        q: "You ran git reset with the hard option and lost your last commits. Your branch history is also messy. Get the work back and clean up the history.",
         code: `git log --oneline
 # a1b2c3 wip
 # d4e5f6 fix typo
@@ -3146,7 +3146,7 @@ Weak answer: "re-clone the repo and redo the work".`,
 git push`,
           },
           {
-            task: "Bring one bug-fix commit from main into release/2.3 without merging everything else.",
+            task: "Copy one bug fix commit from main to the release 2.3 branch. Do not merge anything else.",
             description: "Checks cherry-pick for hotfixes. Ask how to trace the original commit.",
             answer: "Cherry-pick the commit; -x records the original sha in the message for traceability. Weak answers merge main into release. Strong answers use cherry-pick -x.",
             solution: `git checkout release/2.3
@@ -3159,7 +3159,7 @@ git rebase -i origin/main       # squash/fixup wip commits into meaningful ones
 git push --force-with-lease`,
       },
       {
-        q: "Explain the difference between git reset (soft, mixed, hard), git revert and git restore. When do you use each?",
+        q: "Explain git reset with soft, mixed, and hard. Also explain git revert and git restore. When do you use each one?",
         short: "reset moves the branch pointer: --soft keeps changes staged, --mixed (default) keeps them unstaged, --hard discards them. revert creates a new commit undoing an old one (safe for shared history). restore discards or unstages file changes without moving branches.",
         long: `reset rewrites local history — fine before pushing, dangerous on shared branches.
 --soft HEAD~1 is handy to redo the last commit; --hard throws away uncommitted work (not recoverable via reflog).
@@ -3179,7 +3179,7 @@ Weak answer: "reset and revert are the same".`,
             answer: "1 git commit --amend (or reset --soft HEAD~1); 2 git restore --staged file; 3 git restore file; 4 git revert <sha>. Weak answers use reset --hard everywhere.",
           },
           {
-            task: "Use git stash to switch branches with uncommitted work, including untracked files.",
+            task: "Use git stash to switch branches with uncommitted work. Include untracked files.",
             description: "Checks stash usage. Ask for the commands and a pitfall.",
             answer: "git stash -u includes untracked files; pop reapplies and removes the stash. Pitfall: stashes are easy to forget; name them with -m.",
             solution: `git stash push -u -m "wip login form"
@@ -3193,7 +3193,7 @@ git stash pop`,
     ],
     senior: [
       {
-        q: "A regression appeared somewhere in the last 200 commits. How do you find it, and what branching strategy keeps this manageable?",
+        q: "A regression appeared somewhere in the last 200 commits. How do you find it? What branching strategy makes this easier?",
         short: "Use git bisect (ideally git bisect run with an automated test) to binary-search the offending commit in ~8 steps; small, atomic, always-green commits on short-lived branches make bisect effective.",
         long: `bisect needs one good and one bad commit, then halves the range each step: log2(200) ≈ 8 checks.
 git bisect run <script> automates it: exit 0 = good, 125 = skip (e.g. build broken), any other code 1–127 = bad.
@@ -3204,7 +3204,7 @@ Strong answer: demonstrates bisect run and links commit hygiene to debuggability
 Weak answer: "I'd read through the commits".`,
         exercises: [
           {
-            task: "Write a bisect script for a regression that only shows up after building the app.",
+            task: "Write a git bisect script for a bug that appears only after you build the app.",
             description: "Checks automated bisect scripting. Ask what exit codes mean.",
             answer: "Exit 125 when the commit can't be built so bisect skips it, otherwise return the test's exit code. Weak answers don't handle unbuildable commits. Strong answers use exit 125 to skip.",
             solution: `#!/bin/sh
@@ -3219,7 +3219,7 @@ npx vitest run src/features/tasks/filter.test.js`,
         ],
       },
       {
-        q: "This repository is slow to clone and CI checkouts take minutes. Diagnose and fix it.",
+        q: "This repository is slow to clone. CI checkouts take minutes. Find the cause and fix it.",
         code: `$ git count-objects -vH
 size-pack: 4.2 GiB
 $ git rev-list --objects --all | git cat-file --batch-check='%(objecttype) %(objectname) %(objectsize) %(rest)' | sort -k3 -n | tail -3
@@ -3246,7 +3246,7 @@ Strong answer: diagnosis commands, prevention, coordinated rewrite plan and CI m
 Weak answer: "delete the files and commit".`,
         exercises: [
           {
-            task: "Configure CI checkout to be fast for a large monorepo where the job only needs `apps/web`.",
+            task: "Set up a fast CI checkout for a large monorepo. The job needs only the apps slash web folder.",
             description: "Checks shallow and sparse checkout. Ask for the actions/checkout config.",
             answer: "Use a shallow fetch and sparse-checkout limited to needed paths; note that tools needing history (affected detection, bisect) require more depth.",
             solution: `- uses: actions/checkout@v4
@@ -3257,7 +3257,7 @@ Weak answer: "delete the files and commit".`,
       packages/ui`,
           },
           {
-            task: "Write a pre-commit check that blocks files larger than 5MB.",
+            task: "Write a pre-commit check that blocks files bigger than 5 megabytes.",
             description: "Checks prevention automation. Ask for a script or tool.",
             answer: "Check staged file sizes and fail if any exceed the limit; in CI add the same check so --no-verify can't bypass it.",
             solution: `#!/bin/sh
@@ -3271,7 +3271,7 @@ done`,
     ],
     techlead: [
       {
-        q: "Trunk-based development vs GitFlow — which policy do you set for the org and how do you enforce it?",
+        q: "Trunk-based development or GitFlow: which one do you choose for the company? How do you enforce it?",
         short: "Usually trunk-based with short-lived branches and feature flags for teams deploying continuously; GitFlow only fits versioned/scheduled releases. Enforce via branch protection, CI checks, CODEOWNERS and conventions.",
         long: `GitFlow (develop, release, hotfix branches) suits shipped software with multiple supported versions, but adds merge overhead and delays integration.
 Trunk-based: branches live hours to a couple of days, merged behind flags; it correlates with better DORA metrics.
@@ -3282,12 +3282,12 @@ Strong answer: context-based choice, migration path and measurable outcomes (lea
 Weak answer: "GitFlow because it's the standard".`,
         exercises: [
           {
-            task: "Teams merge with merge commits, squash and rebase inconsistently. Pick a policy and justify it.",
+            task: "Teams mix merge commits, squash, and rebase. Pick one rule and explain why.",
             description: "Checks merge policy decisions. Ask how they would enforce it.",
             answer: "E.g. squash-merge PRs with a conventional title for a linear, bisectable main where each commit is a reviewed, green unit; enforce via repository settings and a PR-title check. Weak answers leave it to preference. Strong answers configure repo settings and checks.",
           },
           {
-            task: "A team keeps a 3-week-old feature branch with constant conflicts. Explain how you coach them out of it.",
+            task: "A team has a feature branch that is three weeks old and always has conflicts. How do you help them change this habit?",
             description: "Checks coaching on long-lived branches. Ask what metrics they'd watch.",
             answer: "Split the work into small mergeable slices behind a feature flag, merge to trunk daily, use branch-by-abstraction for refactors, and track branch age as a team metric. Weak answers just tell them to rebase more. Strong answers split work and use flags.",
           },
@@ -3295,7 +3295,7 @@ Weak answer: "GitFlow because it's the standard".`,
         ai: true,
       },
       {
-        q: "You're merging two teams' repositories into a monorepo (or splitting one). How do you plan the migration and what conventions do you set?",
+        q: "You join two teams' repositories into one monorepo, or split one. How do you plan it? What rules do you set?",
         ai: true,
         short: "Decide based on coupling and tooling: plan history preservation (subtree/filter-repo), CI with affected-only builds and remote cache, CODEOWNERS per package, consistent versioning and commit conventions, and a cutover with freeze windows and rollback.",
         long: `Why: shared code and atomic cross-package changes favour a monorepo; independent release cycles and access control may favour separate repos.
@@ -3308,7 +3308,7 @@ Strong answer: decision criteria, technical steps, ownership and communication p
 Weak answer: "copy the folders in".`,
         exercises: [
           {
-            task: "Write the commands to import repo B into a monorepo under packages/b preserving history.",
+            task: "Write the commands to move repo B into the monorepo under packages slash b. Keep the history.",
             description: "Checks history-preserving migration mechanics. Ask for exact steps.",
             answer: "Rewrite B's history into the subdirectory with filter-repo, then merge it into the monorepo with --allow-unrelated-histories.",
             solution: `git clone repo-b && cd repo-b
@@ -3318,7 +3318,7 @@ git remote add b ../repo-b && git fetch b
 git merge --allow-unrelated-histories b/main -m "Import repo-b into packages/b"`,
           },
           {
-            task: "Draft the communication and cutover plan for the migration weekend.",
+            task: "Write the communication plan and the switch-over plan for the migration weekend.",
             description: "Checks change management. Ask for timeline and rollback.",
             answer: "Announce two weeks ahead with a guide, freeze merges at T-0, run a rehearsed migration script, verify CI/deploys, migrate open PRs with a helper script, set old repos read-only, and keep a rollback (unarchive old repos) until a go/no-go checkpoint.",
           },

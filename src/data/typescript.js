@@ -34,7 +34,7 @@ const p: Product = { id: '1', price: 10 };`,
 const p: Product = { id: 1, title: 'Book', price: 10 };`,
         exercises: [
           {
-            task: 'Make the email property optional and readonly id.',
+            task: 'Make the email property optional and the id property readonly.',
             description: 'Checks modifiers on interface members. Ask the candidate to add them and show an invalid assignment.',
             code: 'interface User { id: string; email: string }',
             answer: 'Use readonly for id and ? for email. Readonly only blocks reassignment at compile time; it does not freeze the object. Weak answers try Object.freeze in the type.',
@@ -43,7 +43,7 @@ const u: User = { id: '1' };
 // u.id = '2'; // Error: read-only`,
           },
           {
-            task: 'Type a function parameter with an inline object type and then extract it into a named type.',
+            task: 'Type a function parameter with an inline object type. Then move it into a named type.',
             description: 'Checks that inline and named types are equivalent. Ask why naming helps.',
             code: 'function greet(user: { name: string }) { return \'Hi \' + user.name; }',
             answer: 'Inline and named types are structurally identical; naming improves reuse, readability and error messages. A strong answer mentions either type or interface works here.',
@@ -64,7 +64,7 @@ const u: User = { name: 'A' };`,
         long: 'Interfaces with the same name in the same scope merge their members.\nHere User becomes { name: string; age: number }, so { name: "A" } is missing age → compile error.\nThe Window declaration is the intended use: global/module augmentation (in a module file it must be inside declare global { }).\nPitfall: accidental merging with a global name (e.g. naming your interface Event or Request) silently adds members.\nConflicting property types across merged declarations are an error.\nStrong candidate explains merging, module vs global scope, and the declare global/declare module augmentation pattern.\nWeak candidate guesses it is a duplicate identifier error.',
         exercises: [
           {
-            task: 'Add a typed `user` property to the Request interface of a third-party module using augmentation.',
+            task: 'A third-party module has a Request interface. Use module augmentation to add a typed `user` property to it.',
             description: 'Checks module augmentation, the main practical use of declaration merging. Ask the candidate where the file lives and why it needs export {}.',
             code: '// lib: declare module \'web-lib\' { interface Request { url: string } }',
             answer: 'Module augmentation reopens the library interface; it only works with interfaces because they merge, and the file must be a module. A wrong answer redeclares the interface globally, which does not reach the module scope. Strong answers mention the file must be a module and be included by tsconfig.',
@@ -84,7 +84,7 @@ type Config = { timeout: number };`,
         ],
       },
       {
-        q: 'Explain the difference between `extends` on interfaces and `&` on type aliases when properties conflict.',
+        q: 'Properties conflict. What is the difference between `extends` on interfaces and the ampersand (&) on type aliases?',
         short: 'Interface extends reports an error when a property type is incompatible; an intersection silently produces never for conflicting properties.',
         long: 'interface B extends A { x: number } errors immediately if A.x is string — good, early feedback.\ntype B = A & { x: number } compiles; B.x becomes string & number = never, and the error appears later at usage.\nInterfaces extending are also cached by name and are faster for the checker than large intersections.\nIntersections are still needed for combining unions or generic types.\nStrong candidate mentions both error timing and performance.\nWeak candidate says they are equivalent.',
         exercises: [
@@ -110,7 +110,7 @@ interface Order extends Base { status: 'new' | 'paid' }`,
     ],
     senior: [
       {
-        q: 'Why does this assignment fail but the variable version works? (excess property checks)',
+        q: 'Why does this assignment fail, but the version with a variable works? Think about excess property checks.',
         code: `interface Opts { color?: string }
 const a: Opts = { colour: 'red' }; // error
 const tmp = { colour: 'red' };
@@ -131,7 +131,7 @@ const b: Opts = raw;`,
             answer: 'Line a errors (excess property on a fresh literal). Line b compiles: raw is not fresh and Opts is not a weak type because retries is required and overlaps. The common mistake is saying both error or applying the weak-type rule here; Opts has a required field so it is not weak. A strong answer names both rules and when each applies.',
           },
           {
-            task: 'Type a routes config so values are checked against a shape but keys stay literal for autocompletion.',
+            task: 'Type a routes config. Values must match a shape, but keys stay as literals for autocomplete.',
             description: 'Checks practical use of satisfies to keep inference while validating. Point at the typo line and ask how to catch it.',
             code: `type RouteDef = { path: string; auth: boolean };
 const routes: Record<string, RouteDef> = { home: { path: '/', auth: false } };
@@ -144,12 +144,12 @@ const routes = { home: { path: '/', auth: false } } satisfies Record<string, Rou
         ],
       },
       {
-        q: 'When would you choose a type alias over an interface for a public library API, and what impact does it have on consumers?',
+        q: 'For a public library API, when would you choose a type alias over an interface? How does it affect the users of the library?',
         short: 'Interfaces are open to augmentation by consumers and give named error messages; type aliases are closed and required for unions/mapped types. Choose deliberately because augmentation is part of the public contract.',
         long: 'Public interface: consumers can augment it (e.g. theme typing, plugin options) — a feature or a compatibility burden.\nType alias: sealed; good for unions, discriminated results, derived types.\nError messages and hover show interface names; complex aliases may be expanded.\nChanging interface → type later is a breaking change for anyone augmenting.\nStrong candidate mentions augmentation as API surface (e.g. MUI theme, styled-components DefaultTheme).\nWeak candidate talks only about syntax.',
         exercises: [
           {
-            task: 'Design a theme type that apps can extend with custom tokens.',
+            task: 'Design a theme type. Apps should be able to extend it with their own tokens.',
             description: 'Checks intentional augmentation points. Ask how a consumer adds a token.',
             answer: 'Export an empty interface as an extension point; consumers augment it via declare module. A type alias cannot be augmented. Strong answers note this is the MUI/styled-components pattern.',
             solution: `// library
@@ -159,7 +159,7 @@ export type Theme = { primary: string } & CustomTokens;
 declare module 'my-lib' { interface CustomTokens { brand: string } }`,
           },
           {
-            task: 'Predict whether the hover type shows the alias name.',
+            task: 'When you hover, does the type show the alias name? Predict the answer.',
             description: 'Checks how aliases display in tooling. Ask how to keep names readable.',
             code: `type Id = string;
 type User = { id: Id };
@@ -172,20 +172,20 @@ const x = u.id;`,
     ],
     techlead: [
       {
-        q: 'Would you enforce interface or type via lint? How do you make such decisions in a team?',
+        q: 'Would you use a lint rule to force interface or type? How do you make this kind of decision in a team?',
         short: 'Yes, via @typescript-eslint/consistent-type-definitions; the decision is made once through a short RFC/ADR because the value is consistency, not the specific choice.',
         long: 'Low-stakes style choices should be automated so they never come up in code review.\nProcess: propose in a short ADR with trade-offs, timebox discussion, pick a default, encode in lint with autofix.\nAllow documented exceptions (e.g. interface where declaration merging is required).\nMeasure: fewer review nits, onboarding docs reference the rule.\nPitfall: big-bang reformatting PRs that pollute git blame — use autofix plus .git-blame-ignore-revs.\nStrong candidate focuses on process, automation and avoiding bikeshedding.\nWeak candidate argues passionately for one side or enforces by review comments only.',
         ai: true,
         exercises: [
           {
-            task: 'Configure linting so object shapes use `type` everywhere and the rule autofixes existing code.',
+            task: 'Set up linting so object shapes always use `type`. The rule should fix existing code automatically.',
             description: 'Checks how the candidate turns a style decision into tooling. Ask about rollout on a large codebase, not just config.',
             answer: 'Use consistent-type-definitions with the "type" option; run eslint --fix once in a dedicated commit added to .git-blame-ignore-revs. Strong answers cover autofix, one isolated commit, blame-ignore and communicating the change. Weak answers stop at "add the rule".',
             solution: `// eslint.config.js
 export default [{ rules: { '@typescript-eslint/consistent-type-definitions': ['error', 'type'] } }];`,
           },
           {
-            task: 'Write a short ADR decision section for interface vs type.',
+            task: 'Write a short decision section for an ADR about interface versus type.',
             description: 'Checks decision documentation and governance. Ask the candidate to draft the decision in two minutes.',
             answer: 'A good ADR states the context, the chosen default, documented exceptions (declaration merging, unions) and how it is enforced, so the decision is never re-litigated in reviews. Strong answers state context, decision, exceptions and enforcement; weak answers argue the merits of one syntax without a process.',
             solution: `// Decision: object shapes use interface; unions/mapped types use type.
@@ -195,7 +195,7 @@ export default [{ rules: { '@typescript-eslint/consistent-type-definitions': ['e
         ],
       },
       {
-        q: 'Fix this shared types file: types are duplicated across packages and drift.',
+        q: 'Fix this shared types file. Types are copied into many packages and slowly become different.',
         code: `// packages/web/types.ts
 export interface User { id: string; name: string }
 // packages/mobile/types.ts
@@ -209,7 +209,7 @@ import type { User } from '@acme/contracts';`,
         ai: true,
         exercises: [
           {
-            task: 'Set up the contracts package so it ships only types.',
+            task: 'Set up the contracts package so it contains only types.',
             description: 'Checks a types-only package setup. Ask what lands in the bundle.',
             answer: 'A package with only .d.ts output (or emitDeclarationOnly) adds zero runtime cost; consumers use import type. Strong answers mention exports with a types condition.',
             solution: `// packages/contracts/package.json
@@ -217,7 +217,7 @@ import type { User } from '@acme/contracts';`,
 // tsconfig: { "compilerOptions": { "emitDeclarationOnly": true, "declaration": true } }`,
           },
           {
-            task: 'Detect drift between a local type and the shared one in CI.',
+            task: 'In CI, find when a local type stops matching the shared type.',
             description: 'Checks compile-time compatibility tests. Ask how the test fails.',
             answer: 'A type-level assertion that the local type is assignable to the shared one fails tsc when they diverge. Strong answers prefer deleting the local copy altogether.',
             solution: `import type { User } from '@acme/contracts';
@@ -335,7 +335,7 @@ new B();`,
             answer: 'It logs "A": A\'s constructor runs before B\'s field initializer overwrites name. Many say "B" because the instance is a B. Strong answers walk through: super() runs A fields and constructor, then B fields are assigned.',
           },
           {
-            task: 'Enable a compiler check that catches overriding a method that was renamed in the base class, and fix the code.',
+            task: 'A method was renamed in the base class, but a subclass still overrides the old name. Turn on a compiler check that catches this, and fix the code.',
             description: 'Checks awareness of noImplicitOverride as a refactoring safety net. Ask what happens if Base.save is renamed.',
             code: `class Base { save() {} }
 class Child extends Base { save() {} }`,
@@ -347,12 +347,12 @@ class Child extends Base { override save() {} }`,
         ],
       },
       {
-        q: 'What are getters/setters and accessors in TS classes, and what are the typing rules since TS 5.1?',
+        q: 'What are getters, setters, and accessors in TS classes? What are the typing rules since TS 5.1?',
         short: 'get/set define computed properties; since TS 5.1 getter and setter types may be unrelated (setter can accept wider input), as long as both are explicitly annotated.',
         long: 'Accessors run code on read/write, useful for validation or derived state.\nTS 4.3 allowed a setter to accept a wider type than the getter returns; TS 5.1 removed the requirement that they be related.\nAccessors are on the prototype, not own properties: JSON.stringify skips them.\nauto-accessor keyword (accessor x) exists for standard decorators.\nStrong candidate mentions the type rule and serialization behaviour.\nWeak candidate only knows syntax.',
         exercises: [
           {
-            task: 'Write a setter that accepts string | number but the getter returns number.',
+            task: 'Write a setter that accepts a string or a number, but the getter returns a number.',
             description: 'Checks divergent accessor types. Ask what the compiler allows.',
             answer: 'Since TS 4.3 the setter can accept a wider type; the getter returns the normalized value. Strong answers note explicit annotations are required.',
             solution: `class Price {
@@ -373,12 +373,12 @@ console.log(JSON.stringify(new P()));`,
     ],
     senior: [
       {
-        q: 'Abstract classes vs interfaces vs composition. Refactor a deep inheritance hierarchy (Component → Form → LoginForm → AdminLoginForm). How?',
+        q: 'Compare abstract classes, interfaces, and composition. How would you refactor this deep chain: Component, then Form, then LoginForm, then AdminLoginForm?',
         short: 'Abstract classes share implementation, interfaces only define contracts, composition assembles behaviour from small parts. Flatten the hierarchy by extracting behaviours (validation, submission, auth) into composable units.',
         long: 'Deep hierarchies create fragile base class problems: changes to Form ripple to every subclass, and behaviours cannot be mixed freely.\nAbstract class: shared code + abstract hooks (template method); runtime presence; single inheritance.\nInterface: pure contract, zero runtime cost, many per class.\nComposition: inject strategies/services (validator, submitter) or use hooks/functions in React.\nRefactor plan: identify varying behaviour per level, extract into interfaces + implementations, compose in one flat class or hook, migrate incrementally with tests.\nStrong candidate gives a concrete extraction and talks about incremental migration.\nWeak candidate says "inheritance is bad" without a plan.',
         exercises: [
           {
-            task: 'Fix the error: the abstract class cannot be instantiated, but a factory needs to accept any concrete subclass.',
+            task: 'Fix the error. You cannot create an abstract class, but a factory must accept any concrete subclass.',
             description: 'Checks abstract construct signatures and constructor types. Ask why typeof Repo is rejected.',
             code: `abstract class Repo { abstract find(id: string): string }
 function make(C: typeof Repo) { return new C(); }`,
@@ -389,7 +389,7 @@ class MemRepo extends Repo { find(id: string) { return id; } }
 make(MemRepo);`,
           },
           {
-            task: 'Replace inheritance with composition: AdminLoginForm only differs by an extra permission check.',
+            task: 'Replace inheritance with composition. AdminLoginForm only adds one extra permission check.',
             description: 'Checks composition over inheritance in a concrete refactor. Ask how a third variant would be added.',
             code: `class LoginForm { submit(u: string) { return 'ok:' + u; } }
 class AdminLoginForm extends LoginForm {
@@ -445,13 +445,13 @@ renderReport(() => 'sales');`,
     ],
     techlead: [
       {
-        q: 'Your domain layer uses class hierarchies and the UI uses plain objects; serialization bugs keep happening. What architecture rule do you set?',
+        q: 'Your domain layer uses class hierarchies, and the UI uses plain objects. Serialization bugs keep happening. What architecture rule do you set?',
         short: 'Define a clear boundary: plain DTO types cross the network/state/cache, a mapping layer converts to and from domain classes, and runtime validation guards the edge.',
         long: 'Class instances lose prototypes when serialized (JSON, structuredClone, localStorage, persisted caches), so methods disappear and instanceof fails.\nRule: only plain, serializable data in stores, caches, URLs and messages.\nMapping functions (toDomain/toDto) live in one layer and are unit tested.\nValidate incoming data (zod/valibot) at the boundary.\nEnforce with lint (e.g. Redux serializableCheck, import boundaries) and document in an ADR.\nStrong candidate identifies the root cause (prototype loss) and makes the rule enforceable.\nWeak candidate patches individual bugs or adds class-transformer everywhere.',
         ai: true,
         exercises: [
           {
-            task: 'Write a safeguard that fails when class instances end up in a serialized store.',
+            task: 'Write a check that fails when class instances get into a serialized store.',
             description: 'Checks how to make a serialization rule enforceable. Ask what fails and where it is reported.',
             answer: 'Redux Toolkit serializableCheck middleware (or a test that round-trips state through JSON and compares) catches instances early. Strong answers mention dev-only middleware cost and a JSON round-trip test as an alternative. Weak answers rely on code review.',
             solution: `import { configureStore } from '@reduxjs/toolkit';
@@ -476,7 +476,7 @@ const s = raw ? toSession(JSON.parse(raw) as SessionDto) : null;`,
         ],
       },
       {
-        q: 'Fix this design: a shared BaseService is extended by 20 services and every change breaks some of them.',
+        q: 'Fix this design. Twenty services extend a shared BaseService, and every change breaks some of them.',
         code: `class BaseService {
   protected http = fetch;
   protected log(msg: string) { console.log(msg); }
@@ -630,12 +630,12 @@ class Y extends Base { private b = 2; }`,
     ],
     senior: [
       {
-        q: 'Explain readonly vs private vs #private vs Object.freeze. Which do you use for an SDK public API and why?',
+        q: 'Explain readonly, private, hash private, and Object.freeze. Which one do you use for a public SDK API, and why?',
         short: 'readonly and private are compile-time only; #private is enforced by the runtime; Object.freeze is shallow runtime immutability. For an SDK use #private so consumers cannot depend on internals.',
         long: 'readonly: prevents reassignment in TS, nothing at runtime; does not make nested objects immutable.\nprivate: compile-time visibility; JS consumers or casts can still read and depend on it, turning internals into accidental API.\n#private: hard privacy, safe to rename/remove without breaking consumers; not accessible to subclasses.\nObject.freeze: runtime, shallow; affects all properties; writes throw in strict mode.\nFor SDKs: #private for internals, readonly in types for public data, return copies or readonly types for collections.\nStrong candidate connects privacy to semver and Hyrum\'s law.\nWeak candidate treats them as synonyms.',
         exercises: [
           {
-            task: 'Expose a list that consumers cannot mutate through the type system or at runtime.',
+            task: 'Expose a list that users cannot change, not through types and not at runtime.',
             description: 'Checks designing an immutable public surface. Ask how consumers could still mutate the list.',
             code: 'class Store { items: string[] = []; }',
             answer: 'Keep the array #private and expose a readonly view; return a frozen copy if runtime protection is needed. Weak answers only use readonly in the type, which a cast bypasses. Strong answers combine # storage, readonly types and copies, and discuss the copy cost.',
@@ -656,7 +656,7 @@ const b: Box = new Other();`,
         ],
       },
       {
-        q: 'Fix the leak: a "private" token is exposed through serialization and logging.',
+        q: 'Fix the leak. A "private" token shows up in serialized data and in logs.',
         code: `class Api {
   private token: string;
   constructor(token: string) { this.token = token; }
@@ -679,7 +679,7 @@ console.log(Object.keys(new A()));`,
             answer: '["a", "c"]: TS private is a normal property; #b is not a property at all.',
           },
           {
-            task: 'Add a custom inspection output for Node logs.',
+            task: 'Add custom output for when Node logs this object.',
             description: 'Checks controlling debug output. Ask when to use it.',
             answer: 'Node calls [Symbol.for("nodejs.util.inspect.custom")] in console.log; returning a redacted view avoids leaking secrets in server logs.',
             solution: `class Api {
@@ -692,13 +692,13 @@ console.log(Object.keys(new A()));`,
     ],
     techlead: [
       {
-        q: 'How do you define the public API surface of a shared internal package and prevent other teams from importing internals?',
+        q: 'How do you define the public API of a shared internal package? How do you stop other teams from importing its internal files?',
         short: 'Use package.json "exports" to expose only entry points, enforce import boundaries with lint, track the surface with API Extractor, and version with semver and changelogs.',
         long: 'Physical enforcement: "exports" makes deep imports fail resolution for Node and modern bundlers (moduleResolution bundler/node16).\nLint enforcement: no-restricted-imports or eslint-plugin-boundaries / Nx module boundaries in a monorepo.\nAPI review: API Extractor generates an .api.md report; changes show up in PR diffs.\nMark internals with @internal and stripInternal.\nVersioning: semver, changesets, deprecation periods.\nStrong candidate combines tooling with governance (owners, review).\nWeak candidate relies on a README asking people not to import internals.',
         ai: true,
         exercises: [
           {
-            task: 'Hide an internal helper from the published .d.ts files of a package.',
+            task: 'Hide an internal helper from the published d.ts files of a package.',
             description: 'Checks controlling the published type surface. Ask how internals leak today.',
             code: `export class Client {
   /** @internal */
@@ -708,7 +708,7 @@ console.log(Object.keys(new A()));`,
             solution: '// tsconfig.json: { "compilerOptions": { "declaration": true, "stripInternal": true } }',
           },
           {
-            task: 'Make deep imports into @acme/ui/src fail at resolution time.',
+            task: 'Make deep imports into the acme ui src folder fail when the module is resolved.',
             description: 'Checks package exports as physical enforcement. Ask what error consumers see.',
             answer: 'An "exports" map limits importable subpaths; any path not listed fails with ERR_PACKAGE_PATH_NOT_EXPORTED in Node and modern bundlers. Strong answers mention moduleResolution must be node16/bundler for TS to honour exports, plus a lint rule for monorepo source imports.',
             solution: `// package.json
@@ -717,13 +717,13 @@ console.log(Object.keys(new A()));`,
         ],
       },
       {
-        q: 'Your team mixes `private` and `#private` randomly. Define a rule and justify it.',
+        q: 'Your team mixes `private` and hash `#private` at random. Define a rule and explain it.',
         short: 'Pick one default by context: #private for library/SDK code and secrets (runtime enforced), TS private for app code where testing ergonomics and decorators matter; enforce with lint.',
         long: '#private: true encapsulation, safe refactors, but no access from tests via casts and incompatible with some decorator/proxy patterns (MobX, Vue reactivity).\nTS private: zero runtime cost, test-friendly escape hatch, works with proxies.\nRule example: packages published externally use #; app code uses private; secrets always #.\nEnforce with eslint (e.g. no-restricted-syntax on PrivateIdentifier in app folders or the reverse).\nStrong candidate mentions proxy incompatibility of # fields.\nWeak candidate chooses by taste.',
         ai: true,
         exercises: [
           {
-            task: 'Explain why #private breaks with a Proxy-based reactive store.',
+            task: 'Explain why hash private fields break with a reactive store built on Proxy.',
             description: 'Checks a real compatibility issue. Ask for the error.',
             code: `class S { #n = 1; get n() { return this.#n; } }
 const p = new Proxy(new S(), {});
@@ -743,7 +743,7 @@ p.n;`,
   Generics: {
     junior: [
       {
-        q: 'What are generics? Write a generic identity function and a typed useState-like signature.',
+        q: 'What are generics? Write a generic identity function. Then write a typed signature like useState.',
         short: 'Generics are type parameters that link input and output types so a function or type works for many types without losing type information.',
         long: 'Without generics you choose between a specific type (not reusable) or any (unsafe).\nA type parameter T is usually inferred from arguments: identity(5) gives T = number.\nGenerics can be constrained (T extends ...) and have defaults (T = string).\nPitfall: a type parameter used only once (e.g. only in the return type) is a smell — it is just an unchecked cast.\nStrong candidate shows inference and constraints.\nWeak candidate only says "like templates" and uses any.',
         fix: `function identity<T>(v: T): T {
@@ -859,7 +859,7 @@ len('abc'); len([1]); len(5);`,
     ],
     senior: [
       {
-        q: 'Write DeepReadonly<T> and a type that extracts the resolved type of a Promise-returning function. What edge cases exist?',
+        q: 'Write a DeepReadonly type. Also write a type that gets the resolved value type of a function that returns a Promise. What edge cases are there?',
         short: 'Use a recursive conditional/mapped type for DeepReadonly and Awaited<ReturnType<F>> for the resolved type. Edge cases: functions, arrays/tuples, Map/Set, Date, class instances and recursion depth.',
         long: 'Mapped types over arrays and tuples are homomorphic, so { readonly [K in keyof T] } produces readonly arrays/tuples correctly.\nFunctions must be excluded or they become an object type with no call signature.\nMap/Set need special handling: mapping their keys only makes methods readonly, not the contents.\nDate and class instances get their methods marked readonly — usually acceptable but worth stating.\nAwaited recursively unwraps nested promises and thenables (TS 4.5+).\nDeep recursion can hit "Type instantiation is excessively deep" on huge types.\nStrong candidate lists edge cases unprompted and tests the types.\nWeak candidate writes a one-level Readonly or uses ReturnType without Awaited.',
         fix: `type DeepReadonly<T> =
@@ -879,7 +879,7 @@ type AsyncReturn<F extends (...args: any[]) => Promise<unknown>> = Awaited<Retur
 type U = PartialBy<{ id: string; name: string }, 'id'>; // { name: string; id?: string }`,
           },
           {
-            task: 'Predict the result types and explain distributivity.',
+            task: 'Predict the result types. Explain how conditional types distribute over unions.',
             description: 'Checks distributive conditional types. Ask for both results before explaining.',
             code: `type ToArray<T> = T extends unknown ? T[] : never;
 type A = ToArray<string | number>;
@@ -890,7 +890,7 @@ type B = NoDist<string | number>;`,
         ],
       },
       {
-        q: 'Fix the typing so the callback receives the correct event type for each event name.',
+        q: 'Fix the types, so the callback gets the correct event type for each event name.',
         code: `type Events = { click: MouseEvent; keydown: KeyboardEvent };
 function on(name: keyof Events, cb: (e: Events[keyof Events]) => void) {}
 on('click', e => e.clientX); // error: clientX does not exist on KeyboardEvent`,
@@ -901,7 +901,7 @@ function on<K extends keyof Events>(name: K, cb: (e: Events[K]) => void): void {
 on('click', e => e.clientX); // e: MouseEvent`,
         exercises: [
           {
-            task: 'Write a type-safe `get` for nested paths two levels deep.',
+            task: 'Write a type-safe `get` for nested paths, two levels deep.',
             description: 'Checks chained indexed access with generics. Ask for the return type.',
             answer: 'Two type parameters chained by constraints give precise nested types without string paths.',
             solution: `function get2<T, K1 extends keyof T, K2 extends keyof T[K1]>(o: T, k1: K1, k2: K2): T[K1][K2] {
@@ -923,13 +923,13 @@ on(name, e => {});`,
     ],
     techlead: [
       {
-        q: 'Clever generic types slow the IDE and confuse the team. Where do you draw the line?',
+        q: 'Clever generic types make the IDE slow and confuse the team. How do you decide what is too much?',
         short: 'Readability over cleverness: complex types live in well-documented, tested library code, app code stays simple, and compiler performance is measured.',
         long: 'Types are code: they need review, tests and maintenance.\nGuidelines: prefer explicit simple types in app code; allow advanced types in shared utils with docs and type tests (expectTypeOf, tsd, @ts-expect-error).\nMeasure: tsc --extendedDiagnostics, --generateTrace, IDE latency complaints.\nRed flags: deep recursive conditionals, huge unions, types nobody can explain in review.\nIt is fine to use a slightly looser type plus runtime validation when exact typing is too costly.\nStrong candidate gives concrete criteria and measurement.\nWeak candidate either bans generics or celebrates type gymnastics.',
         ai: true,
         exercises: [
           {
-            task: 'Add a compile-time test that fails if a utility type changes behaviour.',
+            task: 'Add a test that fails at compile time if a utility type changes its behavior.',
             description: 'Checks testing types in CI. Ask how a regression would be noticed.',
             answer: 'A type-level assertion via an Equal helper, or vitest expectTypeOf, turns type behaviour into a CI-checked test. Strong answers mention expectTypeOf/tsd as more readable options and that the tests run under tsc.',
             solution: `type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
@@ -937,7 +937,7 @@ type Expect<T extends true> = T;
 type _t = Expect<Equal<Awaited<Promise<number>>, number>>;`,
           },
           {
-            task: 'Simplify this over-engineered generic signature for application code.',
+            task: 'This generic signature is too complex for application code. Simplify it.',
             description: 'Checks pragmatic simplification. Ask what is lost and whether it matters.',
             code: 'function setField<T extends Record<string, unknown>, K extends keyof T, V extends T[K]>(o: T, k: K, v: V): T & { [P in K]: V } { return { ...o, [k]: v }; }',
             answer: 'App code rarely needs the precise intersection result; returning T keeps safety for keys and values and is far easier to read. Strong answers weigh precision vs readability; weak answers defend the complex signature without a use case.',
@@ -948,7 +948,7 @@ type _t = Expect<Equal<Awaited<Promise<number>>, number>>;`,
         ],
       },
       {
-        q: 'Fix this API client where every call needs a manual generic and nothing ties it to the endpoint.',
+        q: 'Fix this API client. Every call needs a generic written by hand, and nothing links it to the endpoint.',
         code: `async function api<T>(url: string): Promise<T> {
   return (await fetch(url)).json();
 }
@@ -967,7 +967,7 @@ const order = await api('/orders/:id', '1'); // { id: string; total: number }`,
         ai: true,
         exercises: [
           {
-            task: 'Explain why `api<T>(url): Promise<T>` is unsafe.',
+            task: 'Explain why a function `api` with a generic T, that returns a Promise of T, is unsafe.',
             description: 'Checks recognizing return-only generics as casts. Ask for a counterexample.',
             answer: 'A type parameter used only in the return position cannot be checked; it is equivalent to as T. Any T can be requested for any URL, so mistakes compile. Strong answers cite the "golden rule of generics".',
           },
@@ -989,7 +989,7 @@ async function api<P extends keyof EP>(p: P, id: string): Promise<z.infer<EP[P]>
   Decorators: {
     junior: [
       {
-        q: 'What is a decorator? Where have you seen them (Angular, NestJS, MobX)?',
+        q: 'What is a decorator? Where have you seen them, for example in Angular, NestJS, or MobX?',
         short: 'A decorator is a function applied with @ to a class or class member at definition time to annotate it or replace/wrap its behaviour.',
         long: 'Decorators run once when the class is defined, not on each call.\nCommon uses: Angular @Component/@Injectable, NestJS @Controller/@Get, MobX @observable, TypeORM @Entity, class-validator.\nTS 5.0+ supports standard (TC39) decorators; the older experimentalDecorators mode is still used by many frameworks.\nThey work only on classes and class members, not plain functions.\nStrong candidate knows there are two decorator systems and roughly how they differ.\nWeak candidate confuses decorators with HOCs or thinks they are inert annotations.',
         exercises: [
@@ -1047,7 +1047,7 @@ class A { @d x = 1; }`,
     ],
     middle: [
       {
-        q: 'Write a @log method decorator (TS 5 standard decorators) that logs args and result.',
+        q: 'Write a log method decorator with TS 5 standard decorators. It logs the arguments and the result.',
         short: 'Standard decorators receive (value, context) and can return a replacement method; the replacement must preserve this and the original signature.',
         long: 'Signature: (originalMethod, context: ClassMethodDecoratorContext) → optional replacement.\nUse a regular function (not arrow) so this is the instance; call target with this.\nGeneric This/Args/R keep the method type intact instead of any.\ncontext also gives name, static, private, and addInitializer (e.g. for auto-binding).\nPitfall: async methods return a promise, so logging result logs the promise; handle with then if needed.\nStrong candidate types it generically and mentions addInitializer.\nWeak candidate writes the legacy (target, key, descriptor) form while claiming it is TS 5 standard.',
         fix: `function log<This, Args extends unknown[], R>(
@@ -1080,7 +1080,7 @@ class A { n = 1; @trace get() { return this.n; } }`,
 class A { n = 1; @trace get() { return this.n; } }`,
           },
           {
-            task: 'Write a decorator factory @retry(n) for async methods.',
+            task: 'Write a retry decorator factory for async methods. It takes the number of retries.',
             description: 'Checks decorator factories. Ask how the retry count reaches the decorator.',
             answer: 'A factory returns the decorator; the replacement loops and rethrows the last error. Strong answers mention the factory closure and that it only fits async methods; they may add backoff.',
             solution: `function retry(times: number) {
@@ -1098,7 +1098,7 @@ class A { n = 1; @trace get() { return this.n; } }`,
         ],
       },
       {
-        q: 'In what order are multiple decorators on the same member evaluated and applied?',
+        q: 'One member has several decorators. In what order are they evaluated and applied?',
         short: 'Decorator expressions are evaluated top to bottom, but applied bottom to top (closest to the member first), like function composition.',
         long: '@a @b method(): a() and b() factories evaluate in order a, b; then b\'s decorator wraps first, then a wraps the result.\nThe outermost (top) decorator runs first at call time because it wraps everything.\nOrder matters for e.g. @log @cache vs @cache @log.\nStrong candidate explains it as composition a(b(method)).\nWeak candidate assumes top-to-bottom application.',
         exercises: [
@@ -1110,7 +1110,7 @@ class A { @d('a') @d('b') m() {} }`,
             answer: 'eval a, eval b, apply b, apply a. Expressions evaluate top-down; decorators apply bottom-up.',
           },
           {
-            task: 'Choose the right order for @cache and @log so logging happens only on cache misses.',
+            task: 'Choose the right order for the cache and log decorators, so logging happens only on a cache miss.',
             description: 'Checks practical consequences of order. Ask for reasoning.',
             answer: 'Put @cache on top: @cache @log m(). cache wraps log, so log runs only when cache calls through. Strong answers explain composition cache(log(m)).',
           },
@@ -1119,12 +1119,12 @@ class A { @d('a') @d('b') m() {} }`,
     ],
     senior: [
       {
-        q: 'Differences between experimentalDecorators and TC39 standard decorators? Migration risks?',
+        q: 'What are the differences between experimentalDecorators and the standard TC39 decorators? What are the risks when you migrate?',
         short: 'They have different signatures and semantics: standard decorators get (value, context), have no parameter decorators and no emitDecoratorMetadata. Frameworks like NestJS and Angular DI still rely on the legacy mode.',
         long: 'Legacy: (target, propertyKey, descriptor), parameter decorators, emitDecoratorMetadata (reflect-metadata) for DI type info.\nStandard (TS 5.0+): (value, context) with kind/name/addInitializer; accessor keyword for auto-accessors; context.metadata / Symbol.metadata since TS 5.2.\nNo parameter decorators in standard → constructor injection by type metadata does not work.\nEvaluation order and field decorator semantics differ (field decorators return initializers, cannot see a descriptor).\nMigration risk: libraries written for one mode break in the other; flipping the flag changes behaviour project-wide.\nStrong candidate checks framework support and migrates per package with tests.\nWeak candidate thinks only the syntax changed.',
         exercises: [
           {
-            task: 'Predict whether this compiles with standard decorators (experimentalDecorators off).',
+            task: 'Predict whether this compiles with standard decorators, with experimentalDecorators turned off.',
             description: 'Checks knowledge that standard decorators dropped parameter decorators. Ask for a prediction.',
             code: `function inject(_t: object, _k: string | symbol | undefined, _i: number) {}
 class Svc { constructor(@inject private db: object) {} }`,
@@ -1144,7 +1144,7 @@ console.log(Ctrl[Symbol.metadata]); // { list: '/users' }`,
         ],
       },
       {
-        q: 'Fix this field decorator: it tries to read the descriptor, which standard field decorators do not receive.',
+        q: 'Fix this field decorator. It tries to read the descriptor, but standard field decorators do not get one.',
         code: `function min(n: number) {
   return function (_v: undefined, ctx: ClassFieldDecoratorContext) {
     const d = Object.getOwnPropertyDescriptor(ctx, 'value'); // nonsense
@@ -1183,7 +1183,7 @@ class F { @nonEmpty accessor name = 'x'; }`,
     ],
     techlead: [
       {
-        q: 'Would you allow decorators in a React codebase? Justify.',
+        q: 'Would you allow decorators in a React codebase? Explain why.',
         short: 'Usually no: hooks and higher-order functions fit React better, while decorators add build configuration, legacy/standard ambiguity and class-based patterns. Exceptions (e.g. MobX stores) are documented.',
         long: 'Modern React is function components and hooks; decorators only apply to classes.\nTooling cost: Babel/SWC/esbuild decorator config, two incompatible modes, library compatibility.\nHidden behaviour: decorators make data flow less explicit for newcomers.\nValid exceptions: MobX class stores, DI containers in non-UI layers — scoped and documented.\nDecision via ADR, enforce with lint (e.g. no decorators outside /stores).\nStrong candidate weighs team skills, tooling and consistency.\nWeak candidate answers with personal taste only.',
         ai: true,
@@ -1201,7 +1201,7 @@ class Store {
 }`,
           },
           {
-            task: 'Write an ESLint restriction that forbids decorators outside src/stores.',
+            task: 'Write an ESLint rule that forbids decorators outside the src stores folder.',
             description: 'Checks enforcing an architectural policy with lint. Ask how exceptions are approved.',
             answer: 'no-restricted-syntax on the Decorator node, with an override for the allowed folder, makes the policy enforceable. Strong answers combine the rule with a documented ADR; weak answers rely on review.',
             solution: `export default [
@@ -1212,7 +1212,7 @@ class Store {
         ],
       },
       {
-        q: 'Fix the NestJS-style DI that breaks after enabling TS 5 standard decorators.',
+        q: 'Fix the NestJS-style dependency injection. It breaks after you turn on TS 5 standard decorators.',
         code: `// tsconfig: experimentalDecorators removed
 @Injectable()
 class UsersService { constructor(private repo: UsersRepo) {} }`,
@@ -1225,14 +1225,14 @@ class UsersService { constructor(private repo: UsersRepo) {} }`,
         ai: true,
         exercises: [
           {
-            task: 'Write a CI smoke test that catches broken DI wiring.',
+            task: 'Write a CI smoke test that catches broken dependency injection setup.',
             description: 'Checks protecting against runtime-only failures. Ask what it asserts.',
             answer: 'Bootstrapping the module in a test and resolving key providers fails fast if metadata is missing.',
             solution: `// test: const app = await NestFactory.createApplicationContext(AppModule);
 // expect(app.get(UsersService)).toBeDefined();`,
           },
           {
-            task: 'Decide per-package decorator mode in a monorepo.',
+            task: 'In a monorepo, decide which decorator mode each package uses.',
             description: 'Checks scoping compiler options. Ask how it is configured.',
             answer: 'Each package tsconfig sets its own decorator flags; a shared base config omits them. Strong answers document which packages are legacy and why.',
           },
@@ -1296,7 +1296,7 @@ function f(x: A | B) { return x.a; }`,
     ],
     middle: [
       {
-        q: 'Model request state so data and error can never coexist, with exhaustive handling.',
+        q: 'Model request state so data and error can never exist at the same time. Handle every case.',
         code: 'type State = { loading: boolean; data?: User; error?: string };',
         short: 'Use a discriminated union with a literal status field, and an assertNever(never) default branch so adding a new state becomes a compile error until handled.',
         long: 'The optional-flags version allows impossible combinations (loading with data and error).\nA discriminated union has a common literal property; checking it narrows to one variant.\nIn the default branch the value is never when all cases are handled; passing it to assertNever enforces exhaustiveness.\nAlternatively: const _x: never = s, or the switch-exhaustiveness-check lint rule.\nPitfall: using boolean flags as discriminants for more than two states.\nStrong candidate mentions "make illegal states unrepresentable".\nWeak candidate adds runtime ifs without changing the type.',
@@ -1338,7 +1338,7 @@ function view(r: Req): string {
 }`,
           },
           {
-            task: 'Predict whether narrowing through an aliased condition works here.',
+            task: 'The condition is saved in a variable first. Predict whether narrowing still works here.',
             description: 'Checks control flow analysis of aliased conditions. Ask whether it compiles.',
             code: `type R = { ok: true; value: number } | { ok: false; error: string };
 function f(r: R) { const ok = r.ok; if (ok) return r.value; }`,
@@ -1360,7 +1360,7 @@ const items: Item[] = [{ id: '1' }, null];
 const ids = items.filter((i): i is { id: string } => i !== null).map(i => i.id);`,
         exercises: [
           {
-            task: 'Predict whether 5.5 infers a predicate here.',
+            task: 'Does TypeScript 5.5 infer a type predicate here? Predict the answer.',
             description: 'Checks limits of inferred predicates. Ask why.',
             code: 'const xs = [0, 1, undefined].filter(x => !!x);',
             answer: 'No: !!x also removes 0, so "x is number" would be wrong in the false branch; TS keeps (number | undefined)[]. Use x !== undefined.',
@@ -1400,7 +1400,7 @@ const a: OneOf = { id: '1' };
         ],
       },
       {
-        q: 'Fix the function so the return type depends on the argument type instead of always being a union.',
+        q: 'Fix the function. The return type should depend on the argument type, not always be a union.',
         code: `function parse(input: string | number): string | number {
   return typeof input === 'string' ? input.trim() : input * 2;
 }
@@ -1437,7 +1437,7 @@ f(v);`,
     ],
     techlead: [
       {
-        q: 'How do you design types for API error handling across the whole app (Result types vs exceptions)?',
+        q: 'How do you design types for API errors in the whole app? Compare Result types and exceptions.',
         short: 'Choose deliberately: Result<T, E> unions make expected failures explicit in types, exceptions suit unexpected ones. Map errors once at the boundary and keep UI handling consistent.',
         long: 'TS cannot type thrown errors (catch gives unknown), so expected failures (validation, 404, conflict) benefit from Result unions.\nUnexpected failures (network down, bugs) can still throw and be caught by error boundaries / global handlers.\nBoundary mapping: the API client converts HTTP responses into a typed AppError union.\nConsistency: one Result helper or library (neverthrow, Effect) — not a mix of styles per feature.\nUI: shared patterns for toasts, inline errors, retry.\nStrong candidate reasons about trade-offs (verbosity vs safety) and team adoption.\nWeak candidate picks one dogmatically.',
         ai: true,
@@ -1454,7 +1454,7 @@ function map<T, U, E>(r: Result<T, E>, f: (t: T) => U): Result<U, E> {
 }`,
           },
           {
-            task: 'Map unknown thrown values at the API boundary into a typed error union.',
+            task: 'Where API data enters the app, turn unknown thrown values into a typed union of errors.',
             description: 'Checks normalizing unknown errors at a boundary. Ask why catch gives unknown.',
             code: 'async function load() { try { return await fetch(\'/x\'); } catch (e) { throw e; } }',
             answer: 'Normalize unknown into a known AppError once so UI code switches on a typed union instead of guessing. Strong answers mention useUnknownInCatchVariables and a single mapping function.',
@@ -1501,7 +1501,7 @@ type Props = XOR<{ href: string }, { onClick: () => void }>;`,
   Enums: {
     junior: [
       {
-        q: 'What is an enum? Difference between numeric and string enums?',
+        q: 'What is an enum? What is the difference between numeric and string enums?',
         short: 'An enum is a named set of constants that exists at runtime. Numeric enums auto-increment and have reverse mapping; string enums need explicit values and are more readable in logs.',
         long: 'Enums are one of the few TS features that emit JavaScript (an object).\nNumeric: Red = 0, Green = 1, ...; reverse mapping Color[0] === "Red".\nString: each member must be initialized; no reverse mapping; values are meaningful when serialized.\nString enums are nominal-ish: a plain "active" string is not assignable to Status.\nPitfall: numeric enum values in APIs are unreadable and fragile if members are reordered.\nStrong candidate mentions runtime emission and reverse mapping.\nWeak candidate thinks enums are type-only.',
         exercises: [
@@ -1604,7 +1604,7 @@ const r: Role = fromApi;`,
     ],
     senior: [
       {
-        q: 'Enum vs const enum vs union literals vs `as const` object — trade-offs (bundle, isolatedModules, runtime)?',
+        q: 'Compare enum, const enum, union of literals, and an `as const` object. Think about bundle size, isolatedModules, and runtime.',
         short: 'Enums emit runtime code and tree-shake poorly; const enum is inlined but breaks with isolatedModules/Babel/esbuild across files; union literals are zero-cost but have no runtime values; an as const object gives both runtime values and a union type.',
         long: 'enum: runtime object (IIFE), poorly tree-shaken, nominal-ish typing, numeric pitfalls.\nconst enum: inlined at compile time, but single-file transpilers cannot see other files; isolatedModules restricts them and libraries should never ship them.\nUnion literal type: no runtime cost, great with discriminated unions, but you cannot iterate values.\nas const object: plain JS, iterable, tree-shakable, compatible with erasableSyntaxOnly / Node type stripping (TS 5.8).\nTrend: many teams ban enums in favour of as const objects.\nStrong candidate mentions isolatedModules and erasable syntax.\nWeak candidate only discusses syntax preference.',
         fix: `const Status = { Active: 'active', Archived: 'archived' } as const;
@@ -1615,7 +1615,7 @@ function isStatus(v: string): v is Status {
 }`,
         exercises: [
           {
-            task: 'Replace the enum so the code works under erasableSyntaxOnly / Node type stripping.',
+            task: 'Replace the enum, so the code works with erasableSyntaxOnly and with Node type stripping.',
             description: 'Checks erasable syntax. Ask which call sites change.',
             code: 'export enum Theme { Light = \'light\', Dark = \'dark\' }',
             answer: 'Enums emit runtime code; an as const object plus a derived union type is erasable and keeps the same call sites. Strong answers note call sites stay the same and the type is a union of values.',
@@ -1623,7 +1623,7 @@ function isStatus(v: string): v is Status {
 export type Theme = (typeof Theme)[keyof typeof Theme];`,
           },
           {
-            task: 'Explain why this const enum breaks a Vite/esbuild build when imported from another file.',
+            task: 'This const enum is imported from another file. Explain why it breaks a Vite or esbuild build.',
             description: 'Checks const enum with isolated transpilers. Ask what the bundle contains.',
             code: `// colors.ts
 export const enum Color { Red = 'red' }
@@ -1635,7 +1635,7 @@ console.log(Color.Red);`,
         ],
       },
       {
-        q: 'Fix the exhaustive switch: adding a new enum member does not produce a compile error.',
+        q: 'Fix the exhaustive switch. Adding a new enum member does not give a compile error.',
         code: `enum Plan { Free = 'free', Pro = 'pro' }
 function price(p: Plan): number {
   switch (p) {
@@ -1677,13 +1677,13 @@ console.log(E.A);`,
     ],
     techlead: [
       {
-        q: 'Backend sends new enum values without notice and the UI crashes. How do you make the frontend resilient?',
+        q: 'The backend sends new enum values without warning, and the UI crashes. How do you make the frontend safe against this?',
         short: 'Always handle an unknown value with a fallback, validate responses at runtime, generate types from the API contract, and agree on a versioning/additive-change policy with the backend.',
         long: 'Treat enums from the network as open sets: type them as Known | (string & {}) or validate and map unknown to "unknown".\nRender fallbacks instead of throwing in switch defaults on the UI path; log/monitor unknown values.\nRuntime validation (e.g. zod with .catch) at the API boundary.\nCodegen from OpenAPI keeps types in sync; contract tests (Pact) catch drift in CI.\nProcess: backend announces additive changes; frontend deploys tolerant code first.\nStrong candidate combines code resilience with process.\nWeak candidate only says "ask backend to tell us".',
         ai: true,
         exercises: [
           {
-            task: 'Type a backend status so known values autocomplete but unknown ones do not break the build or UI.',
+            task: 'Type a backend status. Known values should autocomplete, but unknown values must not break the build or the UI.',
             description: 'Checks typing open sets of values. Ask why (string & {}) instead of string.',
             answer: 'The (string & {}) trick keeps literal autocomplete while accepting any string; the UI must render a fallback. Strong answers explain that plain string collapses the union and loses autocomplete.',
             solution: `type OrderStatus = 'new' | 'paid' | 'shipped' | (string & {});
@@ -1691,7 +1691,7 @@ const LABELS: Record<string, string> = { new: 'New', paid: 'Paid', shipped: 'Shi
 const label = (s: OrderStatus): string => LABELS[s] ?? 'Unknown';`,
           },
           {
-            task: 'Write a zod schema that maps unknown enum values to a fallback instead of failing.',
+            task: 'Write a zod schema. Unknown enum values should become a fallback value instead of failing.',
             description: 'Checks resilient validation. Ask what is logged when unknown appears.',
             answer: '.catch() on the enum replaces invalid input with a default, keeping parsing resilient. Strong answers add monitoring for unknown values.',
             solution: `import { z } from 'zod';
@@ -1701,7 +1701,7 @@ Status.parse('deleted'); // 'unknown'`,
         ],
       },
       {
-        q: 'Fix the shared package that exports a const enum consumed by apps built with Vite.',
+        q: 'Fix the shared package. It exports a const enum, and apps built with Vite use it.',
         code: `// @acme/constants
 export const enum Status { Active = 'active', Archived = 'archived' }`,
         short: 'Libraries must not ship const enums: consumers using isolated transpilers cannot inline them, and preserveConstEnums creates mismatches. Export a runtime object plus a union type.',
@@ -1718,7 +1718,7 @@ export type Status = (typeof Status)[keyof typeof Status];`,
             solution: 'export default [{ rules: { \'no-restricted-syntax\': [\'error\', { selector: \'TSEnumDeclaration\', message: \'Use as const objects\' }] } }];',
           },
           {
-            task: 'Enable a compiler flag that flags enums and other non-erasable syntax.',
+            task: 'Turn on a compiler flag that reports enums and other syntax that cannot simply be erased.',
             description: 'Checks TS 5.8 erasableSyntaxOnly. Ask what else it flags.',
             answer: 'erasableSyntaxOnly errors on enums, namespaces with values, parameter properties and import = aliases.',
             solution: '// tsconfig.json: { "compilerOptions": { "erasableSyntaxOnly": true } }',
@@ -1769,7 +1769,7 @@ const c = new Counter();
 setTimeout(c.inc, 0);`,
         exercises: [
           {
-            task: 'Add a this parameter so misuse is a compile error.',
+            task: 'Add a `this` parameter, so wrong use gives a compile error.',
             description: 'Checks this parameters. Ask for the error.',
             code: `class A { n = 1; get(this: A) { return this.n; } }
 const g = new A().get;
@@ -1818,7 +1818,7 @@ console.log(u.name, u.createdAt);`,
 }`,
           },
           {
-            task: 'Add a typed method to an existing class prototype via declaration merging.',
+            task: 'Use declaration merging to add a typed method to an existing class prototype.',
             description: 'Checks class/interface declaration merging. Ask whether this is a good idea.',
             code: 'class Vec { constructor(public x: number) {} }',
             answer: 'An interface with the same name merges into the class instance type; the implementation is assigned to the prototype. Strong answers mention it is risky for shared code and prefer subclassing or functions.',
@@ -1829,7 +1829,7 @@ Vec.prototype.double = function (this: Vec) { return new Vec(this.x * 2); };`,
         ],
       },
       {
-        q: 'What does `useDefineForClassFields` change, and why can it break existing code?',
+        q: 'What does `useDefineForClassFields` change? Why can it break existing code?',
         short: 'With it (default for target ES2022+), class fields use [[Define]] semantics like native JS: fields are defined after super() and shadow accessors/properties from base classes; older code relied on [[Set]] assignment.',
         long: 'Default true when target >= ES2022 (or ESNext).\nA field redeclared in a subclass without initializer resets the base value to undefined.\nFields shadow base accessors instead of calling the setter.\nFix: use declare field: Type for type-only redeclarations.\nStrong candidate knows the declare fix and the target dependency.\nWeak candidate has never heard of it.',
         exercises: [
@@ -1856,7 +1856,7 @@ new Child();`,
     ],
     senior: [
       {
-        q: 'Why does this type-check but fail at runtime? (structural typing)',
+        q: 'Why does this pass the type check but fail at runtime? Think about structural typing.',
         code: `class Cat { meow() {} }
 const fake: Cat = { meow() {} };
 console.log(fake instanceof Cat);`,
@@ -1872,7 +1872,7 @@ console.log(p instanceof Point, p.x);`,
             answer: 'It compiles because Object.create returns any; it logs false and undefined. Types only describe shape and can be bypassed by any. Strong answers mention noImplicitAny does not catch any-returning APIs and suggest unknown.',
           },
           {
-            task: 'Write a type guard that works across structurally typed objects without instanceof.',
+            task: 'Write a type guard for structurally typed objects. Do not use instanceof.',
             description: 'Checks structural type guards. Ask why instanceof is not used.',
             answer: 'A property-based guard checks the shape at runtime, matching TS\'s structural model and working for plain JSON objects. Strong answers mention cross-realm and JSON data.',
             solution: `type Cat = { kind: 'cat'; meow(): void };
@@ -1883,7 +1883,7 @@ function isCat(x: unknown): x is Cat {
         ],
       },
       {
-        q: 'Fix the typing of a class factory that takes a constructor and returns an instance.',
+        q: 'Fix the types of a class factory. It takes a constructor and returns an instance.',
         code: `function create(C: Function, ...args: any[]) { return new (C as any)(...args); }
 const d = create(Date, 0); // any`,
         short: 'Type the parameter as a construct signature new (...args: A) => T so both constructor arguments and the instance type are inferred.',
@@ -1894,7 +1894,7 @@ const d = create(Date, 0); // any`,
 const d = create(Date, 0); // Date`,
         exercises: [
           {
-            task: 'Use utility types to get the instance and constructor parameters of a class.',
+            task: 'Use utility types to get the instance type and the constructor parameters of a class.',
             description: 'Checks InstanceType and ConstructorParameters. Ask for both types.',
             code: 'class User { constructor(public id: string, public age: number) {} }',
             answer: 'InstanceType gives User, ConstructorParameters gives [id: string, age: number].',
@@ -1914,13 +1914,13 @@ make(A);`,
     ],
     techlead: [
       {
-        q: 'How do you choose between nominal-like branded types and plain structural types for IDs (UserId vs OrgId)?',
+        q: 'For IDs like UserId and OrgId, how do you choose between branded types and plain structural types?',
         short: 'Brands prevent mixing IDs of different entities at compile time; the cost is constructing/casting them at boundaries. Decide based on bug history and domain risk.',
         long: 'Plain string IDs are easy but allow passing orgId where userId is expected.\nBrands: type UserId = string & { readonly __brand: "UserId" }; created via a single constructor/parser function.\nCost: casts at API/DB boundaries, slightly noisier types, onboarding.\nApply where mix-ups are costly (billing, permissions, multi-tenant) — not necessarily everywhere.\nCombine with runtime validation (zod .brand()).\nStrong candidate frames it as a risk/cost decision with evidence.\nWeak candidate brands everything or nothing by default.',
         ai: true,
         exercises: [
           {
-            task: 'Create branded IDs with a zod schema so parsing produces the brand.',
+            task: 'Create branded IDs with a zod schema, so parsing returns the branded type.',
             description: 'Checks runtime-backed branding. Ask where parse calls belong.',
             answer: 'Zod .brand() attaches a compile-time brand after validation, so only parsed values have the branded type. Strong answers place parsing at boundaries only.',
             solution: `import { z } from 'zod';
@@ -1941,7 +1941,7 @@ function transfer(from: AccountId, to: AccountId, amount: number) {}`,
         ],
       },
       {
-        q: 'Should a frontend codebase model domain entities as classes or as plain types with functions? Defend a rule.',
+        q: 'In a frontend codebase, should domain entities be classes, or plain types with functions? Choose a rule and defend it.',
         short: 'Default to plain types and pure functions for data that crosses boundaries (API, state, cache); allow classes for behaviour-rich, long-lived objects that never get serialized (e.g. SDK clients, editors).',
         long: 'Plain data serializes, clones and diffs trivially; works with React state, Redux, Query caches.\nClasses bundle behaviour but lose prototypes across serialization boundaries.\nTree-shaking favours standalone functions.\nRule must be documented and enforced (e.g. no class instances in stores).\nStrong candidate ties the rule to concrete failure modes.\nWeak candidate argues OOP vs FP abstractly.',
         ai: true,
@@ -1966,7 +1966,7 @@ const total = (c: Cart): number => c.items.reduce((a, b) => a + b, 0);`,
   'Set, WeakSet, Map, WeakMap': {
     junior: [
       {
-        q: 'How do you type a Map of user id → User?',
+        q: 'How do you type a Map from user id to User?',
         short: 'new Map<string, User>(); get(id) returns User | undefined, so handle the missing case.',
         long: 'Map<K, V> preserves insertion order and allows any key type (objects too), unlike plain objects.\nType arguments can be inferred from an initial entries array.\nget returns V | undefined; has/set/delete/size behave as expected.\nSet<T> stores unique values; equality is SameValueZero (NaN equals NaN, objects by reference).\nPitfall: using a non-null assertion on get without checking.\nStrong candidate mentions undefined from get and reference equality for object keys.\nWeak candidate uses Record and never handles missing keys.',
         exercises: [
@@ -2103,7 +2103,7 @@ bus.emit('login', { userId: '1' });
 off();`,
         exercises: [
           {
-            task: 'Write a memoize for single-object-argument functions that does not leak memory.',
+            task: 'Write memoize for functions that take one object argument. It must not leak memory.',
             description: 'Checks memory-safe caching. Ask what happens when the key object is discarded.',
             answer: 'A WeakMap keyed by the argument lets cached results be collected together with their keys. Strong answers explain WeakMap entries become collectable.',
             solution: `function memoizeObj<K extends object, V>(fn: (k: K) => V): (k: K) => V {
@@ -2117,7 +2117,7 @@ off();`,
 }`,
           },
           {
-            task: 'Type an event map so emit requires no payload argument when the payload is undefined.',
+            task: 'Type an event map. When the payload is undefined, emit should not need a payload argument.',
             description: 'Checks conditional rest parameters. Ask how logout is called.',
             code: 'type Events = { logout: undefined; login: { id: string } };',
             answer: 'Conditional rest-tuple parameters make the payload argument absent for undefined payloads. Strong answers explain the tuple trick.',
@@ -2167,13 +2167,13 @@ function getBig(): object {
     ],
     techlead: [
       {
-        q: 'Where would you allow non-serializable structures (Map/Set) in state (Redux/Query cache/URL)?',
+        q: 'Where would you allow Map or Set in state? Think about Redux, the query cache, and the URL. These cannot be serialized easily.',
         short: 'Not in persisted or serialized state (Redux store, persisted Query cache, URL, localStorage); fine in local component state, derived selectors and memoized computations. Make it a team rule.',
         long: 'JSON.stringify turns Map/Set into {}, breaking persistence, devtools, SSR hydration and time-travel debugging.\nRedux Toolkit warns via serializableCheck; keep normalized Record<string, T> or arrays in stores.\nDerive Maps/Sets in selectors with memoization for fast lookups.\nLocal state and refs can use any structure.\nIf needed across boundaries, convert explicitly (Object.fromEntries, Array.from).\nStrong candidate knows the concrete failure modes and the derive pattern.\nWeak candidate bans Map/Set entirely or ignores serialization.',
         ai: true,
         exercises: [
           {
-            task: 'Fix the store: selected IDs are kept in a Set and the persisted state comes back empty.',
+            task: 'Fix the store. Selected IDs are kept in a Set, and the saved state comes back empty.',
             description: 'Checks serializable state design. Ask why the state comes back empty.',
             code: 'type State = { selected: Set<string> };',
             answer: 'Sets serialize to {}; store a serializable array and derive a Set where fast lookup is needed. Strong answers derive Sets in selectors.',
@@ -2181,7 +2181,7 @@ function getBig(): object {
 const selectSelectedSet = (s: State) => new Set(s.selected);`,
           },
           {
-            task: 'Write a JSON replacer/reviver pair so Maps survive serialization when unavoidable.',
+            task: 'Write a JSON replacer and reviver, so Maps survive serialization when you must store them.',
             description: 'Checks explicit serialization boundaries. Ask where to place this code.',
             answer: 'Tag Maps as entry arrays on the way out and rebuild them on the way in; keep this explicit at one boundary. Strong answers keep it in one persistence layer.',
             solution: `const replacer = (_k: string, v: unknown) => (v instanceof Map ? { __map: [...v] } : v);
@@ -2191,7 +2191,7 @@ const back = JSON.parse(JSON.stringify({ m: new Map([['a', 1]]) }, replacer), re
         ],
       },
       {
-        q: 'Fix the selector that recreates a Map on every render, breaking memoization.',
+        q: 'Fix the selector. It creates a new Map on every render, so memoization does not work.',
         code: `function useUsersById(users: { id: string }[]) {
   return new Map(users.map(u => [u.id, u] as const));
 }`,
@@ -2313,7 +2313,7 @@ it.next('b');`,
         ],
       },
       {
-        q: 'What is the iterator protocol, and how does TS type it?',
+        q: 'What is the iterator protocol? How does TS type it?',
         short: 'An iterable has [Symbol.iterator]() returning an iterator with next() → { value, done }; TS models this with Iterable<T>, Iterator<T, TReturn, TNext> and IterableIterator<T>.',
         long: 'Generators implement both Iterable and Iterator.\nAny object with [Symbol.iterator] works with for...of and spread.\nAsync variants: AsyncIterable, Symbol.asyncIterator, for await.\nTS 5.6 introduced IteratorObject and BuiltinIteratorReturn for built-in iterators.\nStrong candidate can hand-write an iterator without a generator.\nWeak candidate only knows arrays.',
         exercises: [
@@ -2342,7 +2342,7 @@ const arr = [...o];`,
     ],
     senior: [
       {
-        q: 'Type an async generator for paginated data and a helper that collects it into an array.',
+        q: 'Type an async generator for paginated data. Add a helper that collects it into an array.',
         short: 'Use async function* returning AsyncGenerator<T> that loops over pages and yields items, and accept AsyncIterable<T> in consumers like collect.',
         long: 'Async generators make pagination lazy: the next page is fetched only when the consumer asks for more items.\nConsumers should depend on AsyncIterable<T> (the minimal interface); producers can declare AsyncGenerator<T, R, N>.\nfor await...of handles iteration; breaking out calls return() so finally blocks run for cleanup.\nCancellation: pass an AbortSignal to fetchPage.\nPitfalls: collect on an infinite source never finishes; errors surface at the consumer\'s next iteration.\nArray.fromAsync (ES2024) can replace collect.\nStrong candidate mentions laziness, cleanup and cancellation.\nWeak candidate loads all pages eagerly into an array.',
         fix: `type Page<T> = { items: T[]; next: string | null };
@@ -2365,7 +2365,7 @@ async function collect<T>(it: AsyncIterable<T>): Promise<T[]> {
 }`,
         exercises: [
           {
-            task: 'Implement automatic cleanup with the `using` declaration (TS 5.2).',
+            task: 'Implement automatic cleanup with the `using` declaration from TS 5.2.',
             description: 'Checks explicit resource management (TS 5.2). Ask when dispose runs.',
             answer: 'An object with [Symbol.dispose] is disposed when the scope exits, even on errors (requires the esnext.disposable lib and a Symbol.dispose polyfill where missing). Strong answers mention lib and polyfill requirements.',
             solution: `class Conn implements Disposable {
@@ -2377,7 +2377,7 @@ function run() {
 } // logs working, closed`,
           },
           {
-            task: 'Write a typed async generator that concatenates several AsyncIterables sequentially.',
+            task: 'Write a typed async generator. It joins several AsyncIterables, one after another.',
             description: 'Checks async generator delegation. Ask about ordering.',
             answer: 'yield* delegates to each inner async iterable in turn. Strong answers note sequential behaviour.',
             solution: `async function* concat<T>(...sources: AsyncIterable<T>[]): AsyncGenerator<T> {
@@ -2387,7 +2387,7 @@ function run() {
         ],
       },
       {
-        q: 'Fix the async iteration: the consumer breaks early but the underlying stream is never closed.',
+        q: 'Fix the async iteration. The consumer stops early, but the stream is never closed.',
         code: `async function* lines(reader: ReadableStreamDefaultReader<string>) {
   while (true) {
     const { value, done } = await reader.read();
@@ -2430,13 +2430,13 @@ async function run() { await using c = new Conn(); }`,
     ],
     techlead: [
       {
-        q: 'Would you introduce iterator helpers / generators to a team unfamiliar with them? How do you evaluate the cost of new language features?',
+        q: 'Would you bring iterator helpers or generators to a team that does not know them? How do you judge the cost of new language features?',
         short: 'Only with a measurable benefit: weigh readability for the current team, runtime/browser support and polyfills, tooling, and training cost, then pilot in a contained area.',
         long: 'Criteria: problem fit (lazy/streaming data, pagination), readability, support matrix (iterator helpers are ES2025), polyfill bundle cost, debugging experience.\nPilot in one module, gather feedback, document patterns, add lint rules if needed.\nPrefer encapsulating generators behind simple functions so not everyone has to master them.\nAvoid novelty for its own sake, but do not block good tools out of unfamiliarity.\nStrong candidate describes an adoption process and success criteria.\nWeak candidate decides by personal enthusiasm.',
         ai: true,
         exercises: [
           {
-            task: 'Rewrite this generator pipeline as plain array code for a team unfamiliar with generators, and state the trade-off.',
+            task: 'The team does not know generators. Rewrite this generator pipeline as plain array code, and explain what you lose.',
             description: 'Checks pragmatism about language features. Ask when generators are justified.',
             code: `function* evens(xs: number[]) { for (const x of xs) if (x % 2 === 0) yield x; }
 const r = [...evens([1, 2, 3, 4])];`,
@@ -2444,7 +2444,7 @@ const r = [...evens([1, 2, 3, 4])];`,
             solution: 'const r = [1, 2, 3, 4].filter(x => x % 2 === 0);',
           },
           {
-            task: 'Use iterator helpers only when available, with a fallback.',
+            task: 'Use iterator helpers only when they exist. Otherwise use a fallback.',
             description: 'Checks support matrix awareness. Ask how to decide on polyfills.',
             answer: 'Iterator helpers are ES2025; feature-detect or polyfill (core-js) and keep lib settings aligned with real targets. Strong answers align lib with browserslist.',
             solution: `const it = [1, 2, 3].values();
@@ -2487,7 +2487,7 @@ const result: number[] = typeof (it as any).map === 'function'
 }`,
           },
           {
-            task: 'Choose between async generators and useInfiniteQuery for a React list.',
+            task: 'For a React list, choose between async generators and useInfiniteQuery.',
             description: 'Checks architectural judgment. Ask for criteria.',
             answer: 'useInfiniteQuery handles caching, refetching and UI state; async generators suit non-UI pipelines (exports, workers). Strong answers avoid reinventing caching.',
           },
@@ -2498,7 +2498,7 @@ const result: number[] = typeof (it as any).map === 'function'
   'Event Loop': {
     junior: [
       {
-        q: 'How do you type an async function return? What is the type of `await` of a non-promise?',
+        q: 'How do you type the return value of an async function? What type do you get when you `await` something that is not a promise?',
         short: 'An async function returning T is typed as Promise<T>. Awaiting a non-promise value of type T simply gives T (execution still resumes on a microtask).',
         long: 'async functions always return a promise, so the annotation must be Promise<T> (or omitted and inferred).\nawait unwraps promises and thenables; the resulting type is Awaited<T>.\nAwaiting a plain value still yields to the microtask queue before continuing.\nUse Promise<void> for functions with no meaningful result.\nPitfall: annotating async function f(): User is a compile error.\nStrong candidate knows Awaited and the microtask behaviour.\nWeak candidate thinks await on a non-promise is synchronous or an error.',
         exercises: [
@@ -2574,7 +2574,7 @@ async function onClick(): Promise<void> {
 }`,
         exercises: [
           {
-            task: 'Fix the bug: the loop runs requests sequentially although they are independent.',
+            task: 'Fix the bug. The loop runs requests one by one, but they do not depend on each other.',
             description: 'Checks accidental sequential awaits. Ask how long it takes for 10 ids.',
             code: `async function loadAll(ids: string[]) {
   const out = [];
@@ -2627,7 +2627,7 @@ queueMicrotask(() => console.log('micro'));`,
     ],
     senior: [
       {
-        q: 'Type a setTimeout handle that works in both browser and Node, and a typed sleep with AbortSignal.',
+        q: 'Type a setTimeout handle that works in the browser and in Node. Also write a typed sleep with AbortSignal.',
         short: 'Use ReturnType<typeof setTimeout> to avoid number vs NodeJS.Timeout conflicts, and implement sleep that rejects with signal.reason on abort, handles an already-aborted signal and removes its listener.',
         long: 'With both DOM and @types/node loaded, setTimeout may resolve to Node\'s overload returning NodeJS.Timeout, so typing the handle as number breaks.\nReturnType<typeof setTimeout> adapts to whichever environment types are active.\nAbort handling: check signal.aborted first, clear the timer on abort, remove the listener on success to avoid leaks with long-lived signals.\nReject with signal.reason (a DOMException AbortError by default).\nAlternatives: AbortSignal.timeout(ms), Node timers/promises setTimeout(ms, value, { signal }).\nStrong candidate covers the already-aborted and listener-leak edge cases.\nWeak candidate types the handle as any.',
         fix: `let timer: ReturnType<typeof setTimeout> | undefined;
@@ -2693,7 +2693,7 @@ async function search(q: string): Promise<void> {
 declare function setResults(r: unknown): void;`,
         exercises: [
           {
-            task: 'Implement the stale-response guard without aborting.',
+            task: 'Ignore old responses without aborting the requests.',
             description: 'Checks the request-id pattern. Ask when to prefer it.',
             answer: 'Increment a counter per request and only apply results if the id is still current; useful when the API cannot be cancelled.',
             solution: `let latest = 0;
@@ -2713,13 +2713,13 @@ async function search(q: string) {
     ],
     techlead: [
       {
-        q: 'Which typescript-eslint rules related to async would you make mandatory and why?',
+        q: 'Which typescript-eslint rules for async code would you make required? Why?',
         short: 'no-floating-promises, no-misused-promises, await-thenable, return-await and promise-function-async, each justified by real bugs they prevent.',
         long: 'no-floating-promises: unhandled rejections and ordering bugs (the most valuable one).\nno-misused-promises: async callbacks passed where void is expected (event handlers, forEach, conditions on promises).\nawait-thenable: awaiting non-promises signals a misunderstanding.\nreturn-await (in-try-catch): ensures rejections are caught inside try blocks.\nThese need type-aware linting (parserOptions.projectService), which costs CI time — mitigate with caching.\nRollout: enable as warnings, fix, then make errors; allow documented void for fire-and-forget.\nStrong candidate ties each rule to a bug class and discusses rollout cost.\nWeak candidate lists rules without reasons.',
         ai: true,
         exercises: [
           {
-            task: 'Fix the React handler flagged by no-misused-promises without disabling the rule.',
+            task: 'The rule no-misused-promises reports this React handler. Fix it without turning off the rule.',
             description: 'Checks fixing lint findings properly. Ask why the rule fires.',
             code: '<button onClick={async () => { await save(); }}>Save</button>',
             answer: 'Wrap the async work in a void-returning handler and handle errors explicitly. Strong answers mention the handler expects void.',
@@ -2777,7 +2777,7 @@ const greet = (u: User): string => 'hi ' + u.id;`,
             answer: 'The interface and annotations disappear: const greet = (u) => \'hi \' + u.id; Strong answers mention only syntax is removed.',
           },
           {
-            task: 'Predict whether the cast changes runtime behaviour.',
+            task: 'Predict whether the cast changes runtime behavior.',
             description: 'Checks that assertions are erased. Ask for the output.',
             code: `const n = '5' as unknown as number;
 console.log(n + 1);`,
@@ -2786,7 +2786,7 @@ console.log(n + 1);`,
         ],
       },
       {
-        q: 'Fix the tsconfig so the build does not type-check node_modules libraries every time.',
+        q: 'Fix the tsconfig, so the build does not type-check libraries in node_modules every time.',
         code: '{ "compilerOptions": { "strict": true } }',
         short: 'skipLibCheck skips checking .d.ts files (mostly from node_modules) and incremental reuses results between builds, both cutting compile time.',
         long: 'Most projects check thousands of library declaration files needlessly.\nskipLibCheck is widely recommended; it may hide conflicts between @types packages.\nincremental writes .tsbuildinfo to reuse previous work.\nStrong candidate knows the trade-off of skipLibCheck.\nWeak candidate disables strict to "speed up".',
@@ -2814,7 +2814,7 @@ console.log(n + 1);`,
         long: 'Regular imports used only as types are usually elided, but single-file transpilers (esbuild, SWC, Babel) cannot always know whether a name is a type.\nimport type / inline import { type X } makes intent explicit and guarantees erasure.\nverbatimModuleSyntax (TS 5.0) keeps non-type imports as written and errors on type-only usage without the type modifier.\nBenefits: avoids accidental side-effect imports, breaks runtime circular dependencies, smaller bundles.\nLint: consistent-type-imports with autofix.\nStrong candidate mentions isolated transpilers and verbatimModuleSyntax.\nWeak candidate thinks it only affects readability.',
         exercises: [
           {
-            task: 'Fix the import so it is guaranteed to be erased under verbatimModuleSyntax.',
+            task: 'Fix the import so it is always removed under verbatimModuleSyntax.',
             description: 'Checks import type with verbatimModuleSyntax. Ask what the compiler says.',
             code: `import { User } from './models';
 export function name(u: User) { return u.name; }`,
@@ -2823,7 +2823,7 @@ export function name(u: User) { return u.name; }`,
 export function name(u: User): string { return u.name; }`,
           },
           {
-            task: 'Explain why this import can keep a heavy module in the bundle and fix it.',
+            task: 'Explain why this import can keep a heavy module in the bundle. Then fix it.',
             description: 'Checks side-effect imports in bundles. Ask how the bundle changes.',
             code: `import { Chart } from './chart'; // chart.ts runs side effects on load
 type Props = { chart: Chart };`,
@@ -2834,7 +2834,7 @@ type Props = { chart: Chart };`,
         ],
       },
       {
-        q: 'Fix the slow type-check caused by a huge inferred return type.',
+        q: 'Fix the slow type check. A huge inferred return type causes it.',
         code: `export const api = createApi({ /* 200 endpoints */ });
 export type Api = typeof api;`,
         short: 'Very large inferred types are re-computed and serialized wherever used; declaring an explicit interface lets the checker reuse a named type.',
@@ -2853,7 +2853,7 @@ declare function createApi(cfg: object): Api;`,
             solution: '// tsc --noEmit --generateTrace trace && npx @typescript/analyze-trace trace',
           },
           {
-            task: 'Predict which version is cheaper for the checker.',
+            task: 'Predict which version is faster for the type checker.',
             description: 'Checks interface vs intersection cost. Ask why.',
             code: `type A = X & Y & Z;
 interface B extends X, Y, Z {}`,
@@ -2864,19 +2864,19 @@ interface B extends X, Y, Z {}`,
     ],
     senior: [
       {
-        q: 'tsc takes 4 minutes. How do you diagnose and speed it up?',
+        q: 'tsc takes 4 minutes. How do you find the cause and make it faster?',
         short: 'Measure first with --extendedDiagnostics and --generateTrace, then use project references with incremental builds, skipLibCheck, simplify heavy types, and transpile with esbuild/swc while tsc only typechecks.',
         long: 'Diagnose: --extendedDiagnostics (check time, type counts, memory), --generateTrace + @typescript/analyze-trace to find slow files/types, --listFiles / --explainFiles to spot accidental includes.\nConfig: narrow include, skipLibCheck, incremental/tsBuildInfo, project references (tsc -b) to rebuild only what changed.\nCode: avoid huge unions and deep recursive conditional types, add explicit return types on exported functions, prefer interface extends over large intersections.\nPipeline: esbuild/swc/Vite for transpile, tsc --noEmit in a parallel CI job; isolatedDeclarations for fast .d.ts.\nThe native TypeScript port (tsgo / TS 7) promises roughly 10x faster checks.\nStrong candidate starts from measurement.\nWeak candidate jumps to "buy a faster CI machine".',
         exercises: [
           {
-            task: 'Rewrite this type to reduce checker cost.',
+            task: 'Rewrite this type so it is cheaper for the type checker.',
             description: 'Checks checker performance techniques. Ask why interfaces are faster.',
             code: 'type Big = A & B & C & D & E & F; // used in hundreds of places',
             answer: 'Interfaces that extend are cached by name and checked faster than large repeated intersections. Strong answers mention caching and measurement first.',
             solution: 'interface Big extends A, B, C, D, E, F {}',
           },
           {
-            task: 'Configure a fast dev loop: transpile with Vite/esbuild and typecheck separately.',
+            task: 'Set up a fast dev loop. Transpile with Vite or esbuild, and run the type check separately.',
             description: 'Checks split transpile/typecheck pipelines. Ask what CI runs.',
             answer: 'Keep tsc as a --noEmit typecheck (incremental) running in parallel; the bundler only strips types. Strong answers keep typecheck as a required CI gate.',
             solution: `// package.json scripts
@@ -2885,7 +2885,7 @@ interface B extends X, Y, Z {}`,
         ],
       },
       {
-        q: 'What makes a type "expensive" for the TypeScript checker, and how do you spot it?',
+        q: 'What makes a type slow for the TypeScript checker? How do you find it?',
         short: 'Deeply recursive conditional/mapped types, large unions (thousands of members, especially template literal combinations), and big intersections cause expensive instantiation and comparison; spot them via --extendedDiagnostics, --generateTrace and editor latency.',
         long: 'Union-to-union comparisons are quadratic.\nTemplate literal cross products explode quickly (`${A}-${B}`).\nRecursive types hit instantiation depth limits (Type instantiation is excessively deep).\nMitigations: explicit annotations, interfaces, narrowing scope, simpler APIs.\nStrong candidate gives numbers from diagnostics (instantiations count).\nWeak candidate guesses.',
         exercises: [
@@ -2897,7 +2897,7 @@ type T = \`\${C}\${C}\${C}\${C}\${C}\`;`,
             answer: '4^5 = 1024 members; one more C gives 4096. TS caps unions around 100k members. Strong answers avoid such cross products.',
           },
           {
-            task: 'Reduce instantiation cost of a deep recursive type with a depth limit.',
+            task: 'Add a depth limit to a deep recursive type, so it is cheaper to check.',
             description: 'Checks bounded recursion. Ask why it helps.',
             answer: 'A counter tuple stops recursion at a fixed depth, preventing runaway instantiation.',
             solution: `type Paths<T, D extends unknown[] = []> = D['length'] extends 4 ? never
@@ -2908,7 +2908,7 @@ type T = \`\${C}\${C}\${C}\${C}\${C}\`;`,
     ],
     techlead: [
       {
-        q: 'Monorepo with 30 packages — how do you structure TS builds and CI so typecheck stays fast?',
+        q: 'A monorepo has 30 packages. How do you set up TS builds and CI so the type check stays fast?',
         short: 'Project references with composite builds, affected-only tasks via Nx/Turborepo, remote caching, and isolatedDeclarations so declaration emit is parallel and cheap.',
         long: 'Each package is a composite project; tsc -b builds in dependency order and reuses .tsbuildinfo.\nThe task runner (Nx/Turbo) runs typecheck only for affected packages and caches results remotely across CI and developers.\nisolatedDeclarations (TS 5.5) lets tools emit .d.ts per file without a full typecheck.\nKeep package boundaries clean (no deep imports, no cycles) so the graph stays shallow.\nTrack metrics: typecheck time per package, cache hit rate.\nStrong candidate designs for both local DX and CI.\nWeak candidate runs one giant tsc over the whole repo.',
         ai: true,
@@ -2933,7 +2933,7 @@ type T = \`\${C}\${C}\${C}\${C}\${C}\`;`,
         ],
       },
       {
-        q: 'Fix the CI pipeline that type-checks and builds the whole monorepo on every PR.',
+        q: 'Fix the CI pipeline. It type-checks and builds the whole monorepo on every PR.',
         code: `# ci.yml
 - run: npx tsc -b
 - run: npm run build --workspaces`,
@@ -2946,7 +2946,7 @@ type T = \`\${C}\${C}\${C}\${C}\${C}\`;`,
         ai: true,
         exercises: [
           {
-            task: 'Define cache inputs so env changes invalidate the cache.',
+            task: 'Define the cache inputs, so a change in environment variables clears the cache.',
             description: 'Checks cache correctness. Ask what goes wrong otherwise.',
             answer: 'Declare relevant env vars and config files as inputs; otherwise stale cached builds can ship.',
             solution: `// turbo.json
@@ -2964,7 +2964,7 @@ type T = \`\${C}\${C}\${C}\${C}\${C}\`;`,
   'Advanced Strategies and Integration': {
     junior: [
       {
-        q: 'What does tsconfig "strict" enable?',
+        q: 'What does the "strict" option in tsconfig turn on?',
         short: 'strict turns on a family of checks — noImplicitAny, strictNullChecks, strictFunctionTypes, strictBindCallApply, strictPropertyInitialization, noImplicitThis, alwaysStrict, useUnknownInCatchVariables — for much safer types.',
         long: 'strict is a shorthand; new strict-family flags added in future TS versions are enabled automatically.\nstrictNullChecks is the most impactful: null/undefined must be handled explicitly.\nnoImplicitAny prevents silently untyped parameters.\nNot included: noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitOverride — worth enabling too.\nMigrating legacy code: enable flags one by one or per folder.\nStrong candidate names several flags and extras beyond strict.\nWeak candidate says "it makes TS stricter".',
         exercises: [
@@ -2987,7 +2987,7 @@ if (el) el.textContent = 'ready';`,
         ],
       },
       {
-        q: 'Fix the error caused by indexing an object with an arbitrary string.',
+        q: 'Fix the error. It happens when you index an object with any string.',
         code: `const labels = { save: 'Save', cancel: 'Cancel' };
 function label(key: string) { return labels[key]; }`,
         short: 'Under strict, an arbitrary string cannot index an object with known keys; restrict the parameter to keyof typeof labels.',
@@ -2997,7 +2997,7 @@ type LabelKey = keyof typeof labels;
 function label(key: LabelKey): string { return labels[key]; }`,
         exercises: [
           {
-            task: 'Add an index signature for a truly dynamic dictionary.',
+            task: 'Add an index signature for a dictionary with fully dynamic keys.',
             description: 'Checks when index signatures are appropriate. Ask about undefined.',
             answer: 'Record<string, string> allows any key; enable noUncheckedIndexedAccess to get string | undefined on reads.',
             solution: `const dict: Record<string, string> = {};
@@ -3052,7 +3052,7 @@ x.toUpperCase();`,
         ],
       },
       {
-        q: 'What are utility types like Partial, Pick, Omit, Record, ReturnType — and when do you use them?',
+        q: 'What are utility types like Partial, Pick, Omit, Record, and ReturnType? When do you use them?',
         short: 'Built-in mapped/conditional types that derive new types from existing ones, keeping a single source of truth: Partial for patches, Pick/Omit for subsets, Record for dictionaries, ReturnType/Parameters for function-derived types.',
         long: 'Deriving types prevents drift between related shapes (User vs UserUpdate).\nOmit is not distributive over unions; use a distributive version for discriminated unions.\nRequired, Readonly, NonNullable, Awaited, Extract, Exclude are also common.\nStrong candidate knows the Omit-on-union pitfall.\nWeak candidate redefines types by hand.',
         exercises: [
@@ -3065,7 +3065,7 @@ x.toUpperCase();`,
 type UserPatch = Partial<Omit<User, 'id'>>;`,
           },
           {
-            task: 'Predict the problem with Omit on a discriminated union.',
+            task: 'Predict the problem when you use Omit on a discriminated union.',
             description: 'Checks a common pitfall. Ask for the fix.',
             code: `type S = { kind: 'a'; x: number; id: string } | { kind: 'b'; y: string; id: string };
 type T = Omit<S, 'id'>;`,
@@ -3076,7 +3076,7 @@ type T = Omit<S, 'id'>;`,
     ],
     senior: [
       {
-        q: 'Explain `satisfies`, template literal types and infer with an example from real code.',
+        q: 'Explain `satisfies`, template literal types, and infer. Use an example from real code.',
         short: 'satisfies checks a value against a type without widening its inferred type; template literal types model string patterns; infer extracts parts of a type inside a conditional type.',
         long: 'satisfies (TS 4.9): validate config objects while keeping literal keys/values for autocomplete and precise inference — unlike an annotation, which widens to the annotated type.\nTemplate literal types build or match string patterns (event handler names, route paths, CSS units).\ninfer declares a type variable inside an extends clause, enabling parsing of strings, function params and promise values.\nReal uses: typed router params, onX handler names, i18n keys, typed fetch wrappers.\nPitfall: recursive template types on long strings can hit depth limits and slow the checker.\nStrong candidate gives a real use case and knows the trade-offs.\nWeak candidate confuses satisfies with as.',
         fix: `type Route = \`/users/\${string}\`;
@@ -3113,7 +3113,7 @@ const c = { mode: 'dark' } as const satisfies Record<string, string>;`,
         ],
       },
       {
-        q: 'Fix the typing of this React polymorphic `as` component so props match the rendered element.',
+        q: 'Fix the types of this React polymorphic component with an `as` prop. The props must match the rendered element.',
         code: `function Box(props: { as?: string; [k: string]: any }) {
   const C = props.as ?? 'div';
   return <C {...props} />;
@@ -3147,13 +3147,13 @@ function Button({ variant = 'primary', ...rest }: ButtonProps) { return <button 
     ],
     techlead: [
       {
-        q: 'Your API types are hand-written and drift from the backend. How have you solved it in a real project?',
+        q: 'Your API types are written by hand, and they stop matching the backend. How did you solve this in a real project?',
         short: 'Generate types from a single contract (OpenAPI/GraphQL/shared schemas), add runtime validation at the boundary, and run contract or codegen-diff checks in CI so drift fails the build.',
         long: 'Source of truth: backend publishes OpenAPI; frontend generates types/clients (openapi-typescript, orval) in CI.\nAlternatively shared zod schemas in a monorepo, or tRPC for TS-only stacks.\nRuntime validation on critical endpoints catches deploy-order mismatches.\nContract tests (Pact) or schema diff checks block breaking changes.\nProcess: versioning policy, deprecation windows, codegen diffs reviewed in PRs.\nStrong candidate describes a concrete rollout and its trade-offs (codegen noise, spec quality).\nWeak candidate suggests "being more careful".',
         ai: true,
         exercises: [
           {
-            task: 'Fix the generated-types usage so a renamed backend field breaks the build instead of production.',
+            task: 'Fix how the generated types are used. A renamed backend field should break the build, not production.',
             description: 'Checks contract-driven typing. Ask how drift is detected.',
             code: 'const name = (data as any).fullName;',
             answer: 'Using the generated response type instead of any turns contract drift into a compile error when types are regenerated. Strong answers combine codegen with tsc.',
@@ -3162,7 +3162,7 @@ type User = components['schemas']['User'];
 const getName = (data: User) => data.fullName;`,
           },
           {
-            task: 'Describe a CI step that detects backend contract changes before merge.',
+            task: 'Describe a CI step that finds changes in the backend contract before merge.',
             description: 'Checks CI design for API contracts. Ask what blocks the merge.',
             answer: 'Regenerate types from the latest OpenAPI spec and fail on diff, then run tsc; together they surface breaking changes in the PR. Strong answers include diff and typecheck.',
             solution: `// ci: openapi-typescript $SPEC_URL -o src/generated/api.ts
@@ -3172,7 +3172,7 @@ const getName = (data: User) => data.fullName;`,
         ],
       },
       {
-        q: 'Fix the gradual migration plan: a 300k-line JS codebase needs TypeScript without freezing feature work.',
+        q: 'Fix the step-by-step migration plan. A JS codebase with 300 thousand lines needs TypeScript, but feature work must not stop.',
         code: '// plan: rename all .js to .ts in one PR and fix errors',
         short: 'Migrate incrementally: allowJs lets JS and TS coexist, new code is TS, leaf modules convert first, and progress is tracked; a big-bang rename blocks the team and hides real errors behind any.',
         long: 'Big-bang migrations create massive merge conflicts and any-spam.\nallowJs + incremental conversion keeps shipping.\nStart strict for new files; use ts-expect-error with tickets for legacy issues.\nMetrics and lint (no-explicit-any as warning → error) show progress.\nStrong candidate includes ownership and timeline.\nWeak candidate converts everything with any.',
@@ -3184,7 +3184,7 @@ const getName = (data: User) => data.fullName;`,
         ai: true,
         exercises: [
           {
-            task: 'Type-check a JS file without converting it.',
+            task: 'Type-check a JS file without converting it to TS.',
             description: 'Checks JSDoc + @ts-check. Ask what it catches.',
             code: `// utils.js
 export function add(a, b) { return a + b; }`,
@@ -3194,7 +3194,7 @@ export function add(a, b) { return a + b; }`,
 export function add(a, b) { return a + b; }`,
           },
           {
-            task: 'Track remaining migration debt in CI.',
+            task: 'Track the remaining migration work in CI.',
             description: 'Checks measurable progress. Ask for metrics.',
             answer: 'Count .js vs .ts files and occurrences of any/@ts-expect-error per PR; fail if the count increases (ratchet).',
           },

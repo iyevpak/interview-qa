@@ -4,6 +4,7 @@ import {
 } from '@mui/material';
 import { LEVELS, CATEGORIES, QUESTIONS, SCALE } from './questions';
 import { C, fonts } from './theme';
+import { Gloss, GLOSSARY, findTerms } from './glossary';
 
 // ── persistence ────────────────────────────────────────────────
 const STORE = 'interview-notebook:v1';
@@ -80,9 +81,9 @@ function Exercise({ n, ex }) {
   return (
     <Box sx={{ mb: 2, p: 2, border: `1px solid ${C.rule}`, borderRadius: 1, bgcolor: '#fbf8f1' }}>
       <Typography sx={{ fontWeight: 600, mb: .5 }}>
-        <Box component="span" sx={{ fontFamily: fonts.mono, color: C.accent, mr: 1 }}>EX {n}</Box>{ex.task}
+        <Box component="span" sx={{ fontFamily: fonts.mono, color: C.accent, mr: 1 }}>EX {n}</Box><Gloss>{ex.task}</Gloss>
       </Typography>
-      {ex.description && <Typography sx={{ fontSize: 14, color: C.muted, lineHeight: 1.55, mb: 1 }}>{ex.description}</Typography>}
+      {ex.description && <Typography sx={{ fontSize: 14, color: C.muted, lineHeight: 1.55, mb: 1 }}><Gloss>{ex.description}</Gloss></Typography>}
       {ex.code && <Code>{ex.code}</Code>}
       <Button size="small" onClick={(e) => { e.stopPropagation(); setShow((v) => !v); }} sx={{ color: C.moss, px: 0 }}>
         {show ? '− Hide solution' : '+ Show solution'}
@@ -91,7 +92,7 @@ function Exercise({ n, ex }) {
         {ex.answer && (
           <Box sx={{ mt: 1, pl: 1.5, borderLeft: `2px solid ${C.moss}` }}>
             <Typography sx={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: '.08em', color: C.moss, mb: .5 }}>ANSWER</Typography>
-            <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>{ex.answer}</Typography>
+            <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}><Gloss>{ex.answer}</Gloss></Typography>
           </Box>
         )}
         {ex.solution && <Code tone="light" title="Solution">{ex.solution}</Code>}
@@ -100,9 +101,51 @@ function Exercise({ n, ex }) {
   );
 }
 
+// Abbreviations in the question, spelled out so they can be read aloud.
+function Terms({ text }) {
+  const terms = findTerms(...text);
+  if (!terms.length) return null;
+  return (
+    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1.5, rowGap: .5 }}>
+      {terms.map((t) => (
+        <Typography key={t} sx={{ fontSize: 12.5, color: C.muted }}>
+          <Box component="span" sx={{ fontFamily: fonts.mono, fontWeight: 600, color: C.ink }}>{t}</Box> = {GLOSSARY[t]}
+        </Typography>
+      ))}
+    </Box>
+  );
+}
+
+// Alternative questions for one topic: numbered rows with type + one-line preview.
+function Picker({ options, value, onChange }) {
+  return (
+    <Box role="radiogroup" aria-label="Choose a question" sx={{ mb: 2, border: `1px solid ${C.rule}`, borderRadius: 1, overflow: 'hidden' }}>
+      {options.map((o, i) => {
+        const on = i === value;
+        return (
+          <Box key={i} component="button" role="radio" aria-checked={on}
+            onClick={(e) => { e.stopPropagation(); onChange(i); }}
+            sx={{
+              all: 'unset', boxSizing: 'border-box', cursor: 'pointer', width: '100%',
+              display: 'grid', gridTemplateColumns: '28px 62px 1fr', alignItems: 'center', gap: 1, px: 1.5, py: .75,
+              borderBottom: `1px solid ${C.rule}`, '&:last-of-type': { borderBottom: 0 },
+              bgcolor: on ? C.accentSoft : 'transparent', '&:hover': { bgcolor: on ? C.accentSoft : '#f7f2e7' },
+              '&:focus-visible': { outline: `2px solid ${C.accent}`, outlineOffset: -2 },
+            }}>
+            <Typography sx={{ fontFamily: fonts.mono, fontSize: 12, fontWeight: 600, color: on ? C.accent : C.muted }}>Q{i + 1}</Typography>
+            <Typography sx={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', color: o.type === 'code' ? C.moss : C.muted }}>
+              {o.type === 'code' ? 'Code' : 'Theory'}{o.aiResistant ? ' ★' : ''}
+            </Typography>
+            <Typography noWrap sx={{ fontSize: 13.5, color: on ? C.ink : C.muted, fontWeight: on ? 600 : 400 }} title={o.question}>{o.question}</Typography>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
 // ── question card ──────────────────────────────────────────────
-function QuestionCard({ q: topicQ, index, score, onScore, active, onFocus, presenting, open, onToggle }) {
-  const [opt, setOpt] = useState(0);
+function QuestionCard({ q: topicQ, opt, setOpt, index, score, onScore, active, onFocus, presenting, open, onToggle }) {
   const q = { ...topicQ, ...topicQ.options[opt] };
   const [tab, setTab] = useState('short');
   useEffect(() => setTab('short'), [opt]);
@@ -133,22 +176,12 @@ function QuestionCard({ q: topicQ, index, score, onScore, active, onFocus, prese
         <Typography sx={{ fontFamily: fonts.display, fontWeight: 600, fontSize: 18 }}>{q.topic}</Typography>
         {q.type === 'code' ? <Tag color={C.moss}>Code fix</Tag> : <Tag>Theory</Tag>}
         {q.aiResistant && <Tag color={C.accent} bg={C.accentSoft}>AI-resistant</Tag>}
-        {topicQ.options.length > 1 && (
-          <Stack direction="row" sx={{ ml: { sm: 'auto !important' }, border: `1px solid ${C.rule}`, borderRadius: .5, overflow: 'hidden' }}>
-            {topicQ.options.map((o, i) => (
-              <Tooltip key={i} title={o.type === 'code' ? 'Code fix' : 'Theory'}>
-                <Box component="button" aria-pressed={opt === i} onClick={(e) => { e.stopPropagation(); setOpt(i); }} sx={{
-                  all: 'unset', cursor: 'pointer', px: 1.25, py: .25, fontFamily: fonts.mono, fontSize: 12, fontWeight: 600,
-                  bgcolor: opt === i ? C.ink : 'transparent', color: opt === i ? C.card : C.muted,
-                  '&:focus-visible': { outline: `2px solid ${C.accent}` },
-                }}>Option {String.fromCharCode(65 + i)}</Box>
-              </Tooltip>
-            ))}
-          </Stack>
-        )}
       </Stack>
 
-      <Typography sx={{ fontSize: 16.5, lineHeight: 1.55, maxWidth: '68ch' }}>{q.question}</Typography>
+      {topicQ.options.length > 1 && !presenting && <Picker options={topicQ.options} value={opt} onChange={setOpt} />}
+
+      <Typography sx={{ fontSize: 17, lineHeight: 1.6, maxWidth: '68ch', fontWeight: 500 }}><Gloss>{q.question}</Gloss></Typography>
+      <Terms text={[q.question, q.followUp]} />
       {q.code && <Code>{q.code}</Code>}
 
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mt: 2 }}>
@@ -176,15 +209,15 @@ function QuestionCard({ q: topicQ, index, score, onScore, active, onFocus, prese
             </Stack>
             {tab === 'short' && (
               <>
-                <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.6, maxWidth: '72ch' }}>{q.short}</Typography>
+                <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.6, maxWidth: '72ch' }}><Gloss>{q.short}</Gloss></Typography>
                 {q.answerCode && <Code title="Solution" tone="light">{q.answerCode}</Code>}
               </>
             )}
-            {tab === 'long' && <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.7, maxWidth: '72ch' }}>{q.long}</Typography>}
+            {tab === 'long' && <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.7, maxWidth: '72ch' }}><Gloss>{q.long}</Gloss></Typography>}
             {tab === 'exercises' && q.exercises.map((ex, i) => <Exercise key={i} n={i + 1} ex={ex} />)}
             {q.followUp && (
               <Box sx={{ mt: 2, p: 1.5, bgcolor: C.accentSoft, borderRadius: 1 }}>
-                <Typography sx={{ fontSize: 14 }}><b>Follow-up →</b> {q.followUp}</Typography>
+                <Typography sx={{ fontSize: 14 }}><b>Follow-up →</b> <Gloss>{q.followUp}</Gloss></Typography>
               </Box>
             )}
           </Box>
@@ -260,7 +293,7 @@ const Label = ({ children }) => (
 );
 
 // ── summary drawer ─────────────────────────────────────────────
-function Summary({ open, onClose, level, scores, notes, stats, onReset }) {
+function Summary({ open, onClose, level, scores, notes, picked, stats, onReset }) {
   const levelLabel = LEVELS.find((l) => l.id === level).label;
   const overall = avg(Object.values(stats).flatMap((s) => s.values));
   const text = [
@@ -271,7 +304,7 @@ function Summary({ open, onClose, level, scores, notes, stats, onReset }) {
       const rows = QUESTIONS.filter((q) => q.level === level && q.category === c && scores[q.id]);
       const note = notes[`${level}|${c}`];
       if (!rows.length && !note) return [];
-      return [`${c}: ${fmt(stats[c].avg)}`, ...rows.map((q) => `  • ${q.topic}: ${scores[q.id]}`), ...(note ? [`  Notes: ${note}`] : []), ''];
+      return [`${c}: ${fmt(stats[c].avg)}`, ...rows.map((q) => `  • ${q.topic}: ${scores[q.id]}/5 — asked: ${q.options[picked[q.id] ?? 0]?.question ?? ''}`), ...(note ? [`  Notes: ${note}`] : []), ''];
     }),
   ].join('\n');
   const [copied, setCopied] = useState(false);
@@ -317,6 +350,7 @@ export default function App() {
   const [level, setLevel] = usePersisted('level', 'junior');
   const [category, setCategory] = usePersisted('category', CATEGORIES[0]);
   const [scores, setScores] = usePersisted('scores', {});
+  const [picked, setPicked] = usePersisted('picked', {});
   const [notes, setNotes] = usePersisted('notes', {});
   const [presenting, setPresenting] = useState(false);
   const [query, setQuery] = useState('');
@@ -352,11 +386,15 @@ export default function App() {
       else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
       else if (/^[1-5]$/.test(e.key) && q) setScore(q.id, Number(e.key));
       else if (e.key === 'a' && q && !presenting) toggle(q.id);
+      else if ((e.key === ']' || e.key === '[') && q) {
+        const n = q.options.length;
+        setPicked((p) => ({ ...p, [q.id]: ((p[q.id] ?? 0) + (e.key === ']' ? 1 : n - 1)) % n }));
+      }
       else if (e.key === 'p') setPresenting((p) => !p);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [list, active, presenting, setScore]);
+  }, [list, active, presenting, setScore, setPicked]);
 
   const noteKey = `${level}|${category}`;
   const sidebar = (
@@ -397,7 +435,7 @@ export default function App() {
           </Stack>
 
           <Typography sx={{ fontSize: 12.5, color: C.muted, mb: 3 }}>
-            Keys: <kbd>J</kbd>/<kbd>K</kbd> move · <kbd>1</kbd>–<kbd>5</kbd> score · <kbd>A</kbd> answer · <kbd>P</kbd> screen-share. Hover a score for its meaning.
+            Keys: <kbd>J</kbd>/<kbd>K</kbd> move · <kbd>[</kbd>/<kbd>]</kbd> switch question · <kbd>1</kbd>–<kbd>5</kbd> score · <kbd>A</kbd> answer · <kbd>P</kbd> screen-share. ★ = AI-resistant.
           </Typography>
 
           {presenting && (
@@ -407,7 +445,8 @@ export default function App() {
           )}
 
           {list.map((q, i) => (
-            <QuestionCard key={q.id} q={q} index={i} score={scores[q.id]} onScore={(v) => setScore(q.id, v)}
+            <QuestionCard key={q.id} q={q} opt={Math.min(picked[q.id] ?? 0, q.options.length - 1)}
+              setOpt={(v) => setPicked((p) => ({ ...p, [q.id]: v }))} index={i} score={scores[q.id]} onScore={(v) => setScore(q.id, v)}
               active={i === active} onFocus={() => setActive(i)} presenting={presenting}
               open={!!openIds[q.id]} onToggle={() => toggle(q.id)} />
           ))}
@@ -424,7 +463,7 @@ export default function App() {
         </Box>
       </Box>
 
-      <Summary open={summary} onClose={() => setSummary(false)} level={level} scores={scores} notes={notes} stats={stats}
+      <Summary open={summary} onClose={() => setSummary(false)} level={level} scores={scores} notes={notes} picked={picked} stats={stats}
         onReset={() => { setScores({}); setNotes({}); }} />
     </Box>
   );

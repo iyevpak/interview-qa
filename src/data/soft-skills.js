@@ -2,7 +2,7 @@
 export default {
   "Communication skills": {
     "junior": [{
-      "q": "Explain a technical concept you learned recently as if I were a non-technical person.",
+      "q": "Pick a technical idea you learned recently. Explain it to me as if I am not technical.",
       "ai": true,
       "short": "Look for clarity and simplicity: an everyday analogy, no jargon, and checking that the listener understood.",
       "long": `This tests whether the candidate can adapt to the audience - a daily need when talking to PMs, designers and support.
@@ -12,7 +12,7 @@ Watch whether they notice confusion and adjust instead of repeating louder.
 Red flags: condescension, inability to simplify, or picking something they clearly do not understand.`,
       "exercises": [
         {
-          "task": "Role-play: explain what an API is to a new account manager in under a minute.",
+          "task": "Role-play: a new account manager joins. Explain what an API is in less than one minute.",
           "description": "Checks adapting technical language to a non-technical audience. Interviewer plays the account manager and may look confused once.",
           "answer": "Strong: an everyday analogy (waiter taking orders between you and the kitchen), one concrete product example, no jargon, a comprehension check. Red flags: acronyms (REST, JSON, endpoints) without explanation, talking for 3+ minutes, condescending tone.",
           "solution": `"An API is like a waiter. You don't walk into the kitchen - you tell the waiter
@@ -21,7 +21,7 @@ it asks the billing system's 'waiter' for them. Does that make sense, or should
 I use a different example?"`
         },
         {
-          "task": "Role-play: the support lead asks why a bug fix 'takes so long'. Explain without jargon.",
+          "task": "Role-play: the support lead asks why a bug fix 'takes so long'. Explain it in simple words.",
           "description": "Checks empathy plus plain-language status communication. Interviewer plays an impatient support lead.",
           "code": `Context: the bug only happens for some customers in one time zone;
 you need to reproduce it before fixing it safely.`,
@@ -42,7 +42,7 @@ Weak candidates: "I just start and ask if I get stuck".
 Red flags: never asking questions to look smart, or asking the same questions repeatedly without notes.`,
       "exercises": [
         {
-          "task": "Role-play: your lead describes a task quickly at the end of a meeting. Confirm your understanding.",
+          "task": "Role-play: at the end of a meeting, your lead explains a task very fast. Check that you understood it.",
           "description": "Checks active listening and clarifying questions. Interviewer says: 'Add export to the reports page, CSV is fine, should be quick.'",
           "code": `Unknowns: which reports, which columns, filters applied or not, file size limits, who can export.`,
           "answer": "Strong: restates the goal, asks 2-4 targeted questions (scope, filters, permissions, large data), proposes a written summary. Avoids interrogating with 15 questions. Red flags: 'OK!' and leaving, or questions that show no thought.",
@@ -52,7 +52,7 @@ ones? And is it for all users or admins only? I'll write this in the ticket so
 we're aligned."`
         },
         {
-          "task": "Write the ticket comment that confirms scope after the conversation.",
+          "task": "After the talk, write a ticket comment. It should confirm what is in scope.",
           "description": "Checks written confirmation habits. Candidate writes a short comment.",
           "answer": "Strong: bullet list of in-scope, out-of-scope and open questions, tagging the decision maker. This prevents 'that's not what I meant' later. Red flags: long prose, no explicit out-of-scope.",
           "solution": `Scope (confirmed with @lead):
@@ -64,7 +64,7 @@ Open: max rows? (asking backend team)`
       ]
     }],
     "middle": [{
-      "q": "Describe a time you disagreed with a code review. What exactly was the argument and how did it end?",
+      "q": "Tell me about a time you disagreed with a code review. What was the argument? How did it end?",
       "ai": true,
       "short": "Look for specifics, arguments backed by data or examples, and genuine openness to being wrong - whatever the outcome.",
       "long": `Disagreement is normal; how it is handled shows maturity.
@@ -74,7 +74,7 @@ Weak candidates: vague stories, "I just changed it to make them happy", or "they
 Red flags: personal attacks, holding grudges, escalating trivia to managers, never having disagreed.`,
       "exercises": [
         {
-          "task": "Role-play: a senior reviewer blocks your PR asking you to rewrite it with a pattern you think is overkill. Respond in the PR thread.",
+          "task": "Role-play: a senior reviewer blocks your PR. They want you to use a pattern you think is too much. Reply in the PR.",
           "description": "Checks handling review disagreement with evidence and openness. Candidate writes the PR reply.",
           "code": `Reviewer: "Please replace this array filter with a memoized selector for performance."
 Facts: list has max 50 items; you profiled filter at < 0.1ms.`,
@@ -85,7 +85,7 @@ comment to memoize if the list grows past ~1k. Happy to jump on a 10-min call if
 you see a case I'm missing."`
         },
         {
-          "task": "Rewrite this review comment so it is constructive.",
+          "task": "Rewrite this review comment so it is helpful and polite.",
           "description": "Checks giving constructive feedback. Candidate rewrites the comment; ask how the author would feel reading each version.",
           "code": `"This is wrong. Why would you ever do it like this?"`,
           "answer": "Strong: states the concrete problem and impact, suggests a fix or pattern, links to an example, separates blocking from nit, uses a question instead of judgment. Red flags: personal tone, no explanation, vague 'fix this'.",
@@ -95,7 +95,7 @@ Happy to pair if useful."`
         }
       ]
     }, {
-      "q": "How do you write a good async update or PR description that people actually read?",
+      "q": "How do you write a good written update or PR description? How do you make people really read it?",
       "ai": true,
       "short": "Lead with the point (what and why), keep it skimmable with bullets, include evidence (screenshots, test results), call out risks and what you need from the reader.",
       "long": `Remote and cross-timezone teams depend on writing; a clear PR description speeds review and leaves a record.
@@ -129,7 +129,7 @@ Next: pagination for export or a background job, will propose options Tue.`
       ]
     }],
     "senior": [{
-      "q": "How do you communicate a major technical risk to non-technical stakeholders?",
+      "q": "How do you explain a big technical risk to people who are not technical?",
       "ai": true,
       "short": "Translate it into business impact, likelihood and timeline, present options with trade-offs, and give a clear recommendation.",
       "long": `Stakeholders need decisions, not stack traces.
@@ -140,7 +140,7 @@ Weak candidates: technical detail dumps or "I tell my manager and they handle it
 Red flags: hiding risk until it materialises, or using fear to push personal preferences.`,
       "exercises": [
         {
-          "task": "Write the risk email to the VP of Product about a payment SDK reaching end-of-life.",
+          "task": "Write an email to the VP of Product about a risk. The payment SDK will soon stop being supported.",
           "description": "Checks framing technical risk as business impact with a decision ask. Candidate drafts the email in ~5 minutes.",
           "code": `Facts: vendor ends support March 1 (8 weeks). After that card payments may fail.
 Full upgrade = 2 sprints (delays feature X ~3 weeks). Minimal patch = 1 sprint, redo in Q3.`,
@@ -156,7 +156,7 @@ Recommendation: A - it removes the risk for good.
 Ask: confirm by Friday so we can start next sprint.`
         },
         {
-          "task": "Role-play: in a meeting, a non-technical exec says 'just tell me, is it safe or not?' about a risk that is uncertain.",
+          "task": "Role-play: the risk is not clear yet. In a meeting, a non-technical manager says 'just tell me, is it safe or not?'",
           "description": "Checks honest communication under uncertainty. Interviewer plays the exec and demands a yes/no.",
           "answer": "Strong: gives a direct answer with honest uncertainty (likely/unlikely + what would change it), the worst-case impact, what you are doing to reduce uncertainty, and when they'll hear back. Red flags: false certainty, refusing to answer, hiding behind jargon.",
           "solution": `"Short answer: probably safe for the next month, but I'm not certain yet. The
@@ -165,7 +165,7 @@ after a load test, and I'll send you a yes/no then with a fallback plan."`
         }
       ]
     }, {
-      "q": "How do you give critical feedback to a peer or another team without damaging the relationship?",
+      "q": "How do you give negative feedback to a colleague or another team? How do you keep a good relationship?",
       "ai": true,
       "short": "Privately, specifically and promptly: describe the situation, behaviour and impact, ask for their view, and agree on what changes. Focus on the work, not the person.",
       "long": `Seniors are expected to raise hard topics, not route everything through managers.
@@ -174,7 +174,7 @@ Weak candidates: avoid it until it explodes, or vent to others.
 Red flags: public criticism, sarcasm, feedback only via performance reviews.`,
       "exercises": [
         {
-          "task": "Role-play: another team keeps changing their API without notice, breaking your frontend. Talk to their lead.",
+          "task": "Role-play: another team often changes their API without warning. This breaks your frontend. Talk to their lead.",
           "description": "Checks cross-team feedback. Interviewer plays the other team's lead, slightly defensive.",
           "code": `Facts: 3 breaking changes in 6 weeks; last one caused a 2-hour checkout outage.`,
           "answer": "Strong: SBI with facts, acknowledges their pressures, asks what's happening on their side, proposes a concrete process (versioning, contract tests, changelog channel), agrees on next step. Red flags: accusing, escalating to directors first, vague complaints.",
@@ -184,7 +184,7 @@ pressure too - what does your release process look like? Could we try contract
 tests in your CI and a #api-changes heads-up for breaking changes? I can help set up the tests."`
         },
         {
-          "task": "Role-play: a fellow senior often interrupts juniors in design reviews. Give them feedback.",
+          "task": "Role-play: another senior often interrupts juniors in design reviews. Give this person feedback.",
           "description": "Checks peer feedback on behaviour. Interviewer plays the senior, who says 'I'm just being efficient.'",
           "answer": "Strong: private, specific example, impact on the juniors and the team, acknowledges their intent, a concrete ask. Red flags: making it about personality, going to the manager first, backing down entirely at the first pushback.",
           "solution": `"In Tuesday's review you cut in twice while Lena was explaining her approach. I know
@@ -195,7 +195,7 @@ end? I'd want the same feedback if I did it."`
       ]
     }],
     "techlead": [{
-      "q": "A director already promised an unrealistic deadline to a client. How do you handle it?",
+      "q": "A director already promised a client a deadline that is not realistic. What do you do?",
       "ai": true,
       "short": "Bring data quickly, offer options (reduced scope, phased delivery, extra resources), escalate early rather than late, and protect the team from silent crunch.",
       "long": `The commitment exists; the lead's job is to turn it into something achievable without burning the team or the relationship.
@@ -206,7 +206,7 @@ Weak candidates: "we'll just work weekends" or "not my problem, they promised it
 Red flags: agreeing silently then missing the date, or going around the director to the client.`,
       "exercises": [
         {
-          "task": "Role-play: a director promised a client 6 weeks; your team estimates 10. Open the private conversation with the director.",
+          "task": "Role-play: a director promised a client 6 weeks. Your team estimates 10 weeks. Start a private talk with the director.",
           "description": "Checks managing up on an unrealistic commitment. Interviewer plays the director; judge tone and options.",
           "answer": "Strong: private first, no blame, numbers, 2-3 concrete options (phased scope, added people, new date), offer to help with the client conversation, time-bound ask. Red flags: 'told you so', silently accepting with planned overtime, going to the client directly.",
           "solution": `"Hi Anna - we sized the client project: full scope is ~10 weeks, the promise was 6.
@@ -225,7 +225,7 @@ with the risks so we're aligned - and if you want, let's review it with Mark too
         }
       ]
     }, {
-      "q": "How do you communicate a reorg, priority change or unpopular decision to your team?",
+      "q": "How do you tell your team about a team change, a new priority, or a decision they will not like?",
       "ai": true,
       "short": "Tell them early and directly, explain the why and what it means for them, be honest about what you don't know, give space for reactions, and follow up 1:1.",
       "long": `Teams handle bad news better than surprises or spin.
@@ -234,7 +234,7 @@ Weak candidates: forward the email from above, or blame leadership ("not my deci
 Red flags: hiding information, promising things outside their control.`,
       "exercises": [
         {
-          "task": "Role-play: announce to the team that their project is cancelled to focus on a compliance deadline.",
+          "task": "Role-play: tell the team their project is cancelled. The team must focus on a compliance deadline instead.",
           "description": "Checks delivering unpopular news. Interviewer plays a team member who asks 'so our 3 months were wasted?'",
           "answer": "Strong: direct opening, the business reason, what happens to the work (archived, learnings kept), what's next and why it matters, acknowledges disappointment, open Q&A and 1:1s. Red flags: 'leadership decided, not me', sugar-coating, no answer to 'was it wasted'.",
           "solution": `"I have hard news: we're pausing the recommendations project to meet the
@@ -244,7 +244,7 @@ reused in the compliance work and we'll document where we stopped. I'll do 1:1s
 this week to talk about what this means for each of you."`
         },
         {
-          "task": "Write the follow-up message after the meeting.",
+          "task": "Write the message you send after the meeting.",
           "description": "Checks written reinforcement of a hard message. Candidate drafts the message.",
           "answer": "Strong: summarizes the decision and reason, next steps with dates, what's still unknown, where to ask questions. Red flags: new information that wasn't said live, corporate tone.",
           "solution": `"Recap from today: recommendations is paused until after the March compliance deadline.
@@ -257,7 +257,7 @@ Questions any time, here or in 1:1s."`
   },
   "Planning and problem-solving ability": {
     "junior": [{
-      "q": "You are stuck for 4 hours. What do you do?",
+      "q": "You are stuck on a problem for 4 hours. What do you do?",
       "ai": true,
       "short": "Timebox the struggle, document what has been tried, and ask for help with context (goal, attempts, error) rather than staying silent.",
       "long": `The balance is between independence and wasting a day.
@@ -267,7 +267,7 @@ Bonus: mention rubber-ducking or using AI/search as part of investigation.
 Red flags: hiding being stuck until standup the next day, or "I'd just skip that task".`,
       "exercises": [
         {
-          "task": "Write the help request after being stuck for 2 hours on a login redirect loop.",
+          "task": "You are stuck for 2 hours on a login redirect loop. Write a message asking for help.",
           "description": "Checks asking for help effectively. Candidate writes the message; judge context and specificity.",
           "code": `Ticket FE-231. After OAuth login users loop back to /login.
 You checked: cookies, auth guard, returnUrl logging (empty after callback).`,
@@ -279,7 +279,7 @@ after the OAuth callback. No errors, just loops.
 Do you know where returnUrl should survive the callback? 10 min to look together?"`
         },
         {
-          "task": "Role-play: at standup, tell the team you are blocked without it sounding like an excuse.",
+          "task": "Role-play: at standup, tell the team you are blocked. It should not sound like an excuse.",
           "description": "Checks concise status communication. Candidate speaks for 30 seconds as at standup.",
           "answer": "Strong: one sentence on status, one on the blocker, one concrete ask with a name. Red flags: a long technical monologue, 'still working on it' for the third day, no ask.",
           "solution": `"Yesterday: narrowed the login loop to the OAuth callback dropping returnUrl.
@@ -305,7 +305,7 @@ Red flags: deciding alone to drop someone's request without telling them.`,
 2) design review comments (~2h). The refactor moves to tomorrow. OK with you?"`
         },
         {
-          "task": "Role-play: tell the designer their review comments will wait until tomorrow.",
+          "task": "Role-play: tell the designer you will work on their review comments tomorrow, not today.",
           "description": "Checks expectation setting with a peer. Interviewer plays the designer.",
           "answer": "Strong: short, gives a reason, a specific new time, and offers something now if it's blocking. Red flags: ignoring them, over-apologizing without a time.",
           "solution": `"Hi! I'm on a customer demo bug today, so I'll get to your review comments tomorrow
@@ -314,7 +314,7 @@ morning. Is any of it blocking you today? If so, tell me which and I'll squeeze 
       ]
     }],
     "middle": [{
-      "q": "Your estimate was 3 days; it is day 5 and not done. What do you do?",
+      "q": "You estimated 3 days. Now it is day 5 and the task is not done. What do you do?",
       "ai": true,
       "short": "Communicate as soon as the slip is visible, explain why, give a new estimate and options (re-scope, split, get help).",
       "long": `The real problem is usually not the slip but the silence about it.
@@ -324,7 +324,7 @@ Weak candidates: "I'd work late to catch up" without telling anyone.
 Red flags: blaming others, repeatedly saying "almost done", no learning.`,
       "exercises": [
         {
-          "task": "Role-play: tell the PM the feature will slip by a week.",
+          "task": "Role-play: tell the PM the feature will be one week late.",
           "description": "Checks owning and communicating a slip. Interviewer plays the PM and asks 'why didn't I hear earlier?'",
           "code": `Estimate: 3 days, now day 5. Cause: legacy API returns dates in 3 formats
 (found on day 2, not flagged). Done: parsing + validation. Left: error UI (~1.5 days).`,
@@ -336,7 +336,7 @@ flagged it then. Parsing and validation are done; the error report UI needs
 Which do you prefer? Next time I'll raise surprises the same day."`
         },
         {
-          "task": "Write a short retro note on why the estimate was off and what you will change.",
+          "task": "Write a short retro note. Explain why the estimate was wrong and what you will change.",
           "description": "Checks reflection and estimation improvement. Candidate writes a short retro note.",
           "answer": "Strong: specific root cause (unknown data formats), concrete practice changes (spike unknown integrations, estimate ranges, split tasks, flag at 50% overrun). Red flags: 'estimates are always wrong', no change.",
           "solution": `Why: I estimated without checking real API data; 3 date formats added 2 days.
@@ -346,7 +346,7 @@ Changes: (1) half-day spike before estimating legacy integrations,
         }
       ]
     }, {
-      "q": "How do you approach debugging a bug you can't reproduce locally?",
+      "q": "How do you debug a bug that you cannot reproduce on your machine?",
       "ai": true,
       "short": "Gather data (logs, user steps, environment), form hypotheses, narrow down systematically (bisect, feature flags, extra logging), and communicate progress while investigating.",
       "long": `Tests structured problem solving, not tool knowledge.
@@ -355,7 +355,7 @@ Weak candidates: random changes hoping it fixes it.
 Red flags: closing as "cannot reproduce" without investigation.`,
       "exercises": [
         {
-          "task": "Talk through your plan: 'Some users see a blank page after login, only in production.'",
+          "task": "Explain your plan step by step: 'Some users see a blank page after login, only in production.'",
           "description": "Checks systematic debugging. Interviewer reveals facts if asked: Safari only, started Tuesday, Sentry shows a SyntaxError.",
           "answer": "Strong: asks for data first (browsers, time, error tracking), correlates with deployments, forms a hypothesis (new syntax unsupported in older Safari), verifies, fixes and adds a guard (browserslist/test). Red flags: guessing without asking for data.",
           "solution": `"First, who and since when? ... Safari, since Tuesday. What did we deploy Tuesday?
@@ -364,7 +364,7 @@ I'd check the bundle target and browserslist, reproduce in that Safari version o
 BrowserStack, fix the target, and add that browser to our test matrix."`
         },
         {
-          "task": "Write the status update to the PM while still investigating.",
+          "task": "You are still investigating. Write a status update to the PM.",
           "description": "Checks communication during uncertainty. Candidate writes a short message.",
           "answer": "Strong: what's known, impact, current hypothesis, next step and next update time. Red flag: silence until it's fixed, or overpromising a fix time.",
           "solution": `"Update on blank page after login: affects Safari 15 users (~3% of logins) since
@@ -374,7 +374,7 @@ Verifying now; next update by 2pm with a fix ETA."`
       ]
     }],
     "senior": [{
-      "q": "Break down this vague request live: \"Make the dashboard faster.\"",
+      "q": "Here is an unclear request: \"Make the dashboard faster.\" Split it into smaller steps now.",
       "ai": true,
       "short": "Ask clarifying questions, define metrics and a baseline, form hypotheses, measure, then prioritize fixes by impact versus effort.",
       "long": `This tests structured thinking under ambiguity.
@@ -384,7 +384,7 @@ Weak candidates: jump straight to a solution ("add React.memo everywhere", "rewr
 Red flags: no questions, no measurement.`,
       "exercises": [
         {
-          "task": "Role-play: the CEO says 'the dashboard is slow, fix it'. Ask your clarifying questions and propose the first step.",
+          "task": "Role-play: the CEO says 'the dashboard is slow, fix it'. Ask your questions. Then suggest the first step.",
           "description": "Checks structured thinking under ambiguity. Interviewer plays the CEO and answers clarifying questions briefly.",
           "answer": "Strong: asks which part, for whom, since when, how slow; defines a measurable target; proposes measuring first (RUM/profiling) before changing code; sets a check-in time. Red flags: promising a rewrite, jumping to React.memo everywhere, no metric.",
           "solution": `"Happy to. A few questions so we fix the right thing: is it the first load or
@@ -393,7 +393,7 @@ real-user data and profile a large account today, then come back tomorrow with
 the top 2-3 causes, a target like 'filters under 300ms', and what each fix costs."`
         },
         {
-          "task": "Prioritize these hypotheses for 'dashboard is slow' and justify the order.",
+          "task": "The problem is 'dashboard is slow'. Put these possible causes in order and explain the order.",
           "description": "Checks prioritization by impact vs effort. Candidate orders the list and justifies it.",
           "code": `a) 2MB JS bundle (LCP 4.1s)
 b) 6 sequential API calls on load (waterfall ~1.8s)
@@ -404,7 +404,7 @@ d) Rewrite in a different framework`,
         }
       ]
     }, {
-      "q": "How do you decide between paying down technical debt and building new features?",
+      "q": "How do you choose between fixing technical debt and building new features?",
       "ai": true,
       "short": "Quantify the debt's cost (incidents, slowed delivery, onboarding time), tie it to business outcomes, and propose incremental paydown alongside features rather than a big-bang rewrite.",
       "long": `Seniors need to argue for debt work in terms product understands.
@@ -413,7 +413,7 @@ Weak candidates: "we need a rewrite" without evidence.
 Red flags: secretly doing refactors inside feature estimates without telling anyone, or never doing them.`,
       "exercises": [
         {
-          "task": "Role-play: pitch a 3-week refactor of the checkout module to the PM.",
+          "task": "Role-play: you want 3 weeks to refactor the checkout module. Convince the PM.",
           "description": "Checks business framing of technical work. Interviewer plays a skeptical PM.",
           "code": `Data: 40% of production bugs last quarter came from checkout; each checkout feature takes ~2x estimates;
 next quarter's roadmap has 3 checkout features.`,
@@ -425,7 +425,7 @@ land faster and with fewer incidents. We can do it incrementally - first feature
 starts in week 2. I'll report bug and lead-time numbers after."`
         },
         {
-          "task": "The PM says 'no time this quarter'. What's your next move?",
+          "task": "The PM says 'no time this quarter'. What do you do next?",
           "description": "Checks negotiation and persistence without conflict. Discussion.",
           "answer": "Strong: accept the constraint, propose a smaller slice (refactor only what the next feature touches), add the cost to estimates transparently, track the data and revisit. Red flags: doing it secretly or giving up entirely.",
           "solution": "\"Understood. Then let's refactor only the parts each checkout feature touches, included in its estimate - about +2 days each. I'll track bug counts and revisit next planning.\""
@@ -433,7 +433,7 @@ starts in week 2. I'll report bug and lead-time numbers after."`
       ]
     }],
     "techlead": [{
-      "q": "Product wants a feature in 2 weeks; you estimate 6. Walk me through the conversation.",
+      "q": "Product wants a feature in 2 weeks. You estimate 6 weeks. Explain the conversation step by step.",
       "ai": true,
       "short": "Understand the underlying goal, propose MVP slices that fit the window, make risks explicit, and negotiate scope - not quality.",
       "long": `Start with why the date matters (event, contract, competitor) - that shapes the options.
@@ -444,7 +444,7 @@ Weak candidates: "6 weeks, take it or leave it" or caving to 2 weeks.
 Red flags: padding estimates as a negotiation tactic, or promising and missing.`,
       "exercises": [
         {
-          "task": "Role-play: product wants the feature in 2 weeks; you estimate 6. Run the conversation.",
+          "task": "Role-play: product wants the feature in 2 weeks. You estimate 6 weeks. Lead the conversation.",
           "description": "Checks scope negotiation with product. Interviewer plays the PM and reveals the demo only if asked why.",
           "code": `Breakdown: UI 1w, permissions 2w, integrations 2w, QA 1w.
 Reason for date (you don't know yet): a sales demo to a key prospect.`,
@@ -456,7 +456,7 @@ that fits in 2 weeks. The rest follows over 4 weeks. Tests and review stay in.
 I'll write this up today so we both agree on what 'done in 2 weeks' means."`
         },
         {
-          "task": "Your team is asked to 'skip tests to make the date'. Write your reply to the PM.",
+          "task": "The PM asks your team to 'skip tests to meet the date'. Write your reply to the PM.",
           "description": "Checks defending quality with business arguments. Candidate writes the reply to the PM.",
           "answer": "Strong: explains the cost in business terms (bugs in front of the customer, slower later work), offers a scope trade instead, stays collaborative. Red flags: flat 'no' with no alternative, or quietly agreeing.",
           "solution": `"I'd rather cut scope than tests - skipping them usually means we find bugs
@@ -466,7 +466,7 @@ work for the demo?"`
         }
       ]
     }, {
-      "q": "How do you plan a quarter for your team when demands exceed capacity?",
+      "q": "How do you plan a quarter when the team gets more requests than it can do?",
       "ai": true,
       "short": "Collect demands, estimate roughly, align with company goals, reserve capacity for unplanned work and debt, make explicit trade-offs with stakeholders, and publish what is and isn't committed.",
       "long": `The lead turns too many requests into a realistic, agreed plan.
@@ -475,7 +475,7 @@ Weak candidates: accept everything, or plan at 100% capacity.
 Red flags: no buffer, committing without team input, no visible 'not doing' list.`,
       "exercises": [
         {
-          "task": "Your team has ~40 engineer-weeks; requests total ~70. Describe how you build and present the plan.",
+          "task": "Your team has about 40 engineer-weeks. The requests need about 70. How do you build and present the plan?",
           "description": "Checks capacity planning and stakeholder management. Candidate explains steps and the presentation.",
           "answer": "Strong: subtract buffer and keep-the-lights-on work first (~30 weeks real), rank requests with stakeholders against goals, show the cut line explicitly, keep a 'next' list, agree on a revisit point. Red flags: planning all 40 weeks for features, hiding the cut line.",
           "solution": `Capacity 40w - on-call/support 6w - buffer 6w = 28w for planned work.
@@ -484,7 +484,7 @@ Commit: top items up to 28w. Stretch: next 6w. Not this quarter: rest (published
 Review at week 6 with stakeholders.`
         },
         {
-          "task": "Role-play: a stakeholder whose project fell below the cut line asks you to 'just squeeze it in'.",
+          "task": "Role-play: a stakeholder's project did not make it into the plan. They ask you to 'just squeeze it in'.",
           "description": "Checks saying no with options. Interviewer plays the stakeholder, a senior manager.",
           "answer": "Strong: empathize, explain the trade-off (what would have to drop), offer options (swap with something, smaller version, next quarter date, escalate to shared leadership to decide). Red flags: yes to avoid conflict, or a flat no without options.",
           "solution": `"I understand it matters. We're at capacity, so adding it means dropping something
@@ -506,7 +506,7 @@ Weak candidates: "I build what's in Figma and QA tells me if it's wrong".
 Red flags: dismissive language ("QA just finds trivial stuff"), never talking to designers.`,
       "exercises": [
         {
-          "task": "Role-play: you received a design for a checkout form. Run the kickoff with the designer.",
+          "task": "Role-play: you got a design for a checkout form. Lead the first meeting with the designer.",
           "description": "Checks proactive collaboration with design. Interviewer plays the designer; see which missing states they raise.",
           "code": `The Figma shows the happy path only.`,
           "answer": "Strong: asks about empty/error/loading states, mobile, accessibility (labels, focus), validation messages, and agrees on when to share a preview. Red flags: building silently and inventing missing states, 'not my job'.",
@@ -516,7 +516,7 @@ copy for validation errors? I'll share a preview link mid-sprint so you can
 check spacing before QA."`
         },
         {
-          "task": "QA reopened your ticket with a bug you think is out of scope. Respond to QA.",
+          "task": "QA reopened your ticket with a bug. You think the bug is out of scope. Reply to QA.",
           "description": "Checks non-defensive collaboration with QA. Candidate writes the ticket reply.",
           "answer": "Strong: thanks them, checks the facts, explains reasoning, proposes a path (new ticket, PM decision) instead of arguing. Red flags: defensiveness, 'works on my machine', closing it without a reply.",
           "solution": `"Thanks for catching this. It reproduces for me too. It comes from the old
@@ -525,7 +525,7 @@ can ship - I've created FE-412 and tagged the PM to prioritize. Does that work?"
         }
       ]
     }, {
-      "q": "How do you handle a disagreement with a teammate about how to implement something?",
+      "q": "A teammate disagrees with you about how to build something. What do you do?",
       "ai": true,
       "short": "Listen to understand their reasoning, share yours with facts, look for what's best for the project, and if still stuck, ask a senior or try a quick experiment - then commit to the decision.",
       "long": `Juniors should show they can disagree respectfully and let go of ego.
@@ -534,7 +534,7 @@ Weak candidates: give in immediately every time, or insist on their way.
 Red flags: going silent and doing it their way anyway, complaining to others.`,
       "exercises": [
         {
-          "task": "Role-play: a teammate wants to put API calls directly in components; you think a shared hook is better.",
+          "task": "Role-play: a teammate wants API calls directly in components. You think a shared hook is better.",
           "description": "Checks respectful technical disagreement. Interviewer plays the teammate and says 'hooks are overkill for this'.",
           "answer": "Strong: asks why they prefer it, explains the benefit concretely (reuse, testing, consistency with codebase), suggests a quick check or asks a senior, accepts the outcome. Red flags: 'that's wrong', citing rules without reasons.",
           "solution": `"Can I understand why you'd keep it in the component? ... Makes sense for one place.
@@ -551,7 +551,7 @@ this one and see if it feels heavy?"`
       ]
     }],
     "middle": [{
-      "q": "A teammate's PR is blocking you and they are unresponsive. What do you do?",
+      "q": "A teammate's PR is blocking you, and they do not answer. What do you do?",
       "ai": true,
       "short": "Reach out directly and kindly, offer help, look for ways to unblock yourself, and escalate respectfully if it continues.",
       "long": `Tests initiative and respect at the same time.
@@ -560,7 +560,7 @@ Weak candidates: wait silently for days, or complain to the manager first.
 Red flags: merging or rewriting the teammate's work without telling them, passive-aggressive comments.`,
       "exercises": [
         {
-          "task": "Write the message to a teammate whose PR has blocked you for 3 days.",
+          "task": "A teammate's PR has blocked you for 3 days. Write a message to them.",
           "description": "Checks unblocking oneself while respecting a teammate. Candidate writes the direct message.",
           "answer": "Strong: friendly, assumes good intent, offers concrete help, says how you'll unblock yourself, suggests raising it together if it's a priority issue. Red flags: passive aggression, CC'ing the manager first, copying their code into your PR.",
           "solution": `"Hey Sam, my ticket depends on your auth-refactor PR. Anything I can help with to
@@ -568,7 +568,7 @@ get it over the line - review, tests, splitting it? Meanwhile I'll branch off yo
 so I'm not blocked. If it's stuck on priorities, happy to raise it at standup together."`
         },
         {
-          "task": "Role-play: two days later there's still no response. Raise it at standup.",
+          "task": "Role-play: two days later there is still no answer. Bring it up at standup.",
           "description": "Checks escalating without blame. Candidate speaks as at standup.",
           "answer": "Strong: factual, no blame, states impact and an ask (re-prioritize, reassign review, pair). Red flags: naming and shaming, complaining, or continuing to wait silently.",
           "solution": `"I'm blocked on the auth-refactor PR - I'm working off Sam's branch, but I can't
@@ -577,7 +577,7 @@ could someone else review it today? Otherwise this slips to next sprint."`
         }
       ]
     }, {
-      "q": "How do you onboard a new teammate into a project you know well?",
+      "q": "You know a project well. How do you help a new teammate start on it?",
       "ai": true,
       "short": "Prepare a short plan: environment setup, architecture walkthrough, a good first task with a buddy, regular check-ins, and make it safe to ask questions; fix the docs gaps they find.",
       "long": `Mid-level engineers often become onboarding buddies; doing it well multiplies the team.
@@ -586,7 +586,7 @@ Weak candidates: "send them the wiki link".
 Red flags: being annoyed by questions, giving them only throwaway tasks.`,
       "exercises": [
         {
-          "task": "Write a week-1 plan for a new mid-level frontend engineer.",
+          "task": "Write a first-week plan for a new mid-level frontend engineer.",
           "description": "Checks structured onboarding. Candidate drafts a day-by-day plan.",
           "answer": "Strong: setup with a buddy day 1, architecture walkthrough, a small real ticket shipped by day 3-4, meet key people (PM, designer, QA), a check-in at the end of the week, ask for docs fixes. Red flags: a week of reading only.",
           "solution": `Day 1: laptop setup with buddy, run app + tests, read README/CLAUDE.md, fix any doc gaps found.
@@ -596,7 +596,7 @@ Day 4: coffee with PM, designer, QA.
 Day 5: retro with buddy - what was confusing? Plan week 2.`
         },
         {
-          "task": "Role-play: the new teammate apologizes for 'asking too many questions'.",
+          "task": "Role-play: the new teammate says sorry for 'asking too many questions'.",
           "description": "Checks psychological safety. Interviewer plays the new teammate.",
           "answer": "Strong: reassures sincerely, explains questions are expected and valuable (they reveal doc gaps), suggests a format if batching helps both. Red flags: 'yeah, try googling first' or making them feel like a burden.",
           "solution": `"Please keep asking - that's how you'll get up to speed, and your questions show
@@ -606,7 +606,7 @@ at 4pm daily, but anything blocking, ping me right away."`
       ]
     }],
     "senior": [{
-      "q": "A junior keeps making the same mistakes in PRs. How do you help?",
+      "q": "A junior makes the same mistakes in PRs again and again. How do you help?",
       "ai": true,
       "short": "Pair with them, find the root cause (knowledge gap, unclear standards, rushing), automate what can be caught by lint/tests, and give constructive, specific feedback.",
       "long": `Repeated mistakes are usually a system or knowledge problem, not laziness.
@@ -616,7 +616,7 @@ Weak candidates: keep leaving the same comments, or rewrite the code themselves.
 Red flags: public shaming, complaining to the manager without trying to help.`,
       "exercises": [
         {
-          "task": "Role-play: a 1:1 with a junior who has missed error handling in 3 PRs in a row.",
+          "task": "Role-play: have a 1:1 with a junior. They forgot error handling in 3 PRs in a row.",
           "description": "Checks coaching and root-cause thinking about people. Interviewer plays the junior and gives short answers.",
           "answer": "Strong: private, curious ('what's tricky here?'), finds the root cause (knowledge gap vs rushing), offers pairing and resources, agrees on a concrete next step, plans to automate the check. Red flags: lecturing, 'you keep making the same mistake', comparing to others.",
           "solution": `"I noticed error handling came up in your last three PRs - I want to help, not
@@ -635,7 +635,7 @@ walk through why we do it this way."`
         }
       ]
     }, {
-      "q": "How do you work with a product manager you frequently disagree with?",
+      "q": "How do you work with a product manager you often disagree with?",
       "ai": true,
       "short": "Understand their goals and constraints, disagree on substance with data, separate 'what/why' (their call) from 'how' (engineering's call), and build trust through delivery and regular 1:1s.",
       "long": `Senior engineers are partners to product; friction here slows the whole team.
@@ -644,7 +644,7 @@ Weak candidates: "I just build what they ask" or constant fights.
 Red flags: undermining the PM in front of the team, going around them.`,
       "exercises": [
         {
-          "task": "Role-play: the PM wants a feature built exactly as specified; you see a simpler solution that meets the goal.",
+          "task": "Role-play: the PM wants the feature built exactly as written. You see a simpler way to reach the same goal.",
           "description": "Checks influencing without authority. Interviewer plays the PM attached to their spec.",
           "code": `Spec: custom drag-and-drop dashboard builder (6 weeks).
 Goal (from PRD): let managers see the 3 metrics they care about first.
@@ -656,7 +656,7 @@ If people still ask for full customization, the builder is the next step and we'
 have real data for it. Your call - I'm happy either way."`
         },
         {
-          "task": "Suggest three habits that would reduce recurring friction with this PM.",
+          "task": "Suggest three habits that would reduce repeated conflicts with this PM.",
           "description": "Checks building working relationships proactively. Short list.",
           "answer": "Strong: concrete habits - weekly 1:1, involve engineering early in discovery, shared decision log, joint user calls. Red flags: 'escalate to manager each time'.",
           "solution": "1) Weekly 30-min sync on upcoming work. 2) Engineering joins discovery before specs are written. 3) Decision log in the team wiki so debates aren't repeated."
@@ -664,7 +664,7 @@ have real data for it. Your call - I'm happy either way."`
       ]
     }],
     "techlead": [{
-      "q": "Two strong seniors disagree on architecture; the team is blocked. What do you do this week?",
+      "q": "Two strong seniors disagree on architecture. The team is blocked. What do you do this week?",
       "ai": true,
       "short": "Agree on decision criteria, time-box a spike or short RFC, make a decision (disagree and commit) and record it in an ADR.",
       "long": `The lead's job is to unblock, not necessarily to pick the winner personally.
@@ -675,7 +675,7 @@ Weak candidates: let them argue until consensus, or decide by seniority alone.
 Red flags: avoiding the conflict, letting it become personal.`,
       "exercises": [
         {
-          "task": "Role-play: open the decision meeting between two seniors who disagree on state management (Zustand vs Redux Toolkit).",
+          "task": "Role-play: two seniors disagree on state management: Zustand or Redux Toolkit. Start the decision meeting.",
           "description": "Checks facilitating conflict to a decision. Candidate opens the meeting as the lead.",
           "answer": "Strong: states the goal and deadline, restates agreed criteria, gives each side equal time, credits both, states how the decision will be made (consensus or lead decides by Friday), and 'disagree and commit'. Red flags: picking by seniority, letting it drag, taking sides publicly before hearing both.",
           "solution": `"Thanks both for the RFCs - they're excellent. Goal today: a decision, so the
@@ -685,7 +685,7 @@ together. If we don't converge, I'll decide by Friday and write the ADR, and
 I'll ask us all to commit to it."`
         },
         {
-          "task": "Write the ADR summary that records the decision fairly.",
+          "task": "Write the ADR summary. It should describe the decision fairly.",
           "description": "Checks fair documentation of contested decisions. Candidate writes a short ADR.",
           "answer": "Strong: context, options, decision with reasons tied to criteria, consequences and revisit triggers, credit to the side that wasn't chosen. Red flags: one-sided history, no revisit condition.",
           "solution": `ADR-014: State management for the editor
@@ -697,7 +697,7 @@ Thanks to Maria for documenting the Redux option and its risks.`
         }
       ]
     }, {
-      "q": "How do you build trust and collaboration with a newly inherited team?",
+      "q": "You just took over a team. How do you build trust and good teamwork?",
       "ai": true,
       "short": "Listen first (1:1s, current pain points), keep existing commitments, make a few early visible improvements, be transparent about changes, and give credit generously.",
       "long": `A new lead who changes everything in week one loses the team.
@@ -706,7 +706,7 @@ Weak candidates: impose processes from the previous job immediately.
 Red flags: criticizing the previous lead, making big decisions without context.`,
       "exercises": [
         {
-          "task": "Write your first-30-days plan with the new team.",
+          "task": "Write your plan for the first 30 days with the new team.",
           "description": "Checks listening-first leadership. Candidate drafts the plan.",
           "answer": "Strong: 1:1s with all, stakeholder conversations, shadow on-call and rituals, learn architecture and debt, identify 1-2 quick wins the team named, share observations before changes. Red flags: reorganizing processes in week 1.",
           "solution": `Week 1-2: 1:1s (what's working, what's frustrating, what should I not change?),
@@ -716,7 +716,7 @@ Week 4: share "what I heard" back to the team; pick 2 quick wins they named
 (e.g. flaky CI, unclear on-call handoff). No process changes before that.`
         },
         {
-          "task": "Role-play: in your first 1:1, a senior says 'the last lead promised a lot and nothing changed'.",
+          "task": "Role-play: in your first 1:1, a senior says 'the last lead promised a lot, and nothing changed'.",
           "description": "Checks credibility and honest commitments. Interviewer plays the skeptical senior.",
           "answer": "Strong: acknowledges without criticizing the predecessor, asks what was promised and what mattered most, commits small and specific with a date, follows through. Red flags: big promises, badmouthing the previous lead.",
           "solution": `"That's fair, and I'd be skeptical too. What were the things that mattered most
@@ -737,7 +737,7 @@ Weak candidates: humble-brag mistakes ("I work too hard"), very vague stories.
 Red flags: blaming teammates, tools or the process entirely, or "I can't think of any".`,
       "exercises": [
         {
-          "task": "Role-play: you pushed a change that broke the team demo an hour before it starts. Tell the team.",
+          "task": "Role-play: your change broke the team demo. The demo starts in one hour. Tell the team.",
           "description": "Checks immediate ownership under pressure. Candidate writes the team message.",
           "answer": "Strong: tells immediately, owns it plainly, states what you're doing (revert) and ETA, asks for help if needed. Red flags: hoping nobody notices, blaming the CI, over-apologizing without action.",
           "solution": `"Heads-up: I broke the demo branch - I pushed without running tests. I'm
@@ -745,7 +745,7 @@ reverting now, should be green in 10 minutes. I'll ping when it's back.
 Sorry, and I'll add a pre-push test check after the demo."`
         },
         {
-          "task": "Turn this blame-shifting answer into an accountable one.",
+          "task": "This answer blames other people. Rewrite it so the speaker takes responsibility.",
           "description": "Checks distinguishing accountability from blame. Candidate rewrites the answer in first person.",
           "code": `"My teammate didn't document the API, so my part didn't work.
 I learned not to trust other people's code."`,
@@ -756,7 +756,7 @@ contracts early and write a quick integration test on day one."`
         }
       ]
     }, {
-      "q": "Tell me about feedback you received that was hard to hear. What did you do with it?",
+      "q": "Tell me about feedback that was hard to hear. What did you do with it?",
       "ai": true,
       "short": "Look for openness: listening without defending, asking for specifics, acting on it, and following up.",
       "long": `Coachability matters more than current skill at junior level.
@@ -765,7 +765,7 @@ Weak candidates: feedback that was really praise, or they disagreed and changed 
 Red flags: "I never really got negative feedback", blaming the person who gave it.`,
       "exercises": [
         {
-          "task": "Role-play: your lead tells you your PRs are too big and hard to review. Respond in the moment.",
+          "task": "Role-play: your lead says your PRs are too big and hard to review. Answer right away.",
           "description": "Checks receiving feedback live. Interviewer plays the lead giving the feedback directly.",
           "answer": "Strong: thanks them, asks for an example and what 'good' looks like, proposes a concrete change, avoids excuses. Red flags: 'but the task was big', defensiveness, agreeing with no plan.",
           "solution": `"Thanks for telling me. Which PR was hardest to review? ... Got it. What size works
@@ -795,7 +795,7 @@ Weak candidates: no clear role, or the story ends at "we fixed it".
 Red flags: covering it up, blaming QA/reviewer, no prevention step.`,
       "exercises": [
         {
-          "task": "Role-play: you are 15 minutes into a production incident you caused (prices show NaN for EUR). Post the update in #incidents.",
+          "task": "Role-play: you caused a production incident 15 minutes ago. Prices show NaN for EUR. Post an update in #incidents.",
           "description": "Checks incident communication when you caused it. Candidate writes the channel update.",
           "answer": "Strong: owns it, states impact and scope, action taken (rollback) with ETA, next update time. Red flags: hiding authorship, speculating, silence until fixed.",
           "solution": `"Incident: EUR prices show NaN on product pages since 14:05 - caused by my
@@ -803,7 +803,7 @@ price formatter change (PR #482). Rolling back now, ETA 10 min. USD unaffected.
 Next update 14:30 or when rollback is confirmed."`
         },
         {
-          "task": "Write the 'what we'll change' section of the blameless postmortem.",
+          "task": "Write the 'what we will change' part of the blameless postmortem.",
           "description": "Checks blameless, systemic follow-up. Candidate writes action items with owners.",
           "answer": "Strong: systemic fixes, owners, dates; no individual blame; addresses detection and prevention. Red flags: 'be more careful', blaming reviewer/QA, actions without owners.",
           "solution": `Action items:
@@ -814,7 +814,7 @@ Next update 14:30 or when rollback is confirmed."`
         }
       ]
     }, {
-      "q": "Describe a project that failed or missed its goals. What was your part in it?",
+      "q": "Tell me about a project that failed or missed its goals. What was your part in it?",
       "ai": true,
       "short": "Look for clear ownership of their part (not just 'the project'), honest analysis of causes, and concrete lessons applied later.",
       "long": `Mid-level engineers should separate system causes from their own contribution.
@@ -823,7 +823,7 @@ Weak candidates: only external causes (management, scope changes).
 Red flags: "nothing I could have done", or excessive self-blame without lessons.`,
       "exercises": [
         {
-          "task": "Answer in STAR format with an explicit 'my part' section.",
+          "task": "Answer in STAR format. Add a clear 'my part' section.",
           "description": "Checks structured, accountable storytelling. Candidate answers aloud in ~2 minutes; interviewer may ask 'what would you do differently?'",
           "answer": "Strong: concise situation, measurable miss, own decisions named plainly, lesson applied since. Red flags: 'we' throughout with no 'I', or a story with no consequence.",
           "solution": `S: Rebuilding search for our marketplace; goal was launch in Q2.
@@ -834,7 +834,7 @@ R: Launch slipped 5 weeks. Since then I do a spike on unknown integrations befor
 estimating, and flag risks in the channel the day I find them.`
         },
         {
-          "task": "Role-play: the interviewer pushes back: 'Wasn't it really the backend team's fault?'",
+          "task": "Role-play: the interviewer disagrees: 'Wasn't it really the backend team's fault?'",
           "description": "Checks staying accountable under a tempting exit. Interviewer offers the excuse.",
           "answer": "Strong: acknowledges shared causes without taking the excuse, restates own part and lesson. Red flags: grabbing the excuse, or attacking the other team.",
           "solution": `"They could have documented the API limits better, and we fixed that together later.
@@ -844,7 +844,7 @@ mine, and it's the part I can change."`
       ]
     }],
     "senior": [{
-      "q": "Tell me about a technical decision that turned out wrong. How did you discover it and what did you do?",
+      "q": "Tell me about a technical decision that was wrong. How did you find out? What did you do?",
       "ai": true,
       "short": "Look for self-awareness, evidence-driven discovery, and a course correction made without ego.",
       "long": `Seniors make bigger bets, so some are wrong; the signal is how quickly and honestly they adapt.
@@ -853,7 +853,7 @@ Weak candidates: tiny decisions, or decisions that were "wrong" only because of 
 Red flags: sunk-cost defence of the decision long after evidence, no reflection.`,
       "exercises": [
         {
-          "task": "Role-play: tell the team in a planning meeting that your micro-frontend decision from 6 months ago was a mistake.",
+          "task": "Role-play: 6 months ago you chose micro-frontends. In a planning meeting, tell the team it was a mistake.",
           "description": "Checks admitting a wrong decision publicly with data. Candidate speaks to the team as in planning.",
           "code": `Data: build time 3x, onboarding 2-3 weeks, cross-app state bugs weekly. Team of 6.`,
           "answer": "Strong: owns the decision directly, shows data, explains why it seemed right then, proposes a concrete path back with cost, invites input. Red flags: sunk-cost defence, vague 'it didn't work out', blaming the team's execution.",
@@ -863,7 +863,7 @@ week. It seemed right when we expected three teams. I've drafted an RFC to merge
 back into a modular monolith over two sprints - I'd love your input on the order."`
         },
         {
-          "task": "Write the decision-making habits you adopted afterwards, as you would say them in the interview.",
+          "task": "After that, what new habits did you start for making decisions? Say them as in an interview.",
           "description": "Checks durable learning from mistakes. Candidate states their habits as in the interview.",
           "answer": "Strong: concrete, repeatable practices (ADRs with revisit triggers, spikes, prefer reversible options, define success metrics up front). Red flags: generic 'I think more carefully now'.",
           "solution": `"Now for any big architectural bet I write an ADR with the problem we have
@@ -872,7 +872,7 @@ prefer reversible options, and ask someone who disagrees to review it."`
         }
       ]
     }, {
-      "q": "Tell me about a time you raised a concern that others ignored, and it later turned out you were right - or wrong. How did you handle it?",
+      "q": "Tell me about a time you raised a concern and others ignored it. Later, were you right or wrong? What did you do?",
       "ai": true,
       "short": "Look for how clearly and constructively they raised it, whether they escalated appropriately, and humility either way - no 'I told you so'.",
       "long": `Seniors are expected to raise risks effectively, not just once in a meeting.
@@ -881,7 +881,7 @@ Weak candidates: mentioned it once and dropped it, or kept relitigating.
 Red flags: "I told you so" attitude, or quietly letting it fail to prove a point.`,
       "exercises": [
         {
-          "task": "Write the written risk note you would send when your concern is overruled in a meeting.",
+          "task": "In a meeting, the team rejects your concern. Write the risk note you send afterwards.",
           "description": "Checks raising concerns constructively in writing. Scenario: team decides to skip load testing before Black Friday.",
           "answer": "Strong: respectful, states the decision, the risk and likelihood, a cheap mitigation, and commitment to the decision. Red flags: passive-aggressive tone, 'for the record' blame-shifting.",
           "solution": `"Following up on today: we're skipping the full load test before Black Friday to ship
@@ -890,7 +890,7 @@ CPU at last year's peak. A 2-hour smoke load test on checkout only would cover m
 it - I can run it Thursday if we agree."`
         },
         {
-          "task": "Role-play: the risk materialized and checkout went down. At the retro, someone says 'you warned us'. Respond.",
+          "task": "Role-play: the risk happened and checkout went down. At the retro, someone says 'you warned us'. Answer.",
           "description": "Checks humility and team focus. Interviewer plays a teammate.",
           "answer": "Strong: deflects credit, focuses on the system fix, avoids blame, invites the team into the process change. Red flags: 'yes, I did', or false modesty that hides the lesson.",
           "solution": `"I flagged it, but I also didn't push hard enough for the smoke test. The real
@@ -900,7 +900,7 @@ depend on someone's hunch. Can we pick an owner for that today?"`
       ]
     }],
     "techlead": [{
-      "q": "What is the biggest mistake you made as a lead, and what do you do differently now?",
+      "q": "What is your biggest mistake as a lead? What do you do differently now?",
       "ai": true,
       "short": "Look for genuine reflection on a people or leadership mistake and a concrete, lasting change in behaviour.",
       "long": `Lead mistakes are often about people: delegation, communication, avoiding conflict, hero mode, hiring.
@@ -909,7 +909,7 @@ Weak candidates: purely technical mistakes, or generic "I learned to communicate
 Red flags: no mistakes as a lead, blaming the team or upper management.`,
       "exercises": [
         {
-          "task": "Role-play: a senior tells you in a 1:1 'I don't feel I'm growing - you take all the hard problems.' Respond.",
+          "task": "Role-play: in a 1:1, a senior says 'I don't feel I'm growing. You take all the hard problems.' Answer.",
           "description": "Checks receiving hard feedback as a lead. Interviewer plays the senior engineer.",
           "answer": "Strong: thanks them, doesn't get defensive, acknowledges the pattern, asks what they want to own, commits to a concrete change and a follow-up. Red flags: justifying ('it was faster'), promising vaguely, punishing the feedback.",
           "solution": `"Thank you for telling me - that's fair, and I've been in hero mode. Which of
@@ -918,7 +918,7 @@ yours if you want it; I'll review rather than implement. Let's check in on
 how it's going in two weeks."`
         },
         {
-          "task": "Turn this weak 'biggest mistake as a lead' answer into a strong one.",
+          "task": "Here is a weak answer to 'biggest mistake as a lead'. Make it a strong one.",
           "description": "Checks self-reflection quality for lead-level mistakes. Candidate rewrites the weak answer.",
           "code": `"My biggest mistake was trusting my team too much - they didn't deliver,
 so now I review every PR myself."`,
@@ -930,7 +930,7 @@ feedback early instead of taking the work back."`
         }
       ]
     }, {
-      "q": "Your team missed a major commitment on your watch. How do you own it with leadership and with the team?",
+      "q": "Your team missed a big promise while you were the lead. How do you take responsibility with managers and with the team?",
       "ai": true,
       "short": "Own it upward without throwing the team under the bus, explain causes and recovery plan, protect the team publicly, and run an honest blameless retro internally.",
       "long": `Leads absorb accountability upward and distribute learning downward.
@@ -939,7 +939,7 @@ Weak candidates: explain why it was not really their fault.
 Red flags: blaming specific engineers to leadership, or pretending to the team that nothing went wrong.`,
       "exercises": [
         {
-          "task": "Role-play: tell your VP the integration launch will miss the quarter.",
+          "task": "Role-play: tell your VP the integration launch will not happen this quarter.",
           "description": "Checks upward accountability. Interviewer plays the VP and asks 'who dropped the ball?'",
           "answer": "Strong: leads with the news and impact, owns it as the lead, explains causes at system level, gives a recovery plan with a date and what you need, deflects 'who' to process. Red flags: naming an engineer, vague new date.",
           "solution": `"The partner integration will miss Q3; realistic date is October 20. That's on me - I
@@ -949,7 +949,7 @@ side with authority to unblock testing. On 'who' - this was a planning gap, not 
 person, and I'll fix how we track external dependencies."`
         },
         {
-          "task": "Write the opening of the team retro to set a blameless tone.",
+          "task": "Write how you start the team retro. It should show that nobody is blamed.",
           "description": "Checks psychological safety after failure. Candidate writes what they'd say in the first minute.",
           "answer": "Strong: states the miss plainly, owns the lead's part first, sets ground rules (systems not people), clear goal (2-3 changes with owners). Red flags: skipping own accountability, letting it turn into blame.",
           "solution": `"We missed the Q3 integration date. I'll start with my part: I tracked the partner
