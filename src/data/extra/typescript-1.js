@@ -28,30 +28,36 @@ c.tags = [];`,
         ],
       },
       {
-        q: 'Fix this code. The function gets a wrong object shape.',
-        code: `interface Product { title: string; price: number }
-function show(p: Product) { return p.title + ': ' + p.price }
-show({ title: 'Pen', price: '10' });`,
-        fix: `interface Product { title: string; price: number }
-function show(p: Product) { return p.title + ': ' + p.price }
-show({ title: 'Pen', price: 10 });`,
-        short: 'price must be a number, not a string; pass 10 instead of "10".',
-        long: 'TypeScript checks the object literal against the Product shape.\nThe string "10" is not assignable to number, so the call fails.\nPitfall: fixing it by changing the interface to `price: any` hides real bugs.\nIf data comes from a form, convert it with Number() and validate it.\nStrong answer: fixes the data at the boundary, not the type.\nWeak answer: adds `as any` or a cast.',
+        q: 'Fix this code. The tuple type is used like a plain array.',
+        code: `type Point = number[];
+function dist(p: Point) { return Math.hypot(p[0], p[1]); }
+dist([3]);`,
+        fix: `type Point = [x: number, y: number];
+function dist(p: Point) { return Math.hypot(p[0], p[1]); }
+dist([3, 4]);`,
+        short: 'number[] allows any length, so a one-item array compiles. A tuple type fixes the length and the type of each position.',
+        long: `A type alias can name a tuple: \`[x: number, y: number]\` means exactly two numbers.
+With number[], \`p[1]\` is typed as number even when it is missing at runtime.
+Labels like x and y only help readability and editor hints.
+Pitfall: tuples are still mutable; use \`readonly [number, number]\` to block push.
+Strong answer: picks a tuple and mentions noUncheckedIndexedAccess for plain arrays.
+Weak answer: adds a runtime length check but keeps number[].`,
+        follow: 'How do you make a tuple read-only?',
         exercises: [
           {
-            task: 'Type the parameter with an interface so a missing price is an error.',
-            description: 'Checks writing an interface from usage. Ask for code in the Playground.',
-            code: `function total(items) { return items.reduce((s, i) => s + i.price, 0) }`,
-            answer: 'Define an Item interface with price: number and type the parameter as Item[]. Wrong answers type items as any[] or object[]. A strong answer also annotates the return type as number.',
-            solution: `interface Item { price: number }
-function total(items: Item[]): number { return items.reduce((s, i) => s + i.price, 0) }`,
+            task: 'Type the return value of this hook as a tuple.',
+            description: 'Checks tuple return types like useState. Ask for code in the Playground.',
+            code: 'function useToggle(init: string) { const reset = () => {}; return [init, reset]; }',
+            answer: 'Without a tuple type, TS infers (string | (() => void))[] and destructuring loses types. Use `as const` or an explicit `[string, () => void]` return type.',
+            solution: 'function useToggle(init: string): [string, () => void] { const reset = () => {}; return [init, reset]; }',
           },
           {
-            task: 'Find the error in this object literal.',
-            description: 'Checks excess property checks. Show the snippet and ask for the compiler message.',
-            code: `interface Point { x: number; y: number }
-const p: Point = { x: 1, y: 2, z: 3 };`,
-            answer: 'Object literals get excess property checks, so z is an error. Remove z or add it to the type. Weak answers say extra properties are always allowed because typing is structural; that is only true for non-literal values.',
+            task: 'What is the type of the last item here?',
+            description: 'Checks optional and rest elements in tuples.',
+            code: `type Row = [id: number, name: string, note?: string];
+declare const r: Row;
+const n = r[2];`,
+            answer: 'It is `string | undefined` because the tuple ends with an optional element. Rest elements like `...number[]` can also appear. Weak answers say tuples cannot have optional parts.',
           },
         ],
       },
@@ -79,28 +85,33 @@ const h: Handler = (e) => console.log(e.clientX);`,
     ],
     middle: [
       {
-        q: 'What is declaration merging? Give a real use case.',
-        short: 'Two interface declarations with the same name merge into one; it is used to augment library or global types.',
-        long: 'Interfaces with the same name in the same scope merge their members.\nUse case: add a field to Window, or extend Express Request or a theme type via module augmentation.\nType aliases cannot merge; a duplicate name is an error.\nPitfall: accidental merging with a global name like `Event` or `Node` creates confusing types.\nPitfall: module augmentation needs the file to be a module (have an import/export).\nStrong answer: shows `declare module` / `declare global` and the export requirement.\nWeak answer: does not know merging exists.',
-        follow: 'Why does an augmentation file sometimes need an empty export?',
-        ai: true,
+        q: 'How do you type an object that can be called like a function and also has properties?',
+        short: 'Use a call signature together with properties in one interface or type: `interface Fn { (x: number): string; version: string }`.',
+        long: `This is called a hybrid type. Libraries like jQuery or a logger with \`log()\` and \`log.level\` work this way.
+You write the call signature \`(x: number): string\` next to normal properties.
+To build one, create the function first and then add the properties; TS 3.1+ understands property assignments on function declarations.
+Pitfall: using Object.assign without a type can lose the call signature.
+Strong answer: shows a call signature plus a property and how to create the value.
+Weak answer: says it is impossible without a class.`,
+        follow: 'Can you add a construct signature too?',
         exercises: [
           {
-            task: 'Add a typed property analytics to window.',
-            description: 'Checks global augmentation. Ask for a .d.ts or module file and test `window.analytics.track()`.',
-            answer: 'Use `declare global { interface Window { analytics: { track(e: string): void } } }` in a module file with `export {}`. A common wrong answer is `(window as any).analytics`. A strong answer explains why the file must be a module.',
-            solution: `export {};
-declare global {
-  interface Window { analytics: { track(event: string): void } }
-}`,
+            task: 'Write a type for a counter function that also has a reset method.',
+            description: 'Checks call signatures with members.',
+            answer: 'Put `(): number` and `reset(): void` in one interface. Then create a function and attach reset. A strong answer shows that TS accepts `counter.reset = ...` on a function declaration.',
+            solution: `interface Counter { (): number; reset(): void }
+let n = 0;
+function counter() { return ++n; }
+counter.reset = () => { n = 0; };
+const c: Counter = counter;`,
           },
           {
-            task: 'What is the final shape of Box?',
-            description: 'Checks merge rules for conflicting members. Show the code in the Playground.',
-            code: `interface Box { w: number }
-interface Box { h: number }
-interface Box { w: string }`,
-            answer: 'The first two merge into w and h. The third fails: subsequent property declarations must have the same type. Weak answers say the last one wins. Methods would overload instead of failing.',
+            task: 'Why does this fail and how do you fix it?',
+            description: 'Checks building a hybrid value.',
+            code: `interface Lib { (s: string): void; version: string }
+const lib: Lib = (s: string) => console.log(s);`,
+            answer: 'An arrow function on its own has no version property. Add it with Object.assign so the result type has both parts.',
+            solution: 'const lib: Lib = Object.assign((s: string) => console.log(s), { version: \'1.0\' });',
           },
         ],
       },
@@ -222,23 +233,28 @@ const b: B = { m: (x: string) => {} };`,
     ],
     techlead: [
       {
-        q: 'Where should shared API types come from? Should frontend developers write them by hand?',
-        short: 'Prefer generating them from a single source like OpenAPI or a schema, and validate at runtime at the boundary.',
-        long: 'Hand-written types drift from the backend and lie silently.\nOptions: OpenAPI codegen (openapi-typescript), GraphQL codegen, or zod schemas with z.infer.\nTypes alone do not validate data; add runtime checks for untrusted input.\nPut generated types in one package and do not edit them by hand.\nAdd a CI check that fails when the schema changes without a regen.\nStrong answer: single source of truth plus runtime validation plus CI.\nWeak answer: "we copy the C# DTOs by hand".',
+        q: 'Should API response types and UI form types be the same type? How do you keep them apart?',
+        short: 'No. API types describe the wire format; form types describe what the UI edits. Map between them in one place.',
+        long: `API data often has ISO date strings, nullable fields and server ids. Forms need Date objects, empty strings and draft values.
+Using one type for both leads to \`as\` casts and fields that are optional everywhere.
+Put mapping functions like toForm and toRequest next to the feature, and test them.
+Pitfall: a mapping layer for every tiny screen adds noise; use Pick or Omit when the shapes really match.
+Strong answer: explains boundary mapping and when to skip it.
+Weak answer: makes every field optional in one shared type.`,
+        follow: 'Where do you put the mapping functions?',
         exercises: [
           {
-            task: 'Design a CI step that catches type drift between backend and frontend.',
-            description: 'Checks process thinking. Ask for the pipeline steps.',
-            answer: 'Export the OpenAPI spec in the backend build, run codegen in CI, and fail if git diff is not empty. Then run tsc on the frontend. A weak answer relies on code review. A strong answer also versions the spec for breaking changes.',
+            task: 'Write a form type from this API type, where dates are Date objects and id is not editable.',
+            description: 'Checks Omit and mapped changes.',
+            code: 'type UserDto = { id: string; name: string; createdAt: string };',
+            answer: 'Omit id, and replace createdAt with Date. A strong answer writes a toForm function too.',
+            solution: `type UserForm = Omit<UserDto, 'id' | 'createdAt'> & { createdAt: Date };
+const toForm = (d: UserDto): UserForm => ({ name: d.name, createdAt: new Date(d.createdAt) });`,
           },
           {
-            task: 'Convert this hand-written type to a schema plus inferred type.',
-            description: 'Checks runtime validation thinking. Use zod in a sandbox.',
-            code: `interface User { id: string; age: number }`,
-            answer: 'Define `const User = z.object({ id: z.string(), age: z.number() })` and `type User = z.infer<typeof User>`. Parse at the fetch boundary. A weak answer keeps both separately, which can drift.',
-            solution: `import { z } from 'zod';
-const User = z.object({ id: z.string(), age: z.number() });
-type User = z.infer<typeof User>;`,
+            task: 'A team made every API field optional so forms can use it. What problems does this cause?',
+            description: 'Checks judgment about shared types.',
+            answer: 'Every read now needs undefined checks, real missing fields are hidden, and the server contract is lost. Separate types with a mapper fix this.',
           },
         ],
       },
@@ -265,19 +281,32 @@ export interface UserSettings { theme: 'light' | 'dark' }`,
         ],
       },
       {
-        q: 'Your team argues about interface versus type in every review. What do you do?',
-        short: 'Pick one default, write it down, and enforce it with a lint rule so reviews focus on behavior.',
-        long: 'The choice rarely matters for runtime or correctness.\nA common default: interface for object shapes, type for unions and computed types.\nEnforce with @typescript-eslint/consistent-type-definitions and auto-fix.\nDocument exceptions, like declaration merging needs.\nStrong answer: removes the debate from reviews with automation.\nWeak answer: lets each developer decide.',
+        q: 'How do you document shared types so other teams use them correctly?',
+        short: 'Use TSDoc comments on types and fields, with @deprecated, @example and @see, so the editor shows the docs on hover.',
+        long: `TSDoc comments (\`/** ... */\`) appear in IntelliSense, so they reach people where they code.
+@deprecated makes the editor strike through old fields, which helps safe migrations.
+Document units, formats and invariants, like "amount in cents" or "ISO date".
+Pitfall: comments that repeat the type name add nothing; write what the type cannot say.
+Strong answer: uses @deprecated for migrations and adds examples for tricky types.
+Weak answer: keeps docs in a wiki that nobody opens.`,
+        follow: 'How do you remove a deprecated field later?',
         exercises: [
           {
-            task: 'Write the lint config for your chosen rule.',
-            description: 'Checks practical enforcement. Ask for the eslint snippet.',
-            answer: 'Add `"@typescript-eslint/consistent-type-definitions": ["error", "interface"]`. It auto-fixes object type aliases. A weak answer adds a wiki page only. A strong answer runs the fix in one PR.',
+            task: 'Add docs so users know price is in cents and oldPrice should not be used.',
+            description: 'Checks TSDoc tags.',
+            code: 'interface Product { price: number; oldPrice?: number }',
+            answer: 'Add a comment about cents and a @deprecated tag pointing to the new field.',
+            solution: `interface Product {
+  /** Price in cents, for example 1999 for $19.99. */
+  price: number;
+  /** @deprecated Use price instead. Removed in v3. */
+  oldPrice?: number;
+}`,
           },
           {
-            task: 'Name a case where your rule must allow an exception.',
-            description: 'Checks nuance. Discuss.',
-            answer: 'Unions, mapped types, and types used with Record<string, unknown> need aliases. Library augmentation needs interfaces. A strong answer keeps the rule but explains the exception list.',
+            task: 'Which things should a type comment explain, and which should it skip?',
+            description: 'Checks taste in documentation.',
+            answer: 'Explain units, formats, allowed ranges and side effects. Skip things the type already says, like "this is a string".',
           },
         ],
       },
@@ -683,23 +712,29 @@ class A extends Base {
         ],
       },
       {
-        q: 'Can you bypass TypeScript private at compile time? How?',
-        short: 'Yes: bracket notation like obj["secret"] still type-checks, and casting to any also works.',
-        long: 'TS allows `obj["privateField"]` as an escape hatch, mainly for tests.\nCasting to any also bypasses it.\nAt runtime the property is a normal property.\n#private fields cannot be bypassed this way.\nStrong answer: knows the bracket rule and when #private is needed.\nWeak answer: thinks private is secure.',
+        q: 'Can an interface have private members? What do you do instead?',
+        short: 'No. An interface describes only the public shape. Keep private details in the class, or hide them with module scope or closures.',
+        long: `Interfaces have no access modifiers except readonly.
+A class can implement an interface and add private members of its own.
+To hide data from users, export only the interface and a factory function, not the class.
+Pitfall: an interface that extends a class with private members can only be implemented by that class or its subclasses.
+Strong answer: separates public contract from private implementation.
+Weak answer: writes \`private\` in an interface.`,
+        follow: 'What happens when an interface extends a class with private fields?',
         exercises: [
           {
-            task: 'Which lines compile?',
-            description: 'Checks escape hatches. Run in the Playground.',
-            code: `class A { private x = 1; #y = 2 }
-const a = new A();
-a['x'];
-a['#y'];`,
-            answer: 'a["x"] compiles and returns 1. a["#y"] errors: the type has no such key, and at runtime it is undefined. Strong answers explain #y is a real private name.',
+            task: 'Fix this code.',
+            description: 'Checks that interfaces have no private.',
+            code: 'interface Client { private token: string; get(url: string): Promise<unknown> }',
+            answer: 'Remove private from the interface and keep the token in the class.',
+            solution: `interface Client { get(url: string): Promise<unknown> }
+class HttpClient implements Client { private token = ''; async get(url: string) { return fetch(url); } }`,
           },
           {
-            task: 'How should tests access private state instead?',
-            description: 'Checks testing practice. Discuss.',
-            answer: 'Test through public behavior. If you must, expose a narrow method or use bracket access with a comment. Weak answers make fields public for tests.',
+            task: 'Export a counter whose count cannot be changed from outside, without a class.',
+            description: 'Checks closures as privacy.',
+            answer: 'Return an object with methods that close over a local variable.',
+            solution: 'export function createCounter() { let n = 0; return { inc: () => ++n, get: () => n }; }',
           },
         ],
       },
@@ -779,19 +814,31 @@ new Money(1).equals({} as Money);`,
     ],
     techlead: [
       {
-        q: 'How do you design the public surface of an SDK class so you can change internals safely?',
-        short: 'Expose a small interface, keep state in #private fields, and export only factories and types from the package entry.',
-        long: 'Consumers depend on everything they can reach, including TS private via brackets.\n#private gives real encapsulation.\nExport an interface and a create function instead of the class, to allow swapping implementations.\nUse the exports field in package.json to block deep imports.\nUse API Extractor to track public API changes.\nStrong answer: combines language, packaging, and tooling.\nWeak answer: "just mark things private".',
+        q: 'How do you hide internal members from the published type files of a library?',
+        short: 'Mark them with the @internal TSDoc tag and turn on stripInternal, or use API Extractor to produce a trimmed .d.ts.',
+        long: `Public members still appear in .d.ts files, even if only your own packages should use them.
+\`/** @internal */\` plus \`stripInternal: true\` removes them from the declaration output.
+API Extractor can create a reviewed API report and trim files per release tag.
+Pitfall: stripping a type that a public member uses breaks the published types.
+Strong answer: combines @internal, an API report in CI, and the exports field.
+Weak answer: relies on naming members with an underscore.`,
+        follow: 'How does an API report in CI help reviews?',
         exercises: [
           {
-            task: 'How do you detect accidental public API changes in CI?',
-            description: 'Checks tooling. Ask for a concrete tool.',
-            answer: 'Use API Extractor to produce an api.md report and fail CI on unreviewed diffs. Weak answers rely on review. A strong answer adds semver checks.',
+            task: 'Mark the helper so it does not appear in the published types.',
+            description: 'Checks stripInternal usage.',
+            code: 'export class Sdk { resetCacheForTests() {} }',
+            answer: 'Add the @internal comment and enable stripInternal in tsconfig.',
+            solution: `export class Sdk {
+  /** @internal */
+  resetCacheForTests() {}
+}
+// tsconfig: "stripInternal": true`,
           },
           {
-            task: 'Why export an interface plus factory instead of the class?',
-            description: 'Checks design reasoning. Discuss.',
-            answer: 'Consumers cannot extend or instanceof-check the class, so you can change it freely. Weak answers see no difference.',
+            task: 'Why can stripInternal break users\' builds?',
+            description: 'Checks the risk.',
+            answer: 'If a public type refers to an internal type, the .d.ts points to a missing name. Check the output in CI.',
           },
         ],
       },
@@ -908,25 +955,32 @@ const x = wrap('hi');`,
     ],
     middle: [
       {
-        q: 'What does `K extends keyof T` give you? Write a typed pluck function.',
-        short: 'It restricts K to real keys of T, so `T[K]` gives the exact property type.',
-        long: 'keyof T is a union of the keys of T.\nWith K extends keyof T, invalid keys fail at the call.\nThe return type T[K] is an indexed access type.\nWith an array of keys, use `K[]` and return `Pick<T, K>` or `T[K][]`.\nStrong answer: writes it fast and explains T[K].\nWeak answer: uses string for the key.',
+        q: 'What is a generic class? Write a typed Stack.',
+        short: 'A generic class has a type parameter on the class, like `class Stack<T>`. Every method then uses the same T.',
+        long: `The type parameter is fixed when you create the instance: \`new Stack<number>()\` or inferred from constructor arguments.
+Static members cannot use the class type parameter.
+Pitfall: an empty \`new Stack()\` infers unknown, so give the type explicitly.
+Strong answer: writes push and pop with correct return types, like \`T | undefined\`.
+Weak answer: uses any inside the class.`,
+        follow: 'Why can a static method not use T?',
         exercises: [
           {
-            task: 'Write pluck(items, key) that returns an array of that property.',
-            description: 'Checks keyof and indexed access. Test with a wrong key.',
-            answer: 'Use `<T, K extends keyof T>(items: T[], key: K): T[K][]`. Wrong key is a compile error. Weak answers return any[].',
-            solution: `function pluck<T, K extends keyof T>(items: T[], key: K): T[K][] { return items.map(i => i[key]) }`,
+            task: 'Write a Stack class with push, pop and peek.',
+            description: 'Checks a basic generic class.',
+            answer: 'pop and peek return T | undefined because the stack can be empty.',
+            solution: `class Stack<T> {
+  private items: T[] = [];
+  push(x: T) { this.items.push(x); }
+  pop(): T | undefined { return this.items.pop(); }
+  peek(): T | undefined { return this.items[this.items.length - 1]; }
+}`,
           },
           {
-            task: 'Write pick(obj, keys) that returns Pick<T, K>.',
-            description: 'Checks Pick with arrays of keys. Ask for code.',
-            answer: 'Use `<T, K extends keyof T>(o: T, keys: K[]): Pick<T, K>` and build the result in a loop. The internal cast is fine. Strong answers explain why a cast is needed inside.',
-            solution: `function pick<T, K extends keyof T>(o: T, keys: K[]): Pick<T, K> {
-  const r = {} as Pick<T, K>;
-  for (const k of keys) r[k] = o[k];
-  return r;
-}`,
+            task: 'What is the type of s here, and how do you fix it?',
+            description: 'Checks inference of class type parameters.',
+            code: `const s = new Stack();
+s.push(1); s.push('a');`,
+            answer: 'It is Stack<unknown>, so push accepts anything. Write `new Stack<string>()`.',
           },
         ],
       },
@@ -1044,48 +1098,65 @@ pick(['a', 'b'], 'c');`,
     ],
     techlead: [
       {
-        q: 'How do you review a pull request with a very complex generic type?',
-        short: 'Ask for type tests, clear names, and proof the complexity pays for itself at the call sites.',
-        long: 'Complex types are code and need tests (expectTypeOf, tsd, or @ts-expect-error).\nAsk for the simplest version that serves real call sites.\nCheck compile time and editor speed.\nRequire readable error messages for misuse.\nKeep complexity in a library layer, not in app code.\nStrong answer: has concrete criteria.\nWeak answer: approves because it compiles.',
+        q: 'How do you test the types in a shared library?',
+        short: 'Write type tests: use @ts-expect-error for code that must fail, and tools like expectTypeOf in Vitest or tsd to check exact types.',
+        long: `Types are part of the public API, so they can break without any runtime test failing.
+\`// @ts-expect-error\` fails the build if the next line stops erroring.
+Vitest expectTypeOf and tsd compare inferred types exactly.
+Run type tests in CI with tsc --noEmit or vitest typecheck.
+Pitfall: testing with \`any\` values makes every type test pass.
+Strong answer: tests both good and bad usage.
+Weak answer: "the compiler checks it already".`,
+        follow: 'Why is @ts-ignore a bad choice in type tests?',
         exercises: [
           {
-            task: 'Write a type test for a generic helper.',
-            description: 'Checks testing types. Use vitest expectTypeOf.',
-            answer: 'Use `expectTypeOf(pluck(users, "id")).toEqualTypeOf<string[]>()` and `// @ts-expect-error` for a wrong key. Weak answers only test runtime. Strong answers run it in CI with typecheck mode.',
-            solution: `import { expectTypeOf, test } from 'vitest';
-test('pluck', () => {
-  expectTypeOf(pluck(users, 'id')).toEqualTypeOf<string[]>();
-  // @ts-expect-error wrong key
-  pluck(users, 'nope');
-});`,
+            task: 'Write type tests for pick(obj, key).',
+            description: 'Checks positive and negative type tests.',
+            answer: 'Check the return type for a valid key and expect an error for an unknown key.',
+            solution: `expectTypeOf(pick({ a: 1 }, 'a')).toEqualTypeOf<number>();
+// @ts-expect-error unknown key
+pick({ a: 1 }, 'b');`,
           },
           {
-            task: 'Give two signs a generic type is too clever.',
-            description: 'Checks judgment. Discuss.',
-            answer: 'Error messages nobody understands, and slow IDE hovers. Also: only the author can change it. A strong answer suggests simpler overloads.',
+            task: 'Why does this type test always pass?',
+            description: 'Checks the any trap.',
+            code: `const data: any = load();
+expectTypeOf(data).toMatchTypeOf<User>();`,
+            answer: 'data is any, and any matches every type, so the test checks nothing.',
           },
         ],
       },
       {
-        q: 'Fix this hook. Callers must write the generic every time.',
-        code: `function useQuery<T>(key: string): T { /* ... */ return null as T }
-const user = useQuery<User>('user');
-const posts = useQuery<Post[]>('user'); // wrong but compiles`,
-        fix: `interface QueryMap { user: User; posts: Post[] }
-function useQuery<K extends keyof QueryMap>(key: K): QueryMap[K] { /* ... */ return null! }
-const user = useQuery('user'); // User`,
-        short: 'Tie the key to the result with a map type so TS infers the result and blocks mismatches.',
-        long: 'Manual generics are hidden casts; the wrong type compiles.\nA central QueryMap links each key to its data type.\nCallers get inference and autocompletion.\nTeams can extend the map with declaration merging per feature.\nStrong answer: removes the free generic and centralizes the contract.\nWeak answer: adds comments asking people to be careful.',
+        q: 'Fix this shared helper. It returns any, and any spreads through the code.',
+        code: `export function parseJson(text: string) {
+  return JSON.parse(text);
+}
+const user = parseJson(raw);
+user.nmae.toUpperCase();`,
+        fix: `export function parseJson(text: string): unknown {
+  return JSON.parse(text);
+}
+const user = UserSchema.parse(parseJson(raw));
+user.name.toUpperCase();`,
+        short: 'JSON.parse returns any, so every caller loses type checks. Return unknown and make callers validate.',
+        long: `any is contagious: properties of any are any, so typos compile.
+Returning unknown forces a check or a schema parse at the boundary.
+A generic like \`parseJson<T>()\` looks safe but is just a hidden cast.
+Add lint rules like no-unsafe-assignment and no-unsafe-member-access to catch this.
+Strong answer: returns unknown, validates, and mentions the lint rules.
+Weak answer: adds a generic T and calls it type-safe.`,
+        follow: 'Why is `parseJson<T>(text): T` still unsafe?',
         exercises: [
           {
-            task: 'Let feature folders add their own keys to QueryMap.',
-            description: 'Checks declaration merging with generics. Ask for code.',
-            answer: 'Export QueryMap as an interface and have each feature write `declare module "./queries" { interface QueryMap { orders: Order[] } }`. Weak answers edit one huge file. Strong answers mention module augmentation.',
+            task: 'Find where any leaks in this code.',
+            description: 'Checks tracing any.',
+            code: 'async function load() { const res = await fetch(\'/items\'); const items = await res.json(); return items.map((i) => i.id); }',
+            answer: 'res.json() returns any in many lib versions, so items and every map result are any. Annotate as unknown and validate.',
           },
           {
-            task: 'Why is `useQuery<User>(...)` a hidden cast?',
-            description: 'Checks reasoning. Discuss.',
-            answer: 'Nothing checks that the data really is a User; the caller just asserts it. Weak answers think generics validate data. A strong answer adds runtime validation.',
+            task: 'Which typescript-eslint rules stop any from spreading?',
+            description: 'Checks tooling.',
+            answer: 'no-explicit-any, no-unsafe-assignment, no-unsafe-member-access, no-unsafe-call and no-unsafe-return.',
           },
         ],
       },
@@ -1309,41 +1380,63 @@ new User().id;`,
         ],
       },
       {
-        q: 'In what order do member and class decorators run in the standard proposal?',
-        short: 'Expressions are evaluated top to bottom; then decorators apply: members first (static and instance in order), class decorators last; stacked decorators apply bottom to top.',
-        long: 'Decorator expressions are evaluated in source order.\nApplication: for each element in order, then the class decorators.\nOn one element, the decorator closest to it applies first.\nInitializers from addInitializer run at instance or class setup.\nStrong answer: can predict logs.\nWeak answer: guesses.',
-        ai: true,
+        q: 'How do you write a decorator for an auto-accessor field?',
+        short: 'Decorate an `accessor` field. The decorator gets `{ get, set }` and can return new get, set and init functions.',
+        long: `Standard field decorators cannot intercept reads and writes. Auto-accessors can.
+The decorator receives the target \`{ get, set }\` and a context of kind "accessor".
+Return \`{ get() {}, set(v) {}, init(v) {} }\` to wrap behavior, for example validation or change tracking.
+TypeScript types it with ClassAccessorDecoratorTarget and ClassAccessorDecoratorResult.
+Pitfall: this needs TS 5.0+ standard decorators, not experimentalDecorators.
+Strong answer: writes a working wrapper and explains why accessor is needed.
+Weak answer: tries to use a property descriptor.`,
+        follow: 'Why can a plain field decorator not run code on every write?',
         exercises: [
           {
-            task: 'Predict the logs.',
-            description: 'Checks order. Run with TS 5 standard decorators.',
-            code: `const d = (n: string) => { console.log('eval', n); return (v: unknown, c: DecoratorContext) => { console.log('apply', n) } };
-@d('class') class A { @d('m1') @d('m2') m() {} }`,
-            answer: 'eval class, eval m1, eval m2, apply m2, apply m1, apply class. Weak answers apply m1 first.',
+            task: 'Write a decorator that logs every write to an accessor field.',
+            description: 'Checks the accessor decorator shape.',
+            answer: 'Return a set function that logs, then calls the original set.',
+            solution: `function logged<This, V>(t: ClassAccessorDecoratorTarget<This, V>, ctx: ClassAccessorDecoratorContext<This, V>) {
+  return { set(this: This, v: V) { console.log(String(ctx.name), v); t.set.call(this, v); } };
+}
+class User { @logged accessor name = ''; }`,
           },
           {
-            task: 'Why does order matter for a @cache and @log stack?',
-            description: 'Checks practical impact. Discuss.',
-            answer: 'If log wraps cache, cached calls still log; reversed, cache hits skip logging. Strong answers choose based on intent.',
+            task: 'Write a decorator that clamps a number accessor between 0 and 100.',
+            description: 'Checks init and set.',
+            answer: 'Clamp in both init and set, so the starting value is also checked.',
+            solution: `function clamp(t: ClassAccessorDecoratorTarget<unknown, number>) {
+  const c = (v: number) => Math.min(100, Math.max(0, v));
+  return { init: c, set(this: unknown, v: number) { t.set.call(this, c(v)); } };
+}`,
           },
         ],
       },
     ],
     techlead: [
       {
-        q: 'Your app uses legacy decorators with reflect-metadata. Do you migrate to standard decorators?',
-        short: 'Only when the framework supports it; plan per package, because the signatures and metadata differ.',
-        long: 'Angular and NestJS still depend on legacy decorators.\nStandard decorators have no parameter decorators and no design-type metadata.\nMixed styles in one project are not possible per file; it is a compiler flag.\nPlan: wait for framework support, isolate custom decorators, and test.\nStrong answer: weighs risk and value.\nWeak answer: migrates because it is newer.',
+        q: 'How do you test code that uses decorators?',
+        short: 'Test the decorator on a small test class, and test business logic without the decorator where possible. Keep decorators thin.',
+        long: `A decorator is just a function, so you can apply it to a tiny class in a unit test.
+Keep logic in plain functions that the decorator calls; test those directly.
+For framework decorators (NestJS, Angular), use the framework testing module.
+Pitfall: decorators with side effects at class definition (registries) leak between tests; reset them.
+Strong answer: separates decorator wiring from logic, and resets global state.
+Weak answer: only tests through the full app.`,
+        follow: 'How do you reset a registry that decorators fill at import time?',
         exercises: [
           {
-            task: 'List the blockers to switching a NestJS app.',
-            description: 'Checks risk assessment. Discuss.',
-            answer: 'Parameter decorators like @Body, constructor injection via design:paramtypes metadata, and third-party libraries. Weak answers say none.',
+            task: 'Write a test for a @retry(3) method decorator.',
+            description: 'Checks testing decorators directly.',
+            answer: 'Make a class with a method that fails twice, then succeeds. Assert it returns and was called three times.',
+            solution: `class T { calls = 0; @retry(3) async run() { if (++this.calls < 3) throw new Error(); return 'ok'; } }
+const t = new T();
+expect(await t.run()).toBe('ok');
+expect(t.calls).toBe(3);`,
           },
           {
-            task: 'How do you reduce future migration cost now?',
-            description: 'Checks strategy. Discuss.',
-            answer: 'Keep custom decorators few, wrap them in one module, and avoid relying on metadata in app code. Strong answers add tests around decorator behavior.',
+            task: 'Why do these tests fail only when run together?',
+            description: 'Checks global state from decorators.',
+            answer: 'A @register decorator adds classes to a shared map when the file loads. Tests see each other\'s classes. Export a reset function or create the registry per test.',
           },
         ],
       },
@@ -1608,42 +1701,75 @@ function run(k: keyof Map, v: Map[keyof Map]) { h[k](v) }`,
     ],
     techlead: [
       {
-        q: 'How do you model UI state with unions so impossible states cannot happen?',
-        short: 'Use discriminated unions for each state, with only the data valid in that state, and handle them exhaustively.',
-        long: 'Booleans like isLoading and hasError allow invalid combinations.\nA union like idle | loading | success(data) | error(err) removes them.\nComponents switch on status with an exhaustive check.\nThis also documents the domain for new team members.\nTeach it as a pattern with examples and lint for switch-exhaustiveness-check.\nStrong answer: gives a rule and tooling.\nWeak answer: adds more booleans.',
+        q: 'How do you type feature flags so that removing a flag causes errors everywhere it is used?',
+        short: 'Keep all flag names in one union or const object. Code uses a typed function like `isOn(\'newCheckout\')`, so removing a name breaks every call site.',
+        long: `If flags are free strings, old checks stay in code forever.
+Define \`const FLAGS = ['newCheckout', 'darkMode'] as const\` and \`type Flag = typeof FLAGS[number]\`.
+The flag client accepts only Flag, so deleting a name gives compile errors to clean up.
+You can also map flags to value types for multivariate flags.
+Pitfall: flags loaded from a remote service may not match; validate at startup.
+Strong answer: one source of truth, typed access, cleanup through errors.
+Weak answer: uses plain strings with a wiki list.`,
+        follow: 'How do you type flags that hold a string or number, not just a boolean?',
         exercises: [
           {
-            task: 'Rewrite this state as a union.',
-            description: 'Checks modeling. Ask for the type.',
-            code: `interface S { loading: boolean; data?: User; error?: string }`,
-            answer: 'Use `{ status: "loading" } | { status: "success"; data: User } | { status: "error"; error: string }`. Weak answers keep optional fields. Strong answers add idle.',
+            task: 'Type isOn so only known flags are allowed.',
+            description: 'Checks literal unions from a const array.',
+            code: `const FLAGS = ['newCheckout', 'darkMode'] as const;
+function isOn(name: string): boolean { return false; }`,
+            answer: 'Derive Flag from the array and use it as the parameter type.',
+            solution: `type Flag = typeof FLAGS[number];
+function isOn(name: Flag): boolean { return false; }`,
           },
           {
-            task: 'Which lint rule enforces exhaustive switches?',
-            description: 'Checks tooling. Quick question.',
-            answer: '@typescript-eslint/switch-exhaustiveness-check. It needs type information. Weak answers do not know it.',
+            task: 'Type a getFlag function where each flag has its own value type.',
+            description: 'Checks key-to-type mapping.',
+            answer: 'Use an interface of flag names to types and a generic key.',
+            solution: `interface Flags { newCheckout: boolean; maxItems: number; theme: 'light' | 'dark' }
+declare function getFlag<K extends keyof Flags>(k: K): Flags[K];`,
           },
         ],
       },
       {
-        q: 'Fix this props type. It accepts both href and onClick together.',
-        code: `interface ButtonProps { label: string; href?: string; onClick?: () => void }`,
-        fix: `type ButtonProps = { label: string } & (
-  | { href: string; onClick?: never }
-  | { onClick: () => void; href?: never }
-);`,
-        short: 'Use a union with `?: never` on the other branch so props become mutually exclusive.',
-        long: 'Optional fields allow both or neither.\nA union with never keys makes invalid combinations a compile error.\nKeep shared props in an intersection.\nError messages can be long; document the pattern.\nStrong answer: picks this pattern for design system components.\nWeak answer: checks at runtime only.',
+        q: 'Fix this error handling. The error in catch is used as if it were always an Error.',
+        code: `try {
+  await save();
+} catch (e) {
+  showToast(e.message);
+}`,
+        fix: `try {
+  await save();
+} catch (e: unknown) {
+  showToast(e instanceof Error ? e.message : String(e));
+}`,
+        short: 'Anything can be thrown, so the catch variable is unknown under strict mode (useUnknownInCatchVariables). Narrow it before reading message.',
+        long: `Since TS 4.4, strict turns on useUnknownInCatchVariables, so e is unknown.
+Code can throw strings, objects or undefined, not only Error.
+Narrow with instanceof Error, or a type guard for your API error shape.
+A shared toError or getErrorMessage helper keeps it short across the app.
+Pitfall: writing \`catch (e: any)\` turns checks off again.
+Strong answer: narrows, and adds a shared helper.
+Weak answer: casts with \`as Error\`.`,
+        follow: 'Why does TypeScript not let you write `catch (e: Error)`?',
         exercises: [
           {
-            task: 'Why use `?: never` instead of leaving the key out?',
-            description: 'Checks excess property rules with unions. Try both.',
-            answer: 'Without never, an object with both keys may still match one branch, because extra keys are allowed on unions in some cases. never forbids it explicitly. Weak answers think omission is enough.',
+            task: 'Write a getErrorMessage helper.',
+            description: 'Checks narrowing unknown.',
+            answer: 'Handle Error, string and other values.',
+            solution: `export function getErrorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  return 'Unknown error';
+}`,
           },
           {
-            task: 'How do you keep these types readable for the team?',
-            description: 'Checks maintainability. Discuss.',
-            answer: 'Make a small helper like XOR<A, B> in a shared types folder, with tests and docs. Weak answers copy the pattern everywhere.',
+            task: 'Narrow an API error with a status field.',
+            description: 'Checks custom type guards.',
+            code: 'type ApiError = { status: number; message: string };',
+            answer: 'Write a guard that checks the object has a numeric status.',
+            solution: `function isApiError(e: unknown): e is ApiError {
+  return typeof e === 'object' && e !== null && typeof (e as ApiError).status === 'number';
+}`,
           },
         ],
       },
@@ -1778,24 +1904,29 @@ if ((p & Perm.Write) !== 0) console.log('can write');`,
         ],
       },
       {
-        q: 'What are the differences between enum and a const object with as const?',
-        short: 'An enum is a TS-only construct with nominal types and runtime code; an `as const` object is plain JS and you derive the union type yourself.',
-        long: 'Pattern: `const Status = { Active: "active" } as const; type Status = (typeof Status)[keyof typeof Status]`.\nThe object accepts plain string literals; the enum does not.\nThe object works with erasableSyntaxOnly and Node type stripping; enums do not.\nEnums are slightly shorter to write.\nStrong answer: compares nominal typing, runtime, and tooling.\nWeak answer: says they are identical.',
+        q: 'What are constant and computed enum members?',
+        short: 'Constant members have values known at compile time, like literals or simple expressions. Computed members use runtime values, like a function call.',
+        long: `Constant members: literals, references to other constant members, and simple math like \`1 << 2\`.
+Computed members: anything else, like \`'abc'.length\` or \`getValue()\`.
+After a computed member, the next member needs an explicit value.
+const enums allow only constant members because they are inlined.
+String enums cannot have computed members.
+Pitfall: a computed member makes the enum harder to inline and to read.
+Strong answer: gives examples and the rule about the next member.
+Weak answer: does not know the difference.`,
+        follow: 'Why can a const enum not have computed members?',
         exercises: [
           {
-            task: 'Convert this enum to an as const object and a type.',
-            description: 'Checks the pattern. Ask for code and test usage.',
-            code: `enum Theme { Light = 'light', Dark = 'dark' }`,
-            answer: 'Define the object with as const and a type from its values. Call sites stay `Theme.Light`. Weak answers forget the type. Strong answers mention the same name for value and type.',
-            solution: `const Theme = { Light: 'light', Dark: 'dark' } as const;
-type Theme = (typeof Theme)[keyof typeof Theme];`,
+            task: 'Which line has an error and why?',
+            description: 'Checks the rule after a computed member.',
+            code: 'enum E { A = 1, B = \'abc\'.length, C }',
+            answer: 'B is computed, so C needs a value. Add `C = 5` or move C above B.',
           },
           {
-            task: 'Why does this compile with the object but not with the enum?',
-            description: 'Checks nominal versus structural. Try both.',
-            code: `function set(t: Theme) {}
-set('dark');`,
-            answer: 'The object type is a literal union, so "dark" fits. The string enum is nominal and needs Theme.Dark. Weak answers say neither compiles.',
+            task: 'Are these members constant or computed?',
+            description: 'Checks classification.',
+            code: 'enum Perm { Read = 1 << 0, Write = 1 << 1, Both = Read | Write }',
+            answer: 'Read and Write are constant; Both is constant too because it uses other constant members.',
           },
         ],
       },
@@ -1820,29 +1951,36 @@ set('dark');`,
         ],
       },
       {
-        q: 'Fix this code. The declare const enum breaks with isolatedModules.',
-        code: `// types.d.ts
-declare const enum Color { Red = 'red' }
-// app.ts (built by esbuild)
-const c = Color.Red;`,
-        fix: `// colors.ts
-export const Color = { Red: 'red' } as const;
-export type Color = (typeof Color)[keyof typeof Color];
-// app.ts
-import { Color } from './colors';
-const c = Color.Red;`,
-        short: 'Single-file transpilers cannot inline ambient const enums, so at runtime Color is undefined; use a real runtime object.',
-        long: 'const enum values are inlined by tsc using whole-program information.\nesbuild, swc, and Babel compile each file alone and cannot see the declaration.\nWith isolatedModules, TS reports an error for ambient const enum access.\nOptions: regular enum, as const object, or preserveConstEnums plus export.\nStrong answer: explains why per-file compilers cannot inline.\nWeak answer: turns off isolatedModules.',
+        q: 'Fix this code. Looping over a numeric enum gives both names and numbers.',
+        code: `enum Size { S, M, L }
+const options = Object.keys(Size);
+// ['0', '1', '2', 'S', 'M', 'L']`,
+        fix: `enum Size { S, M, L }
+const options = Object.keys(Size).filter((k) => isNaN(Number(k))) as (keyof typeof Size)[];
+// ['S', 'M', 'L']`,
+        short: 'Numeric enums have a reverse mapping, so the object has number keys too. Filter out numeric keys, or use a string enum or const object.',
+        long: `The compiled numeric enum looks like \`{ 0: 'S', 1: 'M', S: 0, M: 1, ... }\`.
+Object.keys and Object.values return both halves.
+Filter keys that are not numbers, or switch to a string enum, which has no reverse mapping.
+Pitfall: Object.values on a numeric enum returns names and numbers mixed.
+Strong answer: explains the reverse mapping and gives a typed fix.
+Weak answer: hard-codes the list.`,
+        follow: 'Do string enums have this problem?',
         exercises: [
           {
-            task: 'What does preserveConstEnums change?',
-            description: 'Checks tsconfig knowledge. Discuss.',
-            answer: 'It still emits the enum object, so the code exists at runtime. tsc still inlines uses. It helps when other files import it. Weak answers think it disables inlining.',
+            task: 'Get only the numeric values of the enum, typed as Size[].',
+            description: 'Checks filtering values.',
+            code: 'enum Size { S, M, L }',
+            answer: 'Filter values by typeof number.',
+            solution: 'const values = Object.values(Size).filter((v): v is Size => typeof v === \'number\');',
           },
           {
-            task: 'Why is a const enum risky in a published library?',
-            description: 'Checks versioning. Discuss.',
-            answer: 'Consumers inline the values at their build time; if the library changes values, old builds keep old numbers. Also isolatedModules users cannot use it. Strong answers recommend not exporting const enums.',
+            task: 'Rewrite Size as a const object so iteration is simple.',
+            description: 'Checks the const object pattern.',
+            answer: 'Use as const and derive the type from values.',
+            solution: `const Size = { S: 0, M: 1, L: 2 } as const;
+type Size = typeof Size[keyof typeof Size];
+Object.keys(Size); // ['S', 'M', 'L']`,
           },
         ],
       },
@@ -1890,28 +2028,37 @@ const n2: number = A.X;`,
         ],
       },
       {
-        q: 'Fix this code. The backend adds a new enum value and the UI crashes.',
-        code: `enum Plan { Free = 'free', Pro = 'pro' }
-const label = { [Plan.Free]: 'Free', [Plan.Pro]: 'Pro' };
-function show(p: Plan) { return label[p].toUpperCase() }
-show(api.plan as Plan); // api sends 'team'`,
-        fix: `const PLANS = ['free', 'pro'] as const;
-type Plan = (typeof PLANS)[number];
-const label: Record<Plan, string> = { free: 'Free', pro: 'Pro' };
-function isPlan(v: string): v is Plan { return (PLANS as readonly string[]).includes(v) }
-function show(raw: string) { return isPlan(raw) ? label[raw].toUpperCase() : 'Unknown plan' }`,
-        short: 'Never cast server data to an enum; validate it and handle unknown values with a fallback.',
-        long: 'The cast tells TS the value is valid, but nothing checks it.\nAt runtime label["team"] is undefined and toUpperCase throws.\nValidate at the API boundary and keep an explicit unknown branch.\nAgree with the backend on versioning or additive changes.\nStrong answer: combines validation, fallback UI, and monitoring.\nWeak answer: adds the new value and waits for the next one.',
+        q: 'Fix this package setup. Two copies of the same enum exist, and the values do not match.',
+        code: `// packages/orders/status.ts
+export enum Status { Open = 'open', Done = 'done' }
+// packages/ui/status.ts
+export enum Status { Open = 'OPEN', Done = 'DONE' }`,
+        fix: `// packages/contracts/status.ts
+export const Status = { Open: 'open', Done: 'done' } as const;
+export type Status = typeof Status[keyof typeof Status];
+// orders and ui import from '@acme/contracts'`,
+        short: 'Keep one source of truth in a shared contracts package (or generate it from the API) and import it everywhere.',
+        long: `Two enums with the same name are different types, and values can drift.
+TypeScript will not warn, because each package only sees its own copy.
+Move the values to one package, ideally generated from the backend schema.
+A const object avoids enum quirks and works with isolatedModules.
+Pitfall: duplicated package versions in node_modules can still bring two copies; check with npm ls.
+Strong answer: single source, generation, and a check for duplicate versions.
+Weak answer: syncs them by hand.`,
+        follow: 'How do you find two versions of the same package in a monorepo?',
         exercises: [
           {
-            task: 'Where should validation live in the app?',
-            description: 'Checks architecture. Discuss.',
-            answer: 'In the API layer, right after fetch, so the rest of the app gets trusted types. Use a schema library. Weak answers check in every component.',
+            task: 'Why does this assignment fail even though the values are the same?',
+            description: 'Checks that enums are nominal.',
+            code: `import { Status as A } from 'orders';
+import { Status as B } from 'ui';
+const s: A = B.Open;`,
+            answer: 'Enums with the same members are still different types. Use one shared type.',
           },
           {
-            task: 'How do you get alerted about unknown values in production?',
-            description: 'Checks observability. Discuss.',
-            answer: 'Log unknown values to monitoring (for example Sentry) with the field name and value. Weak answers swallow them silently.',
+            task: 'Propose a CI check that stops new copies of this enum.',
+            description: 'Checks process thinking.',
+            answer: 'Add a lint rule (no-restricted-syntax or a custom rule) for enum Status outside contracts, or a codegen diff check.',
           },
         ],
       },

@@ -1914,50 +1914,56 @@ make(A);`,
     ],
     techlead: [
       {
-        q: 'For IDs like UserId and OrgId, how do you choose between branded types and plain structural types?',
-        short: 'Brands prevent mixing IDs of different entities at compile time; the cost is constructing/casting them at boundaries. Decide based on bug history and domain risk.',
-        long: 'Plain string IDs are easy but allow passing orgId where userId is expected.\nBrands: type UserId = string & { readonly __brand: "UserId" }; created via a single constructor/parser function.\nCost: casts at API/DB boundaries, slightly noisier types, onboarding.\nApply where mix-ups are costly (billing, permissions, multi-tenant) — not necessarily everywhere.\nCombine with runtime validation (zod .brand()).\nStrong candidate frames it as a risk/cost decision with evidence.\nWeak candidate brands everything or nothing by default.',
-        ai: true,
+        q: 'Should your frontend team use a class-based dependency injection container? Explain your choice.',
+        short: 'Usually not in React apps. Modules, React context and plain functions cover most needs. A container fits big Angular-style or Node codebases with many services.',
+        long: `DI containers like InversifyJS or tsyringe rely on decorators and reflect-metadata.
+They add runtime cost, setup and a learning curve.
+In React, context and hooks already give injection points; tests can mock modules.
+A container makes sense when you have many long-lived services with complex lifetimes.
+Pitfall: hidden wiring makes it hard to find where an object comes from.
+Strong answer: weighs testability, team size and tooling, and picks a simple default.
+Weak answer: "DI is always good" or "never".`,
+        follow: 'How would you inject a fake API client in tests without a container?',
         exercises: [
           {
-            task: 'Create branded IDs with a zod schema, so parsing returns the branded type.',
-            description: 'Checks runtime-backed branding. Ask where parse calls belong.',
-            answer: 'Zod .brand() attaches a compile-time brand after validation, so only parsed values have the branded type. Strong answers place parsing at boundaries only.',
-            solution: `import { z } from 'zod';
-const UserId = z.string().uuid().brand<'UserId'>();
-type UserId = z.infer<typeof UserId>;
-const id: UserId = UserId.parse('3f1c2c9e-8a3b-4d7e-9f0a-1b2c3d4e5f60');`,
+            task: 'Rewrite this to inject the API client with React context instead of a global import.',
+            description: 'Checks simple DI without a container.',
+            code: `import { api } from './api';
+export function useUser(id: string) { return api.getUser(id); }`,
+            answer: 'Create a context with a default client, provide a fake in tests, and read it with a hook.',
+            solution: `const ApiContext = createContext<Api>(realApi);
+export const useApi = () => useContext(ApiContext);
+export function useUser(id: string) { return useApi().getUser(id); }`,
           },
           {
-            task: 'Find the bug that branded types would prevent.',
-            description: 'Checks spotting ID mix-ups. Ask for the bug.',
-            code: `function transfer(fromAccount: string, toAccount: string, amount: number) {}
-const userId = 'u1', accountId = 'a1';
-transfer(userId, accountId, 100);`,
-            answer: 'A user id is passed as an account id and TS accepts it because both are strings; branding AccountId makes this a compile error. Strong answers propose branding only for risky domains.',
-            solution: `type AccountId = string & { readonly __brand: 'AccountId' };
-function transfer(from: AccountId, to: AccountId, amount: number) {}`,
+            task: 'Name two signs that a codebase really needs a DI container.',
+            description: 'Checks judgment.',
+            answer: 'Many services with dependencies on each other, different lifetimes per request or scope, and many test setups that rebuild the graph by hand.',
           },
         ],
       },
       {
-        q: 'In a frontend codebase, should domain entities be classes, or plain types with functions? Choose a rule and defend it.',
-        short: 'Default to plain types and pure functions for data that crosses boundaries (API, state, cache); allow classes for behaviour-rich, long-lived objects that never get serialized (e.g. SDK clients, editors).',
-        long: 'Plain data serializes, clones and diffs trivially; works with React state, Redux, Query caches.\nClasses bundle behaviour but lose prototypes across serialization boundaries.\nTree-shaking favours standalone functions.\nRule must be documented and enforced (e.g. no class instances in stores).\nStrong candidate ties the rule to concrete failure modes.\nWeak candidate argues OOP vs FP abstractly.',
-        ai: true,
+        q: 'Your team wants to use private methods and static blocks in classes. How do you check the build output and browser support?',
+        short: 'Check the tsconfig target and the bundler target. If the target is older than ES2022, these features are compiled into WeakMaps and helper functions.',
+        long: `With target ES2022 or later, TypeScript leaves #private and static blocks as they are.
+With a lower target, it downlevels them, which adds helpers and is slower.
+The bundler (esbuild, SWC) may also transform them based on its own target.
+Use browserslist and a check in CI to keep targets in one place.
+Pitfall: tsconfig target and bundler target disagree, so output is not what you expect.
+Strong answer: inspects real output and aligns targets with supported browsers.
+Weak answer: assumes TS always outputs modern code.`,
+        follow: 'Why might the tsconfig target not matter when you use Vite?',
         exercises: [
           {
-            task: 'Rewrite a class-based entity as type + functions.',
-            description: 'Checks the plain-data style. Ask for benefits.',
-            code: 'class Cart { items: number[] = []; total() { return this.items.reduce((a, b) => a + b, 0); } }',
-            answer: 'Data becomes serializable and functions tree-shakable and easy to test.',
-            solution: `type Cart = { items: number[] };
-const total = (c: Cart): number => c.items.reduce((a, b) => a + b, 0);`,
+            task: 'What does tsc output for #count with target ES2020?',
+            description: 'Checks downlevel knowledge.',
+            code: 'class C { #count = 0; inc() { this.#count++; } }',
+            answer: 'It emits a WeakMap and helper functions like __classPrivateFieldGet. With ES2022 it keeps #count.',
           },
           {
-            task: 'Identify where a class is still appropriate in a React app.',
-            description: 'Checks nuance. Ask for an example.',
-            answer: 'Long-lived, non-serialized objects with internal state and lifecycle, such as a WebSocket client, an editor model or an SDK wrapper, fit classes well. Strong answers keep them out of state stores.',
+            task: 'Write a short rule for the team about class feature targets.',
+            description: 'Checks policy writing.',
+            answer: 'One browserslist file drives the bundler; tsconfig target matches it; review output size after a target change.',
           },
         ],
       },
@@ -2885,23 +2891,29 @@ interface B extends X, Y, Z {}`,
         ],
       },
       {
-        q: 'What makes a type slow for the TypeScript checker? How do you find it?',
-        short: 'Deeply recursive conditional/mapped types, large unions (thousands of members, especially template literal combinations), and big intersections cause expensive instantiation and comparison; spot them via --extendedDiagnostics, --generateTrace and editor latency.',
-        long: 'Union-to-union comparisons are quadratic.\nTemplate literal cross products explode quickly (`${A}-${B}`).\nRecursive types hit instantiation depth limits (Type instantiation is excessively deep).\nMitigations: explicit annotations, interfaces, narrowing scope, simpler APIs.\nStrong candidate gives numbers from diagnostics (instantiations count).\nWeak candidate guesses.',
+        q: 'The editor is slow and tsserver uses a lot of memory in a big repo. How do you fix it?',
+        short: 'Make sure each tsconfig includes only what it needs, split the repo with project references, exclude build output, and check tsserver logs.',
+        long: `tsserver loads every file in the project of the open file.
+A root tsconfig that includes the whole monorepo loads everything.
+Use solution-style tsconfig files with project references, so the editor loads one package at a time.
+Exclude dist, coverage and generated files.
+Turn on the tsserver log or use "TypeScript: Open TS Server log" to see slow requests.
+Pitfall: raising memory with maxTsServerMemory hides the cause.
+Strong answer: scopes projects and measures.
+Weak answer: "buy a faster laptop".`,
+        follow: 'What is a solution-style tsconfig?',
         exercises: [
           {
-            task: 'Predict how many members this union has.',
-            description: 'Checks template literal explosion. Ask for the count.',
-            code: `type C = 'a' | 'b' | 'c' | 'd';
-type T = \`\${C}\${C}\${C}\${C}\${C}\`;`,
-            answer: '4^5 = 1024 members; one more C gives 4096. TS caps unions around 100k members. Strong answers avoid such cross products.',
+            task: 'Fix this root tsconfig so the editor does not load every package.',
+            description: 'Checks solution configs.',
+            code: '{ "include": ["packages/**/*"] }',
+            answer: 'Use files: [] and references to each package.',
+            solution: '{ "files": [], "references": [{ "path": "packages/app" }, { "path": "packages/ui" }] }',
           },
           {
-            task: 'Add a depth limit to a deep recursive type, so it is cheaper to check.',
-            description: 'Checks bounded recursion. Ask why it helps.',
-            answer: 'A counter tuple stops recursion at a fixed depth, preventing runaway instantiation.',
-            solution: `type Paths<T, D extends unknown[] = []> = D['length'] extends 4 ? never
-  : T extends object ? { [K in keyof T & string]: K | \`\${K}.\${Paths<T[K], [...D, 1]>}\` }[keyof T & string] : never;`,
+            task: 'Which folders do you exclude and why?',
+            description: 'Checks hygiene.',
+            answer: 'dist, build, coverage and generated code, because they double the files and slow everything.',
           },
         ],
       },

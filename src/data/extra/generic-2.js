@@ -96,57 +96,68 @@ fetch('/upload', { method: 'POST', body: fd, headers: { 'Content-Type': 'multipa
           ],
         },
         {
-          q: `This effect can show old data and update after unmount. Fix it with AbortController.`,
-          code: `useEffect(() => {
-  fetch(\`/api/users/\${id}\`)
-    .then((r) => r.json())
-    .then(setUser);
-}, [id]);`,
-          short: `Create an AbortController per effect run, pass its signal to fetch and abort in the cleanup. Ignore AbortError so cancelled requests do not set stale state.`,
-          long: `If id changes quickly, an older slow response can resolve after a newer one and overwrite it.\nIf the component unmounts, setUser runs on a dead component and the request wastes bandwidth.\nAbortController cancels the network request and rejects the promise with an AbortError (DOMException).\nThe cleanup function runs before the next effect and on unmount, the right place to abort.\nCheck res.ok and swallow only AbortError.\nIn real apps prefer TanStack Query, which passes a signal and dedupes for you.`,
-          fix: `useEffect(() => {
-  const controller = new AbortController();
-  fetch(\`/api/users/\${id}\`, { signal: controller.signal })
-    .then((r) => {
-      if (!r.ok) throw new Error(\`HTTP \${r.status}\`);
-      return r.json();
-    })
-    .then(setUser)
-    .catch((e) => {
-      if (e.name !== 'AbortError') setError(e);
-    });
-  return () => controller.abort();
-}, [id]);`,
+          q: `This code sends a form with a file as JSON. The server gets no file. Fix it.`,
+          code: `const body = JSON.stringify({ name: nameInput.value, file: fileInput.files[0] });
+await fetch('/api/upload', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body,
+});`,
+          short: `A File cannot be turned into JSON; it becomes an empty object. Send FormData and let the browser set the multipart Content-Type.`,
+          long: `JSON.stringify on a File gives {}, so the file data is lost.
+FormData builds a multipart/form-data body that can carry files and text fields.
+Do not set Content-Type yourself: the browser must add the boundary string.
+fetch has no upload progress events; use XMLHttpRequest upload.onprogress if you need a progress bar.
+For very large files, consider chunked or direct-to-storage uploads with signed URLs.
+Strong answer: fixes the body, knows the Content-Type trap and the progress limitation.`,
+          fix: `const form = new FormData();
+form.append('name', nameInput.value);
+form.append('file', fileInput.files[0]);
+await fetch('/api/upload', { method: 'POST', body: form });`,
+          follow: `Why should you not set the Content-Type header with FormData?`,
           exercises: [
             {
-              task: `Stop a request after five seconds or when the user clicks Cancel.`,
-              description: `Checks AbortSignal.any / AbortSignal.timeout (Node 20+, modern browsers). Run with node.`,
-              answer: `Use AbortSignal.any([userController.signal, AbortSignal.timeout(5000)]) and pass it as signal. A timeout rejects with a TimeoutError, a manual abort with an AbortError, so the UI can tell them apart.`,
-              solution: `const user = new AbortController();
-const signal = AbortSignal.any([user.signal, AbortSignal.timeout(5000)]);
-await fetch(url, { signal });`,
+              task: `The user must see upload progress. What do you use?`,
+              description: `Checks knowledge of fetch limits.`,
+              answer: `Use XMLHttpRequest and listen to xhr.upload.onprogress, because fetch does not give upload progress in browsers today.`,
             },
             {
-              task: `Write a test that shows the race problem.`,
-              description: `Checks reasoning about out-of-order responses. Using Vitest with fake fetch, resolve request for id=2 before id=1 and assert the UI shows user 2.`,
-              answer: `Mock fetch to return controllable promises, rerender with id=2, resolve id=2 then id=1. With aborting (or an ignore flag) the final state is user 2; without the fix it is user 1, proving the race exists.`,
+              task: `Check the file before upload: max 5 MB and only PDF.`,
+              description: `Checks client-side validation (the server must still check).`,
+              answer: `Check file.size and file.type before sending, show an error, and still validate on the server because the client can be bypassed.`,
+              solution: `const f = fileInput.files[0];
+if (f.size > 5 * 1024 * 1024) throw new Error('Max 5 MB');
+if (f.type !== 'application/pdf') throw new Error('Only PDF');`,
             },
           ],
         },
         {
-          q: `For login in a single page app, do you use cookies or a token header? How do CORS and CSRF affect this?`,
-          short: `Cookies are sent automatically (needs credentials: 'include' cross-origin and CSRF protection); bearer tokens are sent manually and are immune to CSRF but exposed to XSS if stored in JS.`,
-          long: `Same-site requests send cookies by default; cross-origin fetch needs credentials: 'include'.\nThe server then must reply with Access-Control-Allow-Credentials: true and a specific origin, never *.\nCookies should be HttpOnly, Secure, SameSite=Lax/Strict to reduce CSRF and XSS theft.\nSameSite does not protect same-site subdomains; add CSRF tokens for state-changing requests.\nAuthorization: Bearer needs JS access to the token, so XSS can steal it.\nA common pattern: HttpOnly refresh cookie + short-lived in-memory access token, or a BFF that keeps tokens server-side.`,
+          q: `What is rate limiting? How should the frontend handle a 429 response?`,
+          short: `The server limits how many requests a client can send. On 429, stop, wait for the Retry-After time, then retry with backoff, and reduce requests in the first place.`,
+          long: `429 Too Many Requests means the client went over a limit.
+The response often has a Retry-After header in seconds or as a date.
+The frontend should not retry at once; wait for Retry-After, or use exponential backoff with jitter.
+Show a calm message if the user must wait.
+Prevent it: debounce search, cache results, avoid duplicate requests, and batch calls.
+Strong answer: reads Retry-After, uses backoff with jitter and talks about reducing traffic.`,
+          follow: `Why do you add random jitter to the retry delay?`,
           exercises: [
             {
-              task: `Fix this CORS error with cookies.`,
-              description: `Checks CORS with credentials. Error: "The value of Access-Control-Allow-Origin must not be the wildcard '*' when credentials mode is 'include'". Explain the server fix.`,
-              answer: `The server must echo the specific allowed origin (from an allowlist) instead of *, send Access-Control-Allow-Credentials: true and add Vary: Origin so caches do not mix responses between origins.`,
+              task: `Write a helper that retries once after the Retry-After time on 429.`,
+              description: `Checks reading headers and waiting.`,
+              answer: `If status is 429, read Retry-After, wait that many seconds (with a sane default and maximum), then retry once.`,
+              solution: `async function fetchWithRateLimit(url, opts) {
+  const res = await fetch(url, opts);
+  if (res.status !== 429) return res;
+  const sec = Math.min(Number(res.headers.get('Retry-After')) || 1, 30);
+  await new Promise((r) => setTimeout(r, sec * 1000));
+  return fetch(url, opts);
+}`,
             },
             {
-              task: `Choose a login method for app and API on two subdomains.`,
-              description: `Checks trade-off reasoning. Write 4-5 sentences: SPA on app.example.com, API on api.example.com.`,
-              answer: `Both are same-site, so a SameSite=Lax HttpOnly Secure cookie scoped to .example.com works with credentials: 'include'. Add a CSRF token or custom header check for mutations. Avoid localStorage tokens to limit XSS impact.`,
+              task: `A thousand clients all retry after exactly 2 seconds. What happens?`,
+              description: `Checks the thundering herd problem.`,
+              answer: `They all hit the server at the same moment again and get limited again. Add random jitter so retries spread out.`,
             },
           ],
         },
@@ -339,80 +350,93 @@ items.forEach((el, i) => { el.style.width = widths[i] / 2 + 'px'; }); // writes
           ],
         },
         {
-          q: `What is the difference between debounce and throttle? When do you use each one?`,
-          short: `Debounce runs the function after events stop for N ms; throttle runs it at most once every N ms. Debounce for search input, throttle for scroll/resize.`,
-          long: `Debounce: each event resets a timer; fires once the user pauses. Good for autocomplete and validation.\nThrottle: fires immediately and then at a fixed max rate. Good for scroll position, resize, drag.\nBoth reduce work and network calls.\nLeading vs trailing options control whether the first/last call runs.\nFor visual updates, requestAnimationFrame is often better than throttle.\nIn React, keep the debounced function stable (useMemo/useRef) or it resets every render.`,
+          q: `What is the critical rendering path? What blocks the first paint?`,
+          short: `The browser must build the DOM and CSSOM, combine them into a render tree, then layout and paint. CSS in the head and synchronous scripts block the first paint.`,
+          long: `The critical rendering path is the work between receiving HTML and showing pixels.
+Steps: parse HTML into the DOM, parse CSS into the CSSOM, build the render tree, run layout, then paint and composite.
+CSS is render-blocking: the browser will not paint until stylesheets in the head are loaded.
+Classic scripts without defer or async are parser-blocking: HTML parsing stops while they download and run.
+Fixes: inline small critical CSS, defer non-critical JS, avoid long chains of imports, keep the HTML small, preconnect to important origins.
+Strong answer: names render-blocking vs parser-blocking resources and how to see them in the DevTools Performance panel or Lighthouse.
+Weak answer: "the page is slow because of big images".`,
+          follow: `Why does a font file sometimes delay text even when CSS is loaded?`,
           exercises: [
             {
-              task: `Write a debounce function and test it.`,
-              description: `Checks closures and timers. Write debounce(fn, ms) and test with vitest fake timers.`,
-              answer: `Keep a timer in a closure; on each call clearTimeout and set a new setTimeout calling fn with the latest arguments. With vi.useFakeTimers, calling 5 times then advancing 300ms calls fn once with the last arguments.`,
-              solution: `function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}`,
+              task: `Which resources here block the first paint?`,
+              description: `Checks render-blocking vs parser-blocking. Show the head and ask the candidate to mark each line.`,
+              code: `<head>
+  <link rel="stylesheet" href="/main.css">
+  <link rel="stylesheet" href="/print.css" media="print">
+  <script src="/analytics.js"></script>
+  <script src="/app.js" defer></script>
+</head>`,
+              answer: `main.css blocks rendering. print.css does not block screen rendering because of media="print". analytics.js blocks parsing (no defer or async). app.js with defer does not block. Fix: add async or defer to analytics.js.`,
             },
             {
-              task: `Choose debounce or throttle for four cases.`,
-              description: `Checks judgment. For each: window resize recalculating a chart, search box, infinite scroll trigger, save-draft.`,
-              answer: `Resize: throttle or rAF. Search: debounce. Infinite scroll: IntersectionObserver is best, otherwise throttle. Save draft: debounce, plus save on blur/visibilitychange so no data is lost.`,
+              task: `Explain how you would find render-blocking resources on a real page.`,
+              description: `Checks tool knowledge. Let the candidate describe the steps in DevTools or Lighthouse.`,
+              answer: `Run Lighthouse and read the "Eliminate render-blocking resources" audit, or record a load in the Performance panel and look at what loads before First Contentful Paint. The Network panel can also show the "Render blocking" column in Chrome.`,
             },
           ],
         },
       ],
       middle: [
         {
-          q: `Why does every row in this React list render again on each key press? Fix it.`,
-          code: `function List({ rows, query }) {
-  const filtered = rows.filter((r) => r.name.includes(query));
-  return filtered.map((r) => (
-    <Row key={r.id} row={r} onSelect={() => select(r.id)} />
-  ));
-}
-const Row = ({ row, onSelect }) => <div onClick={onSelect}>{row.name}</div>;`,
-          short: `Row is not memoized and receives a new inline function each render, so every row re-renders. Memoize Row, pass a stable callback, and memoize the filter if it is expensive (or rely on React Compiler).`,
-          long: `Parent re-renders cause children to re-render by default.\nReact.memo skips re-render only if props are shallow-equal; a new arrow function breaks that.\nPass a stable onSelect (useCallback) and the id, letting Row call onSelect(row.id).\nuseMemo for filtering large arrays avoids recomputing on unrelated renders.\nFor thousands of rows, virtualize (TanStack Virtual) since memo does not reduce DOM size.\nReact Compiler (React 19) auto-memoizes many of these cases; still verify with the Profiler.`,
-          fix: `const Row = memo(function Row({ row, onSelect }) {
-  return <div onClick={() => onSelect(row.id)}>{row.name}</div>;
-});
-function List({ rows, query, select }) {
-  const filtered = useMemo(() => rows.filter((r) => r.name.includes(query)), [rows, query]);
-  const onSelect = useCallback((id) => select(id), [select]);
-  return filtered.map((r) => <Row key={r.id} row={r} onSelect={onSelect} />);
+          q: `This code reads the layout inside a loop. The page stutters. Fix it.`,
+          code: `for (const el of cards) {
+  const h = el.offsetHeight;
+  el.style.height = h + 10 + 'px';
 }`,
+          short: `Each read after a write forces the browser to recalculate layout. Do all reads first, then all writes.`,
+          long: `This is called layout thrashing, or forced synchronous layout.
+Writing a style makes the layout dirty. Reading offsetHeight then forces the browser to calculate layout right now.
+In a loop this happens once per element, so a cheap job becomes very slow.
+Fix: batch reads, then batch writes. For animation, do writes in requestAnimationFrame.
+DevTools shows this as purple "Layout" blocks with a "Forced reflow" warning.
+Strong answer: explains read/write batching and how to spot it in the Performance panel.`,
+          fix: `const heights = cards.map((el) => el.offsetHeight);
+cards.forEach((el, i) => { el.style.height = heights[i] + 10 + 'px'; });`,
+          follow: `Which properties force a layout when you read them?`,
           exercises: [
             {
-              task: `Show the fix works with the React Profiler.`,
-              description: `Checks measurement. Use React DevTools Profiler with "Highlight updates" before and after the fix while typing.`,
-              answer: `Before: every Row flashes and the flame chart shows all rows rendered. After: only rows whose props changed (added/removed by the filter) render, and commit time drops noticeably.`,
+              task: `Name four properties or methods that force layout when read.`,
+              description: `Checks practical knowledge. Accept any four.`,
+              answer: `For example: offsetWidth/offsetHeight, clientWidth, scrollTop, getBoundingClientRect, getComputedStyle, innerText.`,
             },
             {
-              task: `Why does memo not help when you pass an inline style object?`,
-              description: `Checks limits. Explain why memo fails if the parent passes style={{ color: 'red' }}.`,
-              answer: `An inline object literal is a new reference each render, so shallow comparison fails and memo re-renders anyway. Hoist the constant outside the component or memoize it.`,
+              task: `How would you confirm the fix worked?`,
+              description: `Checks measuring before and after.`,
+              answer: `Record the interaction in the Performance panel before and after. The many small "Layout" blocks with forced reflow warnings should become one layout, and the task time should drop.`,
             },
           ],
         },
         {
-          q: `What causes a bad INP score? How do you split long tasks?`,
-          short: `INP measures the delay from interaction to next paint; long main-thread tasks (>50ms) block it. Split work with scheduler.yield/setTimeout, defer non-urgent updates, and move heavy computation to Web Workers.`,
-          long: `INP replaced FID in 2024 and covers input delay, processing time and presentation delay.\nCauses: large synchronous handlers, heavy re-renders, third-party scripts, huge DOM.\nYield to the main thread: await scheduler.yield() (Chromium) with setTimeout fallback.\nShow feedback first (spinner/pressed state), then do heavy work after yielding.\nReact: useTransition/useDeferredValue mark updates as non-urgent.\nWeb Workers for parsing, sorting, crypto.\nMeasure with web-vitals onINP (attribution build) and the DevTools Performance panel.`,
+          q: `How does font loading affect page speed? What do font-display and font subsetting do?`,
+          short: `Web fonts can hide text or make it jump. font-display controls what shows while the font loads, and subsetting makes the files smaller.`,
+          long: `Fonts are found late: the browser downloads them only after CSS is parsed and text needs them.
+Without a rule, browsers may hide text for up to 3 seconds (flash of invisible text).
+font-display: swap shows a fallback font at once and swaps later; optional uses the web font only if it is ready very fast.
+Swapping can cause layout shift, so match fallback metrics with size-adjust and ascent-override.
+Make files small: use woff2, subset to the needed characters (unicode-range), and use variable fonts instead of many weights.
+Preload only the one or two most important font files.
+Strong answer: covers invisible text, layout shift, subsetting and preload.`,
+          follow: `Why can preloading too many fonts make the page slower?`,
           exercises: [
             {
-              task: `Make a big loop give control back to the browser often.`,
-              description: `Checks chunking. Rewrite a loop processing 50,000 items to yield every ~50ms; test in Chrome console.`,
-              answer: `Track a deadline with performance.now(); when exceeded, await a yield function (scheduler.yield if available, else new Promise(r => setTimeout(r))). The page stays responsive and clicks are handled between chunks.`,
-              solution: `const yieldMain = () => globalThis.scheduler?.yield?.() ?? new Promise((r) => setTimeout(r));
-let deadline = performance.now() + 50;
-for (const item of items) {
-  process(item);
-  if (performance.now() > deadline) { await yieldMain(); deadline = performance.now() + 50; }
+              task: `Write a font-face rule that shows text at once and loads only Latin characters.`,
+              description: `Checks font-display and unicode-range.`,
+              answer: `Use woff2, font-display: swap and a unicode-range for Latin.`,
+              solution: `@font-face {
+  font-family: 'Brand';
+  src: url('/fonts/brand-latin.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0000-00FF;
 }`,
             },
             {
-              task: `Find which click is slow and why.`,
-              description: `Checks attribution. Use web-vitals/attribution onINP and log the target and longest phase.`,
-              answer: `metric.attribution provides interactionTarget and inputDelay, processingDuration and presentationDelay. The largest phase tells you whether to fix blocking scripts, the handler or rendering.`,
+              task: `After adding swap, the page jumps when the font loads. Why? What can you do?`,
+              description: `Checks the CLS trade-off.`,
+              answer: `The fallback font has different sizes, so text reflows when the web font arrives. Tune the fallback with size-adjust and ascent-override, or use font-display: optional.`,
             },
           ],
         },
@@ -580,19 +604,25 @@ addEventListener('visibilitychange', () => {
     'CI/CD': {
       junior: [
         {
-          q: `What is the difference between continuous integration, continuous delivery, and continuous deployment?`,
-          short: `CI merges and verifies changes frequently with automated builds and tests. Continuous delivery keeps every main commit releasable; continuous deployment automatically ships every passing commit to production.`,
-          long: `CI: developers merge small changes to main often; each push runs lint, typecheck, tests and build.\nContinuous delivery: pipeline produces a deployable artifact; production release is a manual button.\nContinuous deployment: no manual step; passing commits go live automatically.\nAll need fast reliable tests and the ability to roll back.\nFeature flags decouple deploy from release.\nTools: GitHub Actions, GitLab CI, CircleCI, Jenkins.`,
+          q: `What is a lockfile? Why does CI use npm ci instead of npm install?`,
+          short: `A lockfile records the exact version of every package. npm ci installs exactly those versions and fails if the lockfile and package.json do not match.`,
+          long: `package.json allows version ranges like ^1.2.0, so two installs can get different versions.
+package-lock.json pins every package, including nested ones, to one exact version.
+npm ci deletes node_modules, installs only from the lockfile and never changes it, so builds are repeatable.
+npm install can update the lockfile, which hides problems in CI.
+Always commit the lockfile and review changes to it.
+Strong answer: explains ranges, repeatable builds and why CI must not change the lockfile.`,
+          follow: `What should you check when a pull request changes the lockfile a lot?`,
           exercises: [
             {
-              task: `Describe the steps of a pipeline for a React app.`,
-              description: `Checks basic stages. List the stages from push to production.`,
-              answer: `Install (npm ci), lint, typecheck, unit tests, build, E2E against a preview, deploy to staging, then production with a manual approval (delivery) or automatically (deployment). Each stage fails fast and blocks later ones.`,
+              task: `CI passes on Monday and fails on Tuesday with no code change. What is a likely cause?`,
+              description: `Checks the role of the lockfile.`,
+              answer: `A dependency released a new version inside the allowed range and CI installed it because there was no lockfile or it used npm install. Commit the lockfile and use npm ci.`,
             },
             {
-              task: `Which is better in CI: npm ci or npm install? Why?`,
-              description: `Checks reproducible installs.`,
-              answer: `npm ci installs exactly from package-lock.json, fails if it does not match package.json, and deletes node_modules first. That gives reproducible, faster CI installs; npm install may update the lockfile.`,
+              task: `npm ci fails with "lockfile out of sync". What do you do?`,
+              description: `Checks the fix flow.`,
+              answer: `Run npm install locally to update the lockfile, check the diff, and commit both package.json and the lockfile together.`,
             },
           ],
         },
@@ -744,72 +774,54 @@ jobs:
       ],
       senior: [
         {
-          q: `This pipeline is slow, builds many times, and can deploy untested code. Fix it.`,
-          code: `jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci && npm run build && npm test
+          q: `Every push starts a new end-to-end run, and old runs keep going. Add concurrency control and path filters.`,
+          code: `on: [push]
+jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm ci && npm run build && npx playwright test
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci && npm run build && ./deploy.sh`,
-          short: `Deploy has no needs: so it runs in parallel with tests, and each job rebuilds. Build once, share the artifact, gate deploy on tests with needs, restrict deploy to main with an environment, and cache.`,
-          long: `Without needs, all jobs start simultaneously; deploy can ship before tests fail.\nRebuilding three times wastes minutes and risks different outputs.\nBuild job uploads dist; test/e2e/deploy download it.\nUse environment: production for approvals and scoped secrets.\nOnly deploy on push to main (if: github.ref == 'refs/heads/main').\nCache Playwright browsers or use the official container image.\nAdd concurrency so two deploys never race.`,
-          fix: `jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-      - run: npm ci && npm run build
-      - uses: actions/upload-artifact@v4
-        with: { name: dist, path: dist }
-  unit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-      - run: npm ci && npm test
+      - run: npm ci
+      - run: npx playwright test`,
+          short: `Use a concurrency group per branch with cancel-in-progress so only the latest run continues, and run heavy jobs only when relevant files change.`,
+          long: `Pushing three commits quickly starts three full runs; only the last one matters.
+concurrency with a group per workflow and branch cancels older runs.
+Do not cancel runs on main if each deploy must finish; use cancel-in-progress only for pull requests.
+paths and paths-ignore skip the workflow when only docs change.
+Also add a timeout so a stuck run does not use minutes for hours.
+Strong answer: knows concurrency, when not to cancel, and path filters with their required-check trap.`,
+          fix: `on:
+  pull_request:
+    paths: ['src/**', 'tests/**', 'package-lock.json']
+concurrency:
+  group: e2e-\${{ github.workflow }}-\${{ github.ref }}
+  cancel-in-progress: true
+jobs:
   e2e:
-    needs: build
     runs-on: ubuntu-latest
-    container: mcr.microsoft.com/playwright:v1.56.0-noble
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with: { name: dist, path: dist }
-      - run: npm ci && npx playwright test
-  deploy:
-    needs: [unit, e2e]
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    concurrency: production
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with: { name: dist, path: dist }
-      - run: ./deploy.sh`,
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright test`,
+          follow: `Why should deploy jobs on main usually not use cancel-in-progress?`,
           exercises: [
             {
-              task: `Draw the job order and count the total time.`,
-              description: `Checks job graph reasoning. Build=3m, unit=4m, e2e=6m, deploy=1m for the fixed workflow.`,
-              answer: `build and unit run in parallel; e2e waits for build; deploy waits for unit and e2e. Critical path is build(3) + e2e(6) + deploy(1) = 10 minutes versus sequential rebuilds before.`,
+              task: `Split the end-to-end tests into four parallel parts.`,
+              description: `Checks matrix sharding.`,
+              answer: `Use a matrix with shard numbers and pass them to Playwright.`,
+              solution: `strategy:
+  matrix:
+    shard: [1, 2, 3, 4]
+steps:
+  - run: npx playwright test --shard=\${{ matrix.shard }}/4`,
             },
             {
-              task: `What do you do with tests that fail only sometimes?`,
-              description: `Checks flakiness handling for Playwright.`,
-              answer: `Enable retries: 2 in CI and report tests that pass on retry as flaky (Playwright marks them). Tag chronic offenders with @quarantine, run them in a non-blocking job and assign owners with a fix deadline.`,
+              task: `What happens to a deploy if a newer push cancels it halfway?`,
+              description: `Checks risk of cancelling deploys.`,
+              answer: `The deploy can stop in a half-done state, for example files uploaded but cache not cleared. For deploys use a concurrency group without cancel-in-progress so runs queue instead.`,
             },
           ],
         },
@@ -1390,27 +1402,33 @@ git commit -m "Stop tracking build output and dependencies"`,
           ],
         },
         {
-          q: `Find the commit that broke a test with git bisect. Replace this manual way.`,
-          code: `# Manually checking out commits one by one
-git checkout HEAD~1 && npm test
-git checkout HEAD~2 && npm test
-git checkout HEAD~3 && npm test
-# ...200 commits`,
-          short: `Use git bisect with a good and bad commit and git bisect run with a test command; it binary-searches ~8 steps for 200 commits automatically.`,
-          long: `git bisect start BAD GOOD.\ngit bisect run <cmd>: exit 0 = good, 1-124 = bad, 125 = skip (untestable commit).\nlog2(200) ≈ 8 builds instead of 200.\nWrite a focused script (one test) so each step is fast.\nnpm ci per step if dependencies changed.\ngit bisect reset returns to the original branch.\nWorks best with small, buildable commits — one reason to keep history clean.`,
-          fix: `git bisect start HEAD v2.4.0
-git bisect run sh -c 'npm ci --silent || exit 125; npx vitest run src/report.test.ts'
-git bisect reset`,
+          q: `You resolve the same merge conflicts again and again when you update a long branch. How can Git help?`,
+          code: `git checkout feature/big-form
+git merge origin/main   # same conflicts as yesterday
+# fix by hand again...`,
+          short: `Turn on git rerere so Git remembers how you solved a conflict and applies it again. Better still, merge main more often or split the branch.`,
+          long: `rerere means "reuse recorded resolution".
+With rerere.enabled set to true, Git saves the conflict and your fix, and next time it sees the same conflict it applies the same fix.
+You still review the result and run tests before committing.
+It helps with long-running branches and repeated rebases.
+The real fix is process: smaller branches, feature flags, and merging main often.
+Strong answer: knows rerere, its limits and the process fix.`,
+          fix: `git config --global rerere.enabled true
+git merge origin/main      # resolve once, commit
+# next time the same conflict is solved automatically
+git rerere status          # see recorded resolutions
+git diff                   # always review before committing`,
+          follow: `Why are long-lived branches a problem even with rerere?`,
           exercises: [
             {
-              task: `Some commits do not build. How does bisect skip them?`,
-              description: `Checks exit codes.`,
-              answer: `Return exit code 125 from the script when the build fails; bisect skips that commit and picks another. If many are skipped, it may report a range of candidate commits instead of one.`,
+              task: `rerere applied a wrong fix. How do you undo it for one file?`,
+              description: `Checks recovery.`,
+              answer: `Run git rerere forget <file> to drop the saved resolution, then git checkout -m <file> to restore the conflict and fix it again.`,
             },
             {
-              task: `Use bisect for a bug you can only see in the UI.`,
-              description: `Checks manual bisect.`,
-              answer: `Run git bisect start, mark bad/good, then at each step start the app, check and type git bisect good or git bisect bad. It is still ~8 checks for 200 commits; a Playwright script can automate it with bisect run.`,
+              task: `What process change avoids most of these conflicts?`,
+              description: `Checks the root cause.`,
+              answer: `Keep branches short-lived, merge small slices behind feature flags, and update from main every day.`,
             },
           ],
         },
@@ -1435,20 +1453,27 @@ git bisect reset`,
       ],
       techlead: [
         {
-          q: `The team ships every day and also keeps hotfix branches. What branch, review, and release rules do you set?`,
-          short: `Trunk-based development with short-lived branches and feature flags for daily shipping, release tags from main, and dedicated hotfix/maintenance branches with a strict cherry-pick-forward policy.`,
-          long: `Branches live < 2 days; PRs small; main always deployable.\nIncomplete work behind feature flags, not long branches.\nReleases are tags on main; hotfix branch cut from the deployed tag when needed.\nFix on main first, then cherry-pick -x to hotfix (or fix on hotfix and merge forward) — pick one rule and automate verification.\nRulesets: required reviews, CODEOWNERS, status checks, merge queue.\nDocument naming conventions (feature/OUT-123-desc) and commit format.\nRevisit with metrics: lead time, PR age, revert rate.`,
-          ai: true,
+          q: `How do you use tags and semantic versioning for frontend releases?`,
+          short: `Tag each release commit with a version like v2.4.1, follow major.minor.patch rules, and generate the changelog from commits so you can always find and redeploy any release.`,
+          long: `A tag is a fixed name for one commit. Annotated tags store the author, date and message.
+Semantic versioning: major for breaking changes, minor for new features, patch for fixes.
+For an app (not a library) the version is mainly for tracing: which code is live, and what to roll back to.
+Automate it: Conventional Commits plus a tool like release-please or semantic-release creates the version, tag and changelog.
+Show the version in the app and send it with error reports, so a bug report points to an exact commit.
+Strong answer: tags as release anchors, automation, and linking versions to monitoring.`,
+          follow: `Why should the version number be visible in error reports?`,
           exercises: [
             {
-              task: `Make sure every hotfix also reaches main.`,
-              description: `Checks process automation.`,
-              answer: `Require fixes to land on main first and be cherry-picked with -x, or run a CI job that checks every commit on the hotfix branch has an equivalent on main (git cherry main hotfix shows missing ones with +). Fail the release if any are missing.`,
+              task: `Create an annotated tag for release 2.4.1 and push it.`,
+              description: `Checks the commands.`,
+              answer: `Use git tag -a with a message, then push the tag.`,
+              solution: `git tag -a v2.4.1 -m "Release 2.4.1"
+git push origin v2.4.1`,
             },
             {
-              task: `Choose a merge method for this team.`,
-              description: `Checks trade-offs: squash vs merge commit vs rebase-merge.`,
-              answer: `Squash merge keeps one commit per PR on main, easy to revert and bisect, matching small PRs. Merge commits preserve detail but add noise; rebase-merge needs disciplined commits. Pick squash and enforce linear history.`,
+              task: `Which version comes after 2.4.1 for: a bug fix, a new filter, removing an old API?`,
+              description: `Checks semver rules.`,
+              answer: `Bug fix: 2.4.2. New feature: 2.5.0. Breaking change: 3.0.0.`,
             },
           ],
         },

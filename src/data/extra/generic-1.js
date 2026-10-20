@@ -199,21 +199,36 @@ export default {
           ],
         },
         {
-          q: `Users share one computer. This logout leaves user data behind. How do you fix it?`,
-          code: `function logout() {\n  localStorage.removeItem('token');\n  location.href = '/login';\n}`,
-          short: `Clear every storage the app uses (Web Storage, IndexedDB, Cache Storage, in-memory caches), end the server session, and send Clear-Site-Data from the logout endpoint.`,
-          long: `Removing one key leaves profile data, query caches, IndexedDB and SW caches behind.\nThe next user on a shared device can read them in DevTools.\nCall the server to revoke the session and clear HttpOnly cookies.\nThe server can respond with Clear-Site-Data: "cache", "cookies", "storage".\nAlso clear in-memory state (query clients, stores) and notify other tabs.\nAdd an E2E test that asserts storage is empty after logout.`,
-          fix: `async function logout() {\n  await fetch('/auth/logout', { method: 'POST', credentials: 'include' }); // responds with Clear-Site-Data\n  queryClient.clear();\n  localStorage.clear();\n  sessionStorage.clear();\n  for (const name of await caches.keys()) await caches.delete(name);\n  for (const { name } of await indexedDB.databases()) indexedDB.deleteDatabase(name);\n  new BroadcastChannel('auth').postMessage('logout');\n  location.replace('/login');\n}`,
+          q: `This app checks every second if the user logged out in another tab. Redesign it.`,
+          code: `setInterval(() => {
+  if (!localStorage.getItem('session')) location.href = '/login';
+}, 1000);`,
+          short: `Use an event instead of polling: the storage event or BroadcastChannel tells other tabs right away. Keep the server as the source of truth.`,
+          long: `Polling wastes CPU and battery and still has up to a second of delay.
+The storage event fires in other tabs of the same origin when localStorage changes.
+BroadcastChannel is a cleaner message bus between tabs: post "logout" and every tab reacts.
+The session itself should be an HttpOnly cookie; tab messages only update the UI quickly.
+Also handle the case where the server ends the session: any 401 response should trigger the same logout flow.
+As a lead, put this in one shared auth module so teams do not write their own.
+Strong answer: event-based sync, server as truth, one shared module.`,
+          fix: `const channel = new BroadcastChannel('auth');
+export function logout() {
+  channel.postMessage({ type: 'logout' });
+  handleLogout();
+}
+channel.onmessage = (e) => { if (e.data.type === 'logout') handleLogout(); };
+function handleLogout() { clearUserData(); location.assign('/login'); }`,
+          follow: `What should happen when an API call returns 401 in one tab?`,
           exercises: [
             {
-              task: `Which header can the server send on logout to clear browser data?`,
-              description: `Checks Clear-Site-Data. Set it in an Express route and inspect storage after.`,
-              answer: `Respond with Clear-Site-Data: "cache", "cookies", "storage" on an https response. Browsers then clear those for the origin. Use it as defense in depth, not the only mechanism.`,
+              task: `Does the storage event fire in the tab that made the change?`,
+              description: `Checks a common misunderstanding.`,
+              answer: `No. It fires only in other tabs of the same origin. The current tab must call its own handler directly.`,
             },
             {
-              task: `Write a test that proves logout leaves no data.`,
-              description: `Checks verification. Write it in Playwright pseudocode.`,
-              answer: `Log in, browse to populate caches, log out, then evaluate localStorage.length, sessionStorage.length, indexedDB.databases() and caches.keys() and expect all empty. Also assert context.cookies() has no session cookie and that pressing Back does not show user data.`,
+              task: `What rule do you write for teams about cross-tab auth?`,
+              description: `Checks lead-level standardization.`,
+              answer: `All login and logout state goes through one shared auth module. No feature reads session data from storage directly. Logout clears user data and broadcasts to all tabs.`,
             },
           ],
         },
@@ -497,22 +512,30 @@ export default {
           ],
         },
         {
-          q: `Why does sorting this list also change the original list?`,
-          code: `const sorted = users.sort((a, b) => a.age - b.age);`,
-          short: `sort mutates the array in place and returns the same reference; use toSorted() or copy first.`,
-          long: `Array.prototype.sort sorts in place.\nsorted and users are the same array.\nIn React this mutates props or state, causing subtle bugs.\nES2023 added toSorted, toReversed, toSpliced and with, which return copies.\nThey are supported in all current browsers.\nFor older targets use [...users].sort().`,
-          fix: `const sorted = users.toSorted((a, b) => a.age - b.age);`,
+          q: `Why does this map return a list of undefined values?`,
+          code: `const names = users.map((u) => {
+  u.name.toUpperCase();
+});`,
+          short: `An arrow function with curly braces needs an explicit return. Without it, each call returns undefined.`,
+          long: `An arrow function with a body in braces is a normal block, so it returns undefined unless you write return.
+Without braces, the expression is returned automatically.
+To return an object without braces, wrap it in parentheses: (u) => ({ id: u.id }).
+Linters catch this with array-callback-return.
+Strong answer: knows both arrow forms and the object literal trap.`,
+          fix: `const names = users.map((u) => u.name.toUpperCase());`,
+          follow: `What does (u) => { id: u.id } return, and why?`,
           exercises: [
             {
-              task: `Name other array methods that change the array. What can you use instead?`,
-              description: `Checks API knowledge. Name them and their non-mutating alternatives.`,
-              answer: `push, pop, shift, unshift, splice, sort, reverse, fill and copyWithin mutate. Alternatives: spread/concat, slice, toSpliced, toSorted, toReversed and with(index, value).`,
+              task: `What does this return? Fix it.`,
+              description: `Checks the object literal trap.`,
+              code: `const rows = users.map((u) => { id: u.id, label: u.name });`,
+              answer: `It is a syntax error, because the braces are read as a block, not an object. Wrap the object in parentheses: users.map((u) => ({ id: u.id, label: u.name })).`,
             },
             {
-              task: `Toggle one item in a list without changing the old list.`,
-              description: `Checks map-based update. Write toggle(todos, id).`,
-              answer: `Map over todos and return a new object for the matching id with done flipped; other items keep their references. That lets memoized children skip re-rendering.`,
-              solution: `const toggle = (todos, id) => todos.map((t) => (t.id === id ? { ...t, done: !t.done } : t));`,
+              task: `This filter keeps nothing. Why?`,
+              description: `Checks the same bug in filter.`,
+              code: `const active = users.filter((u) => { u.active; });`,
+              answer: `The callback returns undefined, which is falsy, so every item is removed. Use (u) => u.active.`,
             },
           ],
         },
@@ -558,21 +581,31 @@ export default {
           ],
         },
         {
-          q: `What is memoization? When is it safe to use?`,
-          short: `Memoization caches a function's result by its arguments; it is only safe for pure functions with cheap-to-compare inputs.`,
-          long: `If output depends only on input, repeated calls can reuse a cached result.\nImpure functions (time, network, mutation) give wrong results when memoized.\nKey by primitive arguments or by reference identity (WeakMap for objects).\nUnbounded caches leak memory; use LRU or limit size.\nReact's useMemo and memo are reference-based memoization.\nMeasure: memoizing cheap work adds overhead.`,
+          q: `What is point-free style? When does it help, and when does it hurt readability?`,
+          short: `Point-free style defines functions by combining other functions without naming the arguments. It is clean for short pipelines but hard to read and debug when overused.`,
+          long: `Point-free means you do not mention the data: const getNames = map(prop('name')) instead of (users) => users.map((u) => u.name).
+It helps when small, well-named functions are joined in a pipe and the flow reads like steps.
+It hurts when the reader must guess argument order, when currying hides how many arguments a function takes, or when stack traces show only anonymous helpers.
+Passing a function directly can also be a bug: ['1','2'].map(parseInt) gives wrong values because map passes extra arguments.
+Strong answer: uses it for short pipelines and names arguments when it makes code clearer.`,
+          follow: `Why is passing a function directly to map sometimes a bug?`,
           exercises: [
             {
-              task: `Write a memoize function for one argument.`,
-              description: `Checks closures and Map. Test with a slow fibonacci in Node.`,
-              answer: `Use a Map in a closure, return the cached value if present, otherwise compute and store. This works for primitives; objects are keyed by reference.`,
-              solution: `const memoize = (fn) => {\n  const cache = new Map();\n  return (x) => {\n    if (!cache.has(x)) cache.set(x, fn(x));\n    return cache.get(x);\n  };\n};`,
+              task: `Rewrite this to be easier to read for the whole team.`,
+              description: `Checks judgment, not cleverness.`,
+              code: `const f = pipe(filter(propEq('active', true)), map(pick(['id','name'])), sortBy(prop('name')));`,
+              answer: `Give the function a clear name, or write it with named arguments and plain array methods if the team does not use the library every day.`,
+              solution: `const activeUsersByName = (users) => users
+  .filter((u) => u.active)
+  .map(({ id, name }) => ({ id, name }))
+  .sort((a, b) => a.name.localeCompare(b.name));`,
             },
             {
-              task: `Why is this memoization wrong?`,
-              description: `Checks purity requirement. Reason about the output.`,
-              code: `const getPrice = memoize((id) => prices[id] * rate);`,
-              answer: `It reads mutable outer variables prices and rate. When rate changes the cache still returns old values. Pass rate as an argument or invalidate the cache.`,
+              task: `Write a small pipe helper and use it point-free.`,
+              description: `Checks that the candidate understands composition.`,
+              answer: `pipe takes functions and returns a function that passes a value through them from left to right.`,
+              solution: `const pipe = (...fns) => (x) => fns.reduce((v, f) => f(v), x);
+const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s+/g, '-'));`,
             },
           ],
         },
@@ -776,22 +809,39 @@ export default {
       ],
       middle: [
         {
-          q: `This method loses "this" when passed as a callback. Why? How do you fix it?`,
-          code: `class Timer {\n  seconds = 0;\n  tick() { this.seconds++; }\n  start() { setInterval(this.tick, 1000); }\n}`,
-          short: `Passing this.tick detaches it from the instance, so this is undefined in strict class code; use an arrow function field or bind.`,
-          long: `Method calls get this from the call site (obj.method()).\nsetInterval calls the function plainly, so this is undefined (classes are strict mode).\nFix with setInterval(() => this.tick(), 1000).\nOr define tick = () => {...} as a class field (one copy per instance).\nOr bind in the constructor.\nAlso store the interval id to clear it later.`,
-          fix: `class Timer {\n  seconds = 0;\n  #id;\n  tick = () => { this.seconds++; };\n  start() { this.#id = setInterval(this.tick, 1000); }\n  stop() { clearInterval(this.#id); }\n}`,
+          q: `This class shows its inner list to callers. Callers can break it. Fix the encapsulation.`,
+          code: `class Cart {
+  items = [];
+  add(item) { this.items.push(item); this.total += item.price; }
+  total = 0;
+}
+const cart = new Cart();
+cart.add({ price: 10 });
+cart.items.push({ price: 99 }); // total is now wrong`,
+          short: `Make the state private, change it only through methods, and return a copy or a read-only view. Better still, compute total from items.`,
+          long: `Public fields let any caller change the state and skip the rules in add.
+Here a direct push makes items and total disagree.
+Use private fields (#items), expose a read-only copy, and keep all changes inside methods.
+Derived data like total should be computed, not stored, so it can never get out of sync.
+Strong answer: protects invariants, removes duplicated state, and keeps the public API small.`,
+          fix: `class Cart {
+  #items = [];
+  add(item) { this.#items.push(item); }
+  get items() { return [...this.#items]; }
+  get total() { return this.#items.reduce((s, i) => s + i.price, 0); }
+}`,
+          follow: `When is returning a copy too slow, and what can you do instead?`,
           exercises: [
             {
-              task: `The listener is never removed. Why?`,
-              description: `Checks bound reference identity. Explain the leak.`,
-              code: `el.addEventListener('click', this.onClick.bind(this));\nel.removeEventListener('click', this.onClick.bind(this));`,
-              answer: `Each bind returns a new function, so removal does nothing and the listener leaks. Store the bound function once (or use an arrow field) and pass the same reference to both calls. AbortController signals are another clean option.`,
+              task: `Is a shallow copy enough? What can a caller still break?`,
+              description: `Checks shallow vs deep copy.`,
+              answer: `A shallow copy protects the array, but the item objects are shared, so cart.items[0].price = 0 still changes the cart. Freeze items, copy them, or store immutable values.`,
             },
             {
-              task: `Compare arrow function fields and normal methods.`,
-              description: `Checks trade-offs. 2-3 sentences.`,
-              answer: `Arrow fields auto-bind but are created per instance and are not on the prototype, so subclasses cannot call super.method(). Prototype methods are shared and overridable but need binding when passed around.`,
+              task: `Add a remove method that keeps the cart valid.`,
+              description: `Checks keeping changes inside the class.`,
+              answer: `Remove by id with filter on the private list; total stays correct because it is computed.`,
+              solution: `remove(id) { this.#items = this.#items.filter((i) => i.id !== id); }`,
             },
           ],
         },
@@ -873,39 +923,66 @@ export default {
           ],
         },
         {
-          q: `What are mixins in JavaScript? What problems do they have?`,
-          short: `Mixins add methods to a class via functions returning subclasses or Object.assign; they enable reuse but can cause name collisions and implicit dependencies.`,
-          long: `Subclass factory pattern: const Serializable = (Base) => class extends Base { toJSON() {} }.\nCompose: class User extends Serializable(Eventful(Base)).\nPitfalls: name clashes, order-dependent behavior and hidden assumptions about this.\nHard to type well in TypeScript.\nReact removed mixins in favor of hooks for these reasons.\nPrefer composition with explicit collaborators.`,
+          q: `What is the difference between a value object and an entity? Where do they help on the frontend?`,
+          short: `An entity has an identity that stays the same when its data changes, like a user with an id. A value object is defined only by its values, is immutable, and two equal values are the same, like Money or a DateRange.`,
+          long: `Entity: compared by id. A user who changes the email is still the same user.
+Value object: compared by value, immutable, and it checks its own rules when created.
+Examples on the frontend: Money (amount + currency), EmailAddress, DateRange where start must be before end.
+Benefits: rules live in one place, invalid values cannot exist, no bugs from adding euros to dollars.
+In React, immutable values also work well with memo and equality checks.
+Strong answer: gives concrete examples and shows how a value object removes repeated validation.`,
+          follow: `How do you compare two value objects in JavaScript, since === compares references?`,
           exercises: [
             {
-              task: `Write a mixin that adds a createdAt field.`,
-              description: `Checks the subclass-factory pattern. Run in Node.`,
-              answer: `Define const Timestamped = (B) => class extends B { createdAt = new Date(); }. Use class Doc extends Timestamped(Object) {}. Instances get the field via the chain.`,
+              task: `Write a small Money value object that refuses to add different currencies.`,
+              description: `Checks immutability and invariants.`,
+              answer: `Store amount in minor units and currency, freeze the object, and return a new Money from add; throw when currencies differ.`,
+              solution: `class Money {
+  constructor(cents, currency) { this.cents = cents; this.currency = currency; Object.freeze(this); }
+  add(o) {
+    if (o.currency !== this.currency) throw new Error('Currency mismatch');
+    return new Money(this.cents + o.cents, this.currency);
+  }
+  equals(o) { return o.cents === this.cents && o.currency === this.currency; }
+}`,
             },
             {
-              task: `Two mixins both have a save method. What happens?`,
-              description: `Checks pitfalls. Describe the collision.`,
-              answer: `The last mixin applied wins, silently overriding the other unless it calls super.save(). Order matters and the bug is hard to see. Explicit composition makes conflicts visible.`,
+              task: `Is an applicant record an entity or a value object? Is a postal address?`,
+              description: `Checks the distinction on domain examples.`,
+              answer: `The applicant is an entity: it has an id and changes over time. A postal address is usually a value object: two identical addresses are the same, and you replace it instead of changing it.`,
             },
           ],
         },
       ],
       techlead: [
         {
-          q: `For a new frontend project, how do you choose between classes and functions?`,
-          short: `Default to functions and modules for UI and logic (React's model), and use classes where identity, lifecycle and encapsulated state matter, like SDK clients or complex domain objects.`,
-          long: `React components and hooks are function-based; class components are legacy.\nClasses fit long-lived stateful objects: WebSocket clients, caches, editors.\nThey give encapsulation with #private and clear lifecycles (connect/dispose).\nPlain data should be plain objects for serialization and structural sharing.\nPick one convention per layer and document it.\nAvoid mixing paradigms within a module.`,
-          ai: true,
+          q: `You build a shared library used by many teams. How do you design its public API so you can change the inside later without breaking anyone?`,
+          short: `Keep the public surface small and explicit, hide internals, follow semantic versioning, deprecate before removing, and test the public API as a contract.`,
+          long: `Everything you export becomes a promise. Export only what users need, from one entry point.
+Hide internals with private fields, non-exported modules and the package exports field.
+Prefer options objects over long positional arguments, so you can add options without breaking calls.
+Use semantic versioning: breaking changes only in a major release, with a changelog and a codemod if possible.
+Deprecate first: warn in development, document the replacement, remove in the next major.
+Test the public API and check type changes with tools like API Extractor.
+Strong answer: covers surface size, versioning, deprecation and automatic checks.`,
+          follow: `How do you find out which teams use a function you want to remove?`,
           exercises: [
             {
-              task: `Class or function? Decide for a date formatter, a WebSocket client, form validation and a chart renderer.`,
-              description: `Checks judgment. Explain each choice.`,
-              answer: `Date formatter and validation are pure functions. WebSocket client and chart renderer manage resources and lifecycle, so classes with dispose() fit. Document why so others follow.`,
+              task: `Which signature is easier to grow without breaking callers? Why?`,
+              description: `Checks API design for growth.`,
+              code: `createClient(url, timeout, retries, onError)
+createClient({ url, timeout, retries, onError })`,
+              answer: `The options object. New options can be added with defaults, order does not matter, and calls are easier to read.`,
             },
             {
-              task: `List the sections of a short team guide on this topic.`,
-              description: `Checks communication. List sections.`,
-              answer: `Default paradigm per layer, when classes are allowed, data modeling (plain objects), state management, examples and anti-patterns, and review checklist. Keep it short with code examples.`,
+              task: `Show how to deprecate a function softly.`,
+              description: `Checks a deprecation path.`,
+              answer: `Keep the old function, make it call the new one, mark it with a JSDoc @deprecated tag and warn once in development.`,
+              solution: `/** @deprecated Use fetchUser instead. */
+export function getUser(id) {
+  if (process.env.NODE_ENV !== 'production') console.warn('getUser is deprecated, use fetchUser');
+  return fetchUser(id);
+}`,
             },
           ],
         },
@@ -987,20 +1064,26 @@ export default {
           ],
         },
         {
-          q: `What does "separation of concerns" mean in a frontend app?`,
-          short: `Splitting the app so UI, state, data access and business rules live in different places with clear interfaces.`,
-          long: `UI components render and handle events.\nHooks or stores manage state.\nServices handle HTTP and mapping API data.\nPure functions hold business rules.\nThis makes each part testable and replaceable.\nIt is not about separate files for HTML/CSS/JS.`,
+          q: `How do you decide whether to add a new npm package to the project?`,
+          short: `Check if you really need it, then check size, maintenance, license, security and how hard it is to remove later.`,
+          long: `Every package is code you ship and must maintain.
+Ask first: can the platform do it (Intl, fetch, structuredClone) or can we write ten lines ourselves?
+Check: bundle size (bundlephobia), last release and open issues, number of maintainers, license, known vulnerabilities.
+Check if it supports tree shaking and TypeScript types.
+Wrap big dependencies behind your own small module so you can replace them later.
+Strong answer: weighs the cost of the dependency, not only the feature.
+Weak answer: "if it has many stars, it is fine".`,
+          follow: `What would make you remove a package that is already used?`,
           exercises: [
             {
-              task: `Which concern does each line belong to?`,
-              description: `Checks layering. Label each line.`,
-              code: `const total = items.reduce((s, i) => s + i.price, 0);\nconst res = await fetch('/api/cart');\nreturn <p>{total}</p>;`,
-              answer: `reduce is business logic, fetch is data access, JSX is UI. They could live in a pure helper, a service and a component.`,
+              task: `A teammate adds a full date library just to format one date. What do you suggest?`,
+              description: `Checks platform knowledge and bundle awareness.`,
+              answer: `Use Intl.DateTimeFormat, which is built into the browser and adds no bundle size. Add a library only if you need complex date math in many places.`,
             },
             {
-              task: `How does this split make testing easier?`,
-              description: `Checks reasoning. 2-3 sentences.`,
-              answer: `Pure logic is tested with simple unit tests. UI can be tested with mocked services. Changes to the API only touch the service layer.`,
+              task: `Name three things you check on the npm page or repository before adding a package.`,
+              description: `Checks a practical checklist. Accept any reasonable three.`,
+              answer: `For example: recent releases and active maintainers, bundle size and tree shaking, license, open security advisories, TypeScript support, number of dependencies.`,
             },
           ],
         },
@@ -1044,41 +1127,77 @@ export default {
           ],
         },
         {
-          q: `What is the difference between client rendering, server rendering and static generation?`,
-          short: `CSR renders in the browser after JS loads; SSR renders HTML per request on the server; SSG renders HTML at build time.`,
-          long: `CSR: simple hosting, slower first paint, SEO depends on crawler JS execution.\nSSR: faster first content and SEO, needs a server, hydration cost.\nSSG: fastest delivery from CDN, but data is fixed until rebuild or revalidation.\nStreaming SSR and React Server Components reduce client JS.\nInternal dashboards behind login often use CSR.\nChoose per route in frameworks like Next.js or React Router.`,
+          q: `How do you keep frontend types in sync with the backend API?`,
+          short: `Generate types from one source of truth, like an OpenAPI or GraphQL schema, and check responses at runtime at the edge of the app.`,
+          long: `Hand-written API types drift when the backend changes, and TypeScript cannot see the drift.
+Better: generate types and clients from an OpenAPI spec or GraphQL schema in CI (for example openapi-typescript or GraphQL Code Generator).
+Types only exist at compile time, so validate important responses at runtime with a schema (zod, valibot) in the API layer.
+Map API data (DTOs) to frontend models in one place, so a backend rename changes one file.
+Add contract tests so breaking changes fail in CI.
+Strong answer: one source of truth, generated types, runtime validation at the boundary, mapping layer.`,
+          follow: `Where do you put the mapping from API data to UI models?`,
           exercises: [
             {
-              task: `Choose a rendering mode for a marketing page, a product page and an admin dashboard.`,
-              description: `Checks trade-offs. Explain each.`,
-              answer: `Marketing: SSG. Product page: SSR or SSG with revalidation for fresh prices and SEO. Admin dashboard: CSR, since it is behind auth and highly interactive.`,
+              task: `The backend renamed first_name to firstName. The app shows "undefined" but TypeScript did not complain. Why? How do you prevent it?`,
+              description: `Checks the gap between compile-time types and runtime data.`,
+              answer: `The type was hand-written and still says first_name, so TypeScript trusts it. Generate types from the API schema and validate responses at runtime so the error appears in CI or at the API layer, not in the UI.`,
             },
             {
-              task: `This line causes a hydration warning. Why?`,
-              description: `Checks SSR pitfalls.`,
-              code: `<p>{new Date().toLocaleTimeString()}</p>`,
-              answer: `Server and client render different times, so markup differs and React reports a hydration mismatch. Render time-dependent values after mount in an effect, or use suppressHydrationWarning for intentional differences.`,
+              task: `Write a function that validates and maps a user response.`,
+              description: `Checks the boundary pattern. zod or plain checks are both fine.`,
+              answer: `Parse the raw JSON with a schema, throw a clear error if it does not match, then return a frontend model with the field names the UI uses.`,
+              solution: `const UserDto = z.object({ id: z.number(), first_name: z.string() });
+export function toUser(json) {
+  const dto = UserDto.parse(json);
+  return { id: dto.id, firstName: dto.first_name };
+}`,
             },
           ],
         },
       ],
       senior: [
         {
-          q: `This context makes the whole app re-render on every key press. Fix it.`,
-          code: `const AppContext = createContext();\nfunction AppProvider({ children }) {\n  const [user, setUser] = useState(null);\n  const [search, setSearch] = useState('');\n  return <AppContext.Provider value={{ user, setUser, search, setSearch }}>{children}</AppContext.Provider>;\n}`,
-          short: `A new value object every render plus unrelated state in one context makes all consumers re-render; split contexts by concern, memoize values, or move fast-changing state local or into a selector store.`,
-          long: `Every consumer re-renders when the provider value changes reference.\nTyping in search changes it, so components using only user re-render too.\nSplit into UserContext and SearchContext, or keep search local to the search page.\nMemoize the value with useMemo.\nFor frequent updates with many readers use a store with selectors (Zustand, useSyncExternalStore).\nProfile with React DevTools "Highlight updates".`,
-          fix: `const UserContext = createContext(null);\nfunction UserProvider({ children }) {\n  const [user, setUser] = useState(null);\n  const value = useMemo(() => ({ user, setUser }), [user]);\n  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;\n}\n// search state lives in the search feature (local state or URL)`,
+          q: `This shared utils folder imports code from app features. Now there is a circular import. Fix the dependency direction.`,
+          code: `// shared/utils/formatUser.js
+import { ROLES } from '../../features/admin/roles';
+export const formatUser = (u) => \`\${u.name} (\${ROLES[u.role]})\`;
+
+// features/admin/roles.js
+import { formatUser } from '../../shared/utils/formatUser';
+export const ROLES = { 1: 'Admin', 2: 'Reviewer' };
+export const label = (u) => formatUser(u);`,
+          short: `Shared code must never depend on features. Move the shared data down into shared, or pass it in as a parameter, so imports only point from features to shared.`,
+          long: `Layers should have one direction: app -> features -> shared. Shared code knows nothing about features.
+Here shared imports a feature, and the feature imports shared, so the modules form a cycle.
+Cycles can give undefined values at load time, break tree shaking and make code hard to move.
+Fix options: move ROLES into shared (if it is truly shared), or make formatUser take the role label as an argument.
+Enforce it with lint rules such as eslint-plugin-boundaries or import/no-cycle, and with dependency-cruiser in CI.
+Strong answer: explains the rule, the runtime risk of cycles and how to enforce boundaries automatically.`,
+          fix: `// shared/utils/formatUser.js
+export const formatUser = (u, roleLabel) => \`\${u.name} (\${roleLabel})\`;
+
+// features/admin/roles.js
+import { formatUser } from '../../shared/utils/formatUser';
+export const ROLES = { 1: 'Admin', 2: 'Reviewer' };
+export const label = (u) => formatUser(u, ROLES[u.role]);`,
+          follow: `How would you stop new cycles from being merged?`,
           exercises: [
             {
-              task: `Keep the search text in the URL instead.`,
-              description: `Checks URL as state. Use useSearchParams.`,
-              answer: `Read q from useSearchParams and update with setSearchParams({ q }), using replace to avoid history spam. Search becomes shareable and survives reload without global state.`,
+              task: `Write a lint rule config that blocks shared code from importing features.`,
+              description: `Checks automatic enforcement. Any tool is fine: ESLint no-restricted-imports, boundaries plugin, or dependency-cruiser.`,
+              answer: `Use no-restricted-imports with an override for files in shared that forbids paths matching features. In CI, the lint step fails on any new violation.`,
+              solution: `// .eslintrc overrides
+{
+  files: ['src/shared/**'],
+  rules: {
+    'no-restricted-imports': ['error', { patterns: ['**/features/**', '**/app/**'] }],
+  },
+}`,
             },
             {
-              task: `Read only one value from a Zustand store.`,
-              description: `Checks selectors. Write the hook call.`,
-              answer: `const user = useStore((s) => s.user) re-renders only when user changes. Zustand compares selector results, so unrelated updates do not affect the component.`,
+              task: `Why can a circular import give undefined at runtime?`,
+              description: `Checks ES module evaluation order. Let the candidate explain with the example above.`,
+              answer: `Modules in a cycle are evaluated one after another. When module A starts, it imports B, B imports A, but A has not finished, so A's exports are not ready yet. If B uses them at the top level, it sees undefined or gets a TDZ error.`,
             },
           ],
         },
@@ -1101,19 +1220,30 @@ export default {
           ],
         },
         {
-          q: `What are the pros and cons of a Backend for Frontend, or BFF?`,
-          short: `A BFF tailors APIs to one frontend, aggregating calls and hiding tokens, at the cost of another service to own, deploy and scale.`,
-          long: `It aggregates several backend calls into one response for a screen.\nIt keeps secrets and tokens server-side (cookie sessions).\nIt shapes data to UI needs, reducing over-fetching.\nIt adds a latency hop, ops burden and possible logic duplication.\nThe frontend team should own it, or it becomes a bottleneck.\nFrameworks with server functions (RSC, loaders) can act as a BFF.`,
+          q: `How do you design a frontend that supports many languages and time zones? Where does this logic live?`,
+          short: `Keep all text in message files loaded per locale, format dates, numbers and money with Intl, store times in UTC, and convert only for display.`,
+          long: `Internationalization touches the whole app, so it needs one central design.
+Text: no strings in components; use message keys with ICU plural and gender rules, and load locale bundles lazily.
+Formatting: use Intl.DateTimeFormat, Intl.NumberFormat and Intl.RelativeTimeFormat instead of hand-made formats.
+Time: the API sends ISO strings in UTC; the UI converts to the user time zone only when it displays.
+Layout: support right-to-left with logical CSS properties and the dir attribute.
+Process: extraction tools, translation workflow, a pseudo-locale to find hard-coded text and long strings.
+Strong answer: covers text, formatting, time zones, RTL and the translation process.`,
+          follow: `How do you test that no text is hard-coded?`,
           exercises: [
             {
-              task: `A dashboard makes fifteen calls to four services. Do you need a BFF?`,
-              description: `Checks judgment. Decide and explain.`,
-              answer: `Likely yes: one aggregated endpoint cuts round trips and centralizes auth. Confirm the team can own it and set caching and timeouts. Alternatively, ask backend for a composite endpoint.`,
+              task: `This deadline shows the wrong day for users in Asia. Fix it.`,
+              description: `Checks time zone handling.`,
+              code: `const d = new Date('2026-05-01');
+label.textContent = d.getDate() + '/' + (d.getMonth() + 1);`,
+              answer: `A date-only ISO string is parsed as UTC midnight, then getDate uses local time, so some zones see a different day. Decide whether it is a calendar date or an instant. For a deadline instant, send a full timestamp with time zone and format with Intl and the user time zone.`,
+              solution: `const d = new Date('2026-05-01T23:59:00Z');
+label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', timeZone: userTimeZone }).format(d);`,
             },
             {
-              task: `List the security tasks of a BFF.`,
-              description: `Checks security. List 3-4 items.`,
-              answer: `Store tokens server-side with HttpOnly session cookies, enforce CSRF protection, validate input, and forward only needed data. Rate limit and log access.`,
+              task: `Why is "You have " + n + " messages" a bad pattern for translation?`,
+              description: `Checks plural rules and word order.`,
+              answer: `Languages have different plural forms and word order, so string building cannot be translated well. Use one message with an ICU plural, for example "{n, plural, one {# message} other {# messages}}".`,
             },
           ],
         },
@@ -1275,20 +1405,27 @@ export default {
           ],
         },
         {
-          q: `What is a stacking context? What creates one?`,
-          short: `A stacking context is a group whose z-index is resolved locally; it is created by positioned elements with z-index, opacity < 1, transform, filter, isolation: isolate and others.`,
-          long: `z-index only compares elements within the same stacking context.\nCreated by: root, position with z-index (not auto), position fixed/sticky, opacity < 1, transform, filter, will-change, contain: paint, isolation: isolate, flex/grid children with z-index.\nA child with z-index 9999 cannot escape a parent context with lower order.\nisolation: isolate creates a context intentionally without side effects.\nThe top layer (dialog, popover) sits above all contexts.`,
+          q: `What are CSS logical properties? Why do they matter for right-to-left languages?`,
+          short: `Logical properties like margin-inline-start describe sides by text direction instead of left and right, so one stylesheet works for both left-to-right and right-to-left.`,
+          long: `Physical properties (margin-left, padding-right) stay fixed when the language changes.
+Logical properties follow the writing mode: inline is the text direction, block is the line stacking direction.
+Examples: margin-inline-start, padding-block, inset-inline-end, border-start-start-radius.
+With dir="rtl" on the html element, inline-start becomes the right side automatically.
+This removes a whole RTL override stylesheet and its bugs.
+Strong answer: maps physical to logical names and mentions dir and icons that must flip.`,
+          follow: `Which icons should flip in right-to-left layouts, and which should not?`,
           exercises: [
             {
-              task: `Build a modal that is always on top.`,
-              description: `Checks the dialog element. Build it in an HTML file.`,
-              answer: `Use <dialog> and call showModal(). It renders in the top layer above everything, makes the rest inert, and gives Esc to close. Style the backdrop with ::backdrop.`,
+              task: `Rewrite this CSS with logical properties.`,
+              description: `Checks the mapping.`,
+              code: `.card { margin-left: 16px; padding-right: 8px; text-align: left; border-left: 4px solid; }`,
+              answer: `Use inline-start and inline-end, and text-align: start.`,
+              solution: `.card { margin-inline-start: 16px; padding-inline-end: 8px; text-align: start; border-inline-start: 4px solid; }`,
             },
             {
-              task: `The dropdown is hidden under the next card. Why?`,
-              description: `Checks context reasoning. Inspect the code.`,
-              code: `.card { transform: translateZ(0); }\n.card .menu { position: absolute; z-index: 1000; }\n.next-card { position: relative; z-index: 1; }`,
-              answer: `transform makes .card a stacking context at level 0, so the menu is trapped inside it and .next-card with z-index 1 paints above it. Remove the transform, give .card a higher z-index when open, or render the menu with popover/portal.`,
+              task: `How do you switch the page to right-to-left?`,
+              description: `Checks the dir attribute.`,
+              answer: `Set dir="rtl" (and the right lang) on the html element. Logical properties and flex order then follow automatically.`,
             },
           ],
         },
@@ -1314,37 +1451,56 @@ export default {
           ],
         },
         {
-          q: `How do container queries change the way we design components?`,
-          short: `Components can respond to their container's size instead of the viewport, making them truly reusable in sidebars, grids and main areas.`,
-          long: `Declare container-type: inline-size on a wrapper.\nUse @container (min-width: 400px) { ... } in component styles.\nContainer units (cqi, cqw) size relative to the container.\nStyle queries on custom properties work in Chromium and Safari; Firefox support is still arriving.\nMedia queries remain for page-level layout and user preferences.\nAvoid making the container's size depend on its children (inline-size containment).`,
+          q: `How do you build dark mode with CSS? Think about prefers-color-scheme, custom properties and the color-scheme property.`,
+          short: `Define colors as custom properties, change their values for dark mode with prefers-color-scheme or a data attribute, and set color-scheme so built-in controls match.`,
+          long: `Use semantic tokens, like --surface and --text, not raw colors in components.
+Change token values in a media query (prefers-color-scheme: dark) for the system setting.
+For a user toggle, also set a data-theme attribute and save the choice.
+color-scheme: light dark tells the browser to style scrollbars, inputs and default backgrounds for the theme.
+Avoid a flash of the wrong theme: apply the saved theme in a tiny inline script before the page paints.
+Check contrast in both themes; dark mode is not just inverted colors.
+Strong answer: tokens, system plus user choice, color-scheme, no flash, contrast.`,
+          follow: `How do you avoid a flash of the light theme on page load?`,
           exercises: [
             {
-              task: `Make a card change to a side-by-side layout when it has room.`,
-              description: `Checks container queries. Put the card in a narrow and a wide column.`,
-              answer: `Set .card-wrap { container-type: inline-size } and inside @container (min-width: 32rem) make .card a grid with image and text side by side. The same component adapts per placement.`,
-              solution: `.card-wrap { container-type: inline-size; }\n.card { display: grid; gap: 1rem; }\n@container (min-width: 32rem) { .card { grid-template-columns: 12rem 1fr; } }`,
+              task: `Write CSS tokens that follow the system theme and allow a manual override.`,
+              description: `Checks media query plus attribute override.`,
+              answer: `Set light tokens on :root, dark tokens in the media query unless light is forced, and dark tokens for data-theme="dark".`,
+              solution: `:root { --surface: #fff; --text: #111; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --surface: #121212; --text: #eee; }
+}
+:root[data-theme="dark"] { --surface: #121212; --text: #eee; }
+body { background: var(--surface); color: var(--text); }`,
             },
             {
-              task: `The container shrinks to zero width. Why?`,
-              description: `Checks pitfalls. Explain.`,
-              answer: `inline-size containment makes the element ignore its content for inline sizing, so a shrink-to-fit container (floated, inline-block, or a flex item without width) collapses. Give it a definite width or let it stretch.`,
+              task: `Inputs and scrollbars stay white in dark mode. Why?`,
+              description: `Checks the color-scheme property.`,
+              answer: `The browser does not know the page supports dark mode. Add color-scheme: light dark (or dark) so built-in controls use dark styles.`,
             },
           ],
         },
         {
-          q: `What can you do with the has selector? Is it slow?`,
-          short: `:has() is a relational parent/previous-sibling selector that lets you style based on descendants or later siblings; keep it scoped to avoid broad invalidation.`,
-          long: `form:has(:invalid) styles a form containing invalid fields.\nlabel:has(+ input:focus) targets a preceding sibling.\nbody:has(dialog[open]) can lock scroll.\nSupported in all modern browsers.\nBroad selectors like :has(*) on body can trigger heavy style recalculation on DOM changes.\nAnchor it to specific elements and simple arguments.`,
+          q: `What do CSS contain and content-visibility do? When do they help performance?`,
+          short: `contain tells the browser that an element's layout or paint does not affect the rest of the page. content-visibility: auto skips rendering off-screen content until it is near the viewport.`,
+          long: `By default a change inside one element can force layout of the whole page.
+contain: layout paint (or contain: content) limits that work to the element.
+content-visibility: auto skips layout and paint for off-screen sections, which can make long pages much faster to render.
+Pair it with contain-intrinsic-size so the scrollbar does not jump when sections render.
+Downsides: skipped content is still in the DOM and accessible, but find-in-page and anchor links may need care in older browsers; wrong sizes cause scroll jumps.
+Strong answer: explains what is skipped, the size placeholder and how to measure the gain.`,
+          follow: `Why do you need contain-intrinsic-size with content-visibility?`,
           exercises: [
             {
-              task: `Highlight a card when its checkbox is checked.`,
-              description: `Checks :has. Build in HTML.`,
-              answer: `.card:has(input[type=checkbox]:checked) { outline: 2px solid var(--accent); } styles the card without JS. It updates live as the checkbox changes.`,
+              task: `A long article page renders slowly. Add CSS to skip off-screen sections.`,
+              description: `Checks the typical pattern.`,
+              answer: `Apply content-visibility: auto to each section and give an estimated size.`,
+              solution: `.article-section { content-visibility: auto; contain-intrinsic-size: auto 800px; }`,
             },
             {
-              task: `Stop page scroll while a modal is open.`,
-              description: `Checks global use. Write the selector.`,
-              answer: `html:has(dialog[open]) { overflow: hidden; } prevents background scrolling. Keep the argument narrow so recalculation stays cheap.`,
+              task: `How do you prove it helped?`,
+              description: `Checks measurement.`,
+              answer: `Record the page load in the Performance panel before and after and compare rendering and layout time, and check LCP in field data.`,
             },
           ],
         },

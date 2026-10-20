@@ -844,61 +844,42 @@ next.user.address.city = 'Boston';`,
         fix: "const total = orders.filter(o => o.paid).reduce((s, o) => s + o.items.length * o.price, 0);",
       },
       {
-        q: "Why does this React component show an old count? How is this related to closures and immutability?",
-        code: `function Counter() {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setCount(count + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <p>{count}</p>;
-}`,
-        fix: `useEffect(() => {
-  const id = setInterval(() => setCount((c) => c + 1), 1000);
-  return () => clearInterval(id);
-}, []);`,
-        short: "The interval callback closes over count from the first render (0), so it keeps setting 1. Use the functional updater setCount(c => c + 1), or include count in deps (which restarts the interval).",
-        long: `Each render creates new closures; the effect ran once (empty deps) and captured count = 0 forever.
-Functional updates receive the latest state, avoiding the stale closure without re-subscribing.
-Alternatives: useRef for mutable latest value, useEffectEvent (React 19.2+) for event-like logic inside effects.
-This is FP thinking: state is an immutable snapshot per render, not a mutable variable.
-Pitfalls: silencing exhaustive-deps lint, adding count to deps and recreating intervals every tick.
-Strong answer: explains render snapshots, offers the updater and discusses trade-offs.
-Weak answer: "make count a global".`,
+        q: `This undo feature does not work. Every history entry shows the latest state. Fix it.`,
+        code: `const history = [];
+const state = { items: [] };
+function addItem(item) {
+  history.push(state);
+  state.items.push(item);
+}
+function undo() { return history.pop(); }`,
+        short: `Every history entry points to the same object, which keeps changing. Make each update return a new state, so old states stay unchanged.`,
+        long: `history.push(state) saves a reference, not a snapshot. Then state.items.push changes that same object, so every entry looks the same.
+With immutable updates each change creates a new object and the old one stays as it was.
+Structural sharing keeps this cheap: unchanged parts are reused, only the changed path is copied.
+This is the same idea that makes Redux time travel and React change detection work.
+Strong answer: explains reference vs value, fixes it with pure updates and mentions structural sharing or Immer.`,
+        fix: `let state = { items: [] };
+const history = [];
+function addItem(item) {
+  history.push(state);
+  state = { ...state, items: [...state.items, item] };
+}
+function undo() { state = history.pop() ?? state; return state; }`,
+        follow: `Is deep cloning the whole state on every change a good fix? Why not?`,
         exercises: [
           {
-            task: "Fix the stale closure in this event listener. Do not add the listener again on every change.",
-            description: "Checks stale closures with external subscriptions. Ask for two possible fixes.",
-            code: `function Search({ query }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Enter') runSearch(query); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-}`,
-            answer: "The handler captures the initial query. Keep the latest value in a ref updated each render (or useEffectEvent in React 19.2+), so the listener registered once reads the current value.",
-            solution: `function Search({ query }) {
-  const latest = useRef(query);
-  useEffect(() => { latest.current = query; });
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Enter') runSearch(latest.current); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-}`,
+            task: `Add redo support.`,
+            description: `Checks extending the immutable design.`,
+            answer: `Keep a future stack. undo moves the current state to future and takes the last past state. redo does the reverse. A new change clears future.`,
+            solution: `let past = [], future = [];
+function commit(next) { past.push(state); future = []; state = next; }
+function undo() { if (past.length) { future.push(state); state = past.pop(); } }
+function redo() { if (future.length) { past.push(state); state = future.pop(); } }`,
           },
           {
-            task: "Write a reducer for a todo list. It must never change state directly. Support add, toggle, and remove.",
-            description: "Checks immutable updates in practice. Ask them to write it and explain why immutability matters for React.",
-            answer: "Return new arrays/objects for every change; React and memoized selectors rely on reference changes to detect updates.",
-            solution: `function todos(state, action) {
-  switch (action.type) {
-    case 'add': return [...state, { id: action.id, text: action.text, done: false }];
-    case 'toggle': return state.map((t) => (t.id === action.id ? { ...t, done: !t.done } : t));
-    case 'remove': return state.filter((t) => t.id !== action.id);
-    default: return state;
-  }
-}`,
+            task: `Why is structuredClone of the full state on every change a bad idea for big state?`,
+            description: `Checks the cost of deep copies.`,
+            answer: `It copies everything, so memory and time grow with state size, and every object gets a new reference, so equality checks think everything changed. Structural sharing copies only the changed path.`,
           },
         ],
       },
@@ -1098,39 +1079,39 @@ class AuthClient extends HttpClient { /* adds token */ }`,
         ],
       },
       {
-        q: "How do prototypes and the prototype chain work in JavaScript? How are classes related to them?",
-        short: "Every object has an internal [[Prototype]] link; property lookup walks this chain until found or null. Classes are syntax over constructor functions and prototypes: methods go on Class.prototype, extends links prototypes.",
-        long: `obj.prop checks own properties first, then Object.getPrototypeOf(obj), and so on up to Object.prototype and null.
-class B extends A sets B.prototype's prototype to A.prototype and B's prototype to A (for statics).
-Shadowing: assigning obj.x creates an own property, it doesn't modify the prototype.
-instanceof checks whether Constructor.prototype appears in the chain.
-Pitfalls: modifying built-in prototypes, using __proto__, deep chains hurting lookup readability.
-Strong answer: explains lookup, shadowing, and what class/extends compile to.
-Weak answer: "JS has classes like Java".`,
+        q: `What is the difference between an interface and an abstract class? How do you write them in TypeScript?`,
+        short: `An interface only describes a shape and disappears after compiling. An abstract class can have shared code and state, exists at runtime, and a class can extend only one.`,
+        long: `An interface is a contract: it lists methods and properties, has no code and no runtime cost.
+A class can implement many interfaces.
+An abstract class cannot be created with new; it can mix real methods with abstract ones that subclasses must write.
+It exists at runtime, so instanceof works, but a class can extend only one parent.
+Use interfaces for contracts between modules and for test fakes; use an abstract class when several classes share real code.
+In TypeScript, structural typing means any object with the right shape fits an interface, even without "implements".
+Strong answer: mentions runtime existence, single inheritance and when each is the better fit.`,
+        follow: `Why are interfaces handy for writing test fakes?`,
         exercises: [
           {
-            task: "Predict the output.",
-            description: "Checks prototype lookup and shadowing. Ask to predict each line.",
-            code: `const base = { kind: 'proto' };
-const a = Object.create(base);
-const b = Object.create(base);
-console.log(a.kind);
-a.kind = 'own';
-console.log(a.kind, b.kind, Object.getPrototypeOf(a) === base);`,
-            answer: "'proto', 'own', 'proto', true: lookup finds the prototype value until an own property shadows it; other objects still see the prototype value.",
+            task: `Define a Storage contract and two classes: one for localStorage and one in memory for tests.`,
+            description: `Checks interface use for swappable implementations.`,
+            answer: `Write an interface with get and set, then two classes that implement it. Code that needs storage depends on the interface only.`,
+            solution: `interface KeyValueStore { get(k: string): string | null; set(k: string, v: string): void; }
+class LocalStore implements KeyValueStore {
+  get(k: string) { return localStorage.getItem(k); }
+  set(k: string, v: string) { localStorage.setItem(k, v); }
+}
+class MemoryStore implements KeyValueStore {
+  private m = new Map<string, string>();
+  get(k: string) { return this.m.get(k) ?? null; }
+  set(k: string, v: string) { this.m.set(k, v); }
+}`,
           },
           {
-            task: "Rewrite this class with only Object dot create or constructor functions.",
-            description: "Checks understanding of what class syntax does. Ask them to write equivalent code.",
-            code: `class Animal { constructor(n) { this.n = n; } speak() { return this.n; } }
-class Dog extends Animal { speak() { return super.speak() + ' woofs'; } }`,
-            answer: "Methods go on the constructor's prototype; inheritance links prototypes and calls the parent constructor.",
-            solution: `function Animal(n) { this.n = n; }
-Animal.prototype.speak = function () { return this.n; };
-function Dog(n) { Animal.call(this, n); }
-Dog.prototype = Object.create(Animal.prototype);
-Dog.prototype.constructor = Dog;
-Dog.prototype.speak = function () { return Animal.prototype.speak.call(this) + ' woofs'; };`,
+            task: `Does this compile? Why?`,
+            description: `Checks structural typing.`,
+            code: `interface Named { name: string }
+class Dog { name = 'Rex'; bark() {} }
+const n: Named = new Dog();`,
+            answer: `Yes. TypeScript uses structural typing: Dog has a name of type string, so it fits Named even without "implements Named".`,
           },
         ],
       },
@@ -1174,61 +1155,58 @@ export const analytics = createAnalytics(import.meta.env.PROD ? window.amplitude
         ai: true,
       },
       {
-        q: "Change this class so it follows SOLID and is easy to test.",
-        code: `class ReportService {
-  async generate(userId) {
-    const user = await fetch('/api/users/' + userId).then((r) => r.json());
-    const rows = await fetch('/api/orders?user=' + userId).then((r) => r.json());
-    const csv = rows.map((r) => [r.id, r.total].join(',')).join('\\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv]));
-    a.download = user.name + '.csv';
-    a.click();
+        q: `This class uses flags and many if statements for a status workflow. Change it with the State pattern.`,
+        code: `class Application {
+  status = 'draft';
+  submit() {
+    if (this.status === 'draft') this.status = 'submitted';
+    else throw new Error('Cannot submit');
+  }
+  approve() {
+    if (this.status === 'submitted') this.status = 'approved';
+    else if (this.status === 'approved') return;
+    else throw new Error('Cannot approve');
+  }
+  withdraw() {
+    if (this.status === 'draft' || this.status === 'submitted') this.status = 'withdrawn';
+    else throw new Error('Cannot withdraw');
   }
 }`,
-        fix: `class ReportService {
-  constructor({ api, formatter, downloader }) {
-    Object.assign(this, { api, formatter, downloader });
+        short: `Describe the allowed moves in one place, as a state map or state objects, so each new status is one entry, not a change in every method.`,
+        long: `The rules for each status are spread across all methods, so a new status means editing every method.
+The State pattern puts the behavior of each status in one place.
+In JavaScript a simple transition table is often enough: status -> allowed action -> next status.
+For complex behavior, use one object per state with its own methods.
+This also makes the UI simpler: it can ask which actions are allowed now.
+Strong answer: knows the pattern, picks the simplest form that fits, mentions state machine libraries like XState for bigger flows.`,
+        fix: `const TRANSITIONS = {
+  draft: { submit: 'submitted', withdraw: 'withdrawn' },
+  submitted: { approve: 'approved', withdraw: 'withdrawn' },
+  approved: {},
+  withdrawn: {},
+};
+class Application {
+  status = 'draft';
+  can(action) { return action in TRANSITIONS[this.status]; }
+  do(action) {
+    if (!this.can(action)) throw new Error(\`Cannot \${action} from \${this.status}\`);
+    this.status = TRANSITIONS[this.status][action];
   }
-  async generate(userId) {
-    const [user, rows] = await Promise.all([this.api.getUser(userId), this.api.getOrders(userId)]);
-    this.downloader.save(\`\${user.name}.csv\`, this.formatter.format(rows));
-  }
-}
-const csvFormatter = { format: (rows) => rows.map((r) => [r.id, r.total].join(',')).join('\\n') };`,
-        short: "It violates SRP and DIP: it fetches, formats and triggers downloads. Inject an API client, a formatter (Strategy — CSV/XLSX) and a downloader; parallelize the fetches. Each part becomes testable and swappable.",
-        long: `Three reasons to change: API shape, file format, delivery mechanism.
-Injecting collaborators lets tests pass fakes and verify the formatter with plain data.
-The formatter is a Strategy: adding XLSX doesn't touch ReportService (Open/Closed).
-Also fix: sequential independent fetches (use Promise.all), unescaped CSV values, leaked object URLs (revokeObjectURL).
-Pitfalls: introducing interfaces/classes for everything; plain functions/objects are fine in JS.
-Strong answer: identifies principles, correct refactor, spots CSV escaping and URL leak.
-Weak answer: splits into methods within the same class only.`,
+}`,
+        follow: `How would the UI use the can method?`,
         exercises: [
           {
-            task: "Fix the CSV formatter. Values with commas, quotes, or line breaks must stay valid.",
-            description: "Checks attention to data correctness in the extracted Strategy. Ask what breaks with a name like 'Smith, John'.",
-            code: "const toCsv = (rows) => rows.map((r) => r.join(',')).join('\\n');",
-            answer: "Quote fields containing special characters and double internal quotes (RFC 4180). Strong answers also mention CSV injection (prefix cells starting with =,+,-,@).",
-            solution: `const cell = (v) => {
-  const s = String(v ?? '');
-  return /[",\\n]/.test(s) ? \`"\${s.replace(/"/g, '""')}"\` : s;
-};
-const toCsv = (rows) => rows.map((r) => r.map(cell).join(',')).join('\\n');`,
+            task: `Add a "reject" action from submitted. How many places change?`,
+            description: `Checks that the design is easy to extend.`,
+            answer: `One line in the table: submitted gets reject: "rejected", and add rejected: {}. No method changes.`,
           },
           {
-            task: "Write a unit test for ReportService using fakes.",
-            description: "Checks how DI pays off in testing. Ask them to write it without mocking globals.",
-            answer: "Pass fake api/formatter/downloader objects and assert the downloader received the right filename and content.",
-            solution: `it('downloads a CSV named after the user', async () => {
-  const save = vi.fn();
-  const svc = new ReportService({
-    api: { getUser: async () => ({ name: 'Ann' }), getOrders: async () => [{ id: 1, total: 5 }] },
-    formatter: csvFormatter,
-    downloader: { save },
-  });
-  await svc.generate(7);
-  expect(save).toHaveBeenCalledWith('Ann.csv', '1,5');
+            task: `Write a test for the transitions.`,
+            description: `Checks testing a table-driven design.`,
+            answer: `Loop over a list of [from, action, expected] cases, set the status, call do and check the result; also check that a wrong action throws.`,
+            solution: `test.each([['draft','submit','submitted'],['submitted','approve','approved']])('%s + %s', (from, action, to) => {
+  const a = new Application(); a.status = from; a.do(action);
+  expect(a.status).toBe(to);
 });`,
           },
         ],
@@ -1439,39 +1417,29 @@ const save = useMutation({
         ],
       },
       {
-        q: "How do you decide where state lives? Options are local state, lifted state, context, a global store, or a server data cache.",
-        short: "Keep state as close as possible to where it's used; lift it only when siblings need it; context for low-frequency app-wide values (theme, user); server data in a server-state cache (TanStack Query); a global client store only for complex shared client state; URL for shareable UI state like filters.",
-        long: `Most "global state" is actually server cache — treat it as such (caching, refetching, invalidation).
-URL state (search params) for filters, pagination and tabs makes views shareable and back-button friendly.
-Context re-renders all consumers on change; split contexts or use a store with selectors for frequently-changing values.
-Form state belongs to a form library or local state, not the global store.
-Pitfalls: putting everything in Redux, duplicating server data into client stores, prop drilling 6 levels deep.
-Strong answer: a decision ladder with reasons and examples.
-Weak answer: "always use Redux" or "always use context".`,
+        q: `How do you handle configuration for different environments, like development, staging and production, in a frontend app?`,
+        short: `Keep config out of the code: read it from build-time env variables or a runtime config file, validate it at startup, and never put secrets in it.`,
+        long: `Frontend config is things like API URLs, feature flags and analytics keys.
+Build-time config (for example import.meta.env in Vite) is baked into the bundle, so you need one build per environment.
+Runtime config (a config.json or a window variable injected by the server) lets you build once and deploy the same artifact everywhere.
+Validate config at startup with a schema so a missing value fails fast with a clear error.
+Everything shipped to the browser is public, so never put secrets there.
+Strong answer: compares build-time and runtime config, mentions "build once, deploy many" and validation.`,
+        follow: `Why is it risky to have a different build for each environment?`,
         exercises: [
           {
-            task: "For each piece of state, say where it should live.",
-            description: "Checks the state placement decision ladder. Read the list and ask for placement plus reason.",
-            code: `// 1. Whether a dropdown is open
-// 2. Table filters and current page
-// 3. List of applicants from the API
-// 4. Current user and theme
-// 5. Unsaved values of a 10-field form`,
-            answer: "1 local state; 2 URL search params; 3 server-state cache; 4 context; 5 local/form library. Weak answers put all in a global store.",
+            task: `Write a small config module that validates required values at startup.`,
+            description: `Checks fail-fast validation. Any schema library or plain checks are fine.`,
+            answer: `Read values from the env source, check each required key, and throw one clear error listing the missing ones. Export a frozen object.`,
+            solution: `const raw = { apiUrl: import.meta.env.VITE_API_URL, sentryDsn: import.meta.env.VITE_SENTRY_DSN };
+const missing = Object.entries(raw).filter(([, v]) => !v).map(([k]) => k);
+if (missing.length) throw new Error('Missing config: ' + missing.join(', '));
+export const config = Object.freeze(raw);`,
           },
           {
-            task: "Fix the performance problem in this context provider.",
-            description: "Checks context re-render behaviour. Ask why every consumer re-renders on each parent render.",
-            code: `function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  return <AuthContext.Provider value={{ user, setUser }}>{children}</AuthContext.Provider>;
-}`,
-            answer: "A new value object is created every render, so all consumers re-render. Memoize the value (and split rarely/frequently changing values into separate contexts).",
-            solution: `function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const value = useMemo(() => ({ user, setUser }), [user]);
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}`,
+            task: `A teammate adds a payment API secret key to the env file used by the frontend build. What do you say?`,
+            description: `Checks understanding that browser bundles are public.`,
+            answer: `Every value in the frontend bundle can be read by anyone in DevTools. The secret must stay on the server; the frontend calls a backend endpoint that uses the key. Rotate the key if it was already deployed.`,
           },
         ],
       },
@@ -1516,69 +1484,49 @@ socket.onmessage = (e) => {
         ai: true,
       },
       {
-        q: "When one widget fails, the whole app crashes. Make the architecture more robust.",
-        code: `function Dashboard() {
-  return (
-    <>
-      <Header />
-      <RevenueChart />   {/* throws on malformed data */}
-      <TasksList />
-    </>
-  );
+        q: `This page loads three things one after another, so it is slow. Change the data loading.`,
+        code: `async function loadPage(userId) {
+  const user = await api.getUser(userId);
+  const settings = await api.getSettings(userId);
+  const news = await api.getNews();
+  return { user, settings, news };
 }`,
-        fix: `import { ErrorBoundary } from 'react-error-boundary';
-
-function WidgetFallback({ error, resetErrorBoundary }) {
-  return (
-    <div role="alert">
-      <p>This widget failed to load.</p>
-      <button onClick={resetErrorBoundary}>Retry</button>
-    </div>
-  );
-}
-
-function Dashboard() {
-  return (
-    <>
-      <Header />
-      <ErrorBoundary FallbackComponent={WidgetFallback} onError={reportError}>
-        <Suspense fallback={<Skeleton />}><RevenueChart /></Suspense>
-      </ErrorBoundary>
-      <ErrorBoundary FallbackComponent={WidgetFallback} onError={reportError}>
-        <TasksList />
-      </ErrorBoundary>
-    </>
-  );
+        short: `The requests do not depend on each other, so start them together with Promise.all. Use allSettled when one failure should not break the page.`,
+        long: `Each await waits for the previous request, so the total time is the sum of all three. This is a request waterfall.
+None of the calls need data from another call, so they can run in parallel and the total time becomes the slowest one.
+Promise.all fails fast if any request fails. If news is optional, use Promise.allSettled and show a partial page.
+At the architecture level, start loading as early as possible (in the route loader, not deep in a child component), and avoid components that fetch only after their parent finishes.
+Strong answer: finds the waterfall, chooses all vs allSettled on purpose and talks about where loading starts.`,
+        fix: `async function loadPage(userId) {
+  const [user, settings, news] = await Promise.allSettled([
+    api.getUser(userId),
+    api.getSettings(userId),
+    api.getNews(),
+  ]);
+  if (user.status === 'rejected') throw user.reason;
+  return {
+    user: user.value,
+    settings: settings.status === 'fulfilled' ? settings.value : DEFAULT_SETTINGS,
+    news: news.status === 'fulfilled' ? news.value : [],
+  };
 }`,
-        short: "A render error unmounts the whole React tree. Wrap independent widgets in error boundaries with fallbacks and retry, report errors to monitoring, validate API data at the boundary, and isolate loading with Suspense.",
-        long: `Error boundaries catch render/lifecycle errors in their subtree; they don't catch event handlers or async code — handle those explicitly.
-Granularity: route-level boundary as a last resort plus per-widget boundaries for independent features.
-Validate data at the API boundary (zod) so malformed data becomes a handled error state, not a crash.
-Report to Sentry/Datadog with context; add a reset mechanism (resetKeys) for retries.
-Pitfalls: one global boundary only, swallowing errors without reporting, fallback UI that itself can throw.
-Strong answer: boundaries + validation + observability + async error handling.
-Weak answer: "wrap everything in try/catch".`,
+        follow: `How do you find request waterfalls in a real app?`,
         exercises: [
           {
-            task: "Which of these errors does an error boundary catch?",
-            description: "Checks error boundary limits. Ask yes/no for each with reasoning.",
-            code: `// 1. A child throws during render
-// 2. onClick handler throws
-// 3. fetch().then() rejects inside useEffect
-// 4. The error boundary's own render throws`,
-            answer: "Only 1 is caught. Event handler errors (2), async errors in effects/promises (3) and errors in the boundary itself (4) are not; handle them with try/catch, error state or a higher boundary. Strong answers mention showBoundary from react-error-boundary to forward async errors.",
+            task: `Here getSettings needs the user team id. Make it as fast as possible.`,
+            description: `Checks partial parallelism when one call depends on another.`,
+            code: `const user = await api.getUser(id);
+const settings = await api.getSettings(user.teamId);
+const news = await api.getNews();`,
+            answer: `Start getNews immediately, then chain getSettings after getUser. Total time is max(news, user + settings).`,
+            solution: `const newsP = api.getNews();
+const user = await api.getUser(id);
+const [settings, news] = await Promise.all([api.getSettings(user.teamId), newsP]);`,
           },
           {
-            task: "Add runtime validation. Bad API data should show an error state, not crash the app.",
-            description: "Checks boundary validation design. Ask them to write the parsing layer.",
-            answer: "Parse responses with a schema at the API layer; failures become rejected queries handled by the UI's error state and reported with details.",
-            solution: `import { z } from 'zod';
-const Revenue = z.array(z.object({ month: z.string(), total: z.number() }));
-export const getRevenue = async () => {
-  const res = await fetch('/api/revenue');
-  if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
-  return Revenue.parse(await res.json());
-};`,
+            task: `How do you see a waterfall in the browser?`,
+            description: `Checks DevTools use.`,
+            answer: `Open the Network panel and look at the waterfall column: requests that start only when another ends form a staircase. The Performance panel shows the same on the timeline.`,
           },
         ],
       },
@@ -1900,42 +1848,32 @@ Weak answer: "tell teams to stop using !important".`,
   "Networking (Fetch API or others)": {
     junior: [
       {
-        q: "Does fetch reject on a 404 or 500 response?",
-        short: "No — fetch only rejects on network failures (or abort). You must check response.ok / response.status yourself.",
-        long: `fetch resolves for any HTTP response, including 4xx and 5xx.
-response.ok is true for 200–299; anything else should be turned into an error by your code.
-Rejection happens on DNS/network failures, CORS blocks and AbortController aborts.
-Pitfalls: calling res.json() on an error HTML page, forgetting credentials for cookies, no timeout by default.
-Strong answer: shows a wrapper that throws with status and parses error bodies safely.
-Weak answer: "yes, catch handles it".`,
+        q: `This search link breaks when the user types the and sign or a space. Fix it.`,
+        code: `const url = '/api/search?q=' + query + '&page=' + page;
+fetch(url);`,
+        short: `Query values must be encoded. Use URLSearchParams or encodeURIComponent so special characters do not break the URL.`,
+        long: `A URL has parts: protocol, host, path, query string and hash.
+In the query string, & separates pairs, = separates key and value, and # starts the hash.
+If the user types "a&b", the server sees q=a and a new key b.
+URLSearchParams or encodeURIComponent turns special characters into safe codes like %26.
+Never put personal data in URLs; they end up in logs and history.
+Strong answer: knows URL parts, uses URL and URLSearchParams, and mentions the privacy risk.`,
+        fix: `const url = new URL('/api/search', location.origin);
+url.searchParams.set('q', query);
+url.searchParams.set('page', String(page));
+fetch(url);`,
+        follow: `What is the difference between encodeURI and encodeURIComponent?`,
         exercises: [
           {
-            task: "Fix the bug. Errors from the server are never shown.",
-            description: "Checks that fetch doesn't reject on HTTP errors. Ask what the user sees when the server returns 500.",
-            code: `try {
-  const data = await fetch('/api/save', { method: 'POST' }).then((r) => r.json());
-  show('Saved!');
-} catch {
-  show('Failed');
-}`,
-            answer: "A 500 response resolves the promise, so 'Saved!' appears whenever the error body happens to be JSON. Check res.ok and throw. Most candidates think the catch runs. Strong answers check res.ok and handle non-JSON error bodies.",
-            solution: `try {
-  const res = await fetch('/api/save', { method: 'POST' });
-  if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
-  show('Saved!');
-} catch {
-  show('Failed');
-}`,
+            task: `What does the server receive for query "tom & jerry" with the old code?`,
+            description: `Checks understanding of query parsing.`,
+            answer: `The server gets q="tom " and a key " jerry" with no value. The & splits the value into two pairs.`,
           },
           {
-            task: "Send a JSON body with fetch. Explain each part.",
-            description: "Checks basic fetch usage for POST JSON. Ask them to write it from memory.",
-            answer: "Use method POST, a Content-Type: application/json header, and JSON.stringify the body; without the header many servers won't parse it. Weak answers forget the header or pass an object directly as body. Strong answers also check the response status.",
-            solution: `await fetch('/api/users', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'Ann' }),
-});`,
+            task: `Read the page number from the current URL safely.`,
+            description: `Checks reading query values.`,
+            answer: `Use URLSearchParams and convert to a number with a default.`,
+            solution: `const page = Number(new URLSearchParams(location.search).get('page')) || 1;`,
           },
         ],
       },
@@ -2102,39 +2040,31 @@ await fetchRetry('/api/payments', {
 }`,
       },
       {
-        q: "Compare WebSockets, Server-Sent Events, and long polling. How do you choose? What should you think about in production?",
-        short: "SSE: simple one-way server→client over HTTP with auto-reconnect; WebSockets: full-duplex, binary, lower overhead per message but more infra work; long polling: fallback with highest overhead. Production concerns: reconnection/resync, auth, proxies/load balancers, backpressure and scaling connections.",
-        long: `SSE (EventSource) is great for notifications and live feeds; it uses HTTP, works with HTTP/2 multiplexing, reconnects automatically and supports Last-Event-ID for resume.
-EventSource can't set custom headers — use cookies or a token in the URL (with care), or fetch-based SSE.
-WebSockets suit chat, collaboration, games; you implement heartbeats, reconnection and message ordering yourself.
-Infra: sticky sessions or a pub/sub backplane, idle timeouts on proxies, connection limits per server.
-Pitfalls: one socket per component, no heartbeat (zombie connections), unbounded client buffers.
-Strong answer: choice by requirements, plus reconnection, auth and scaling details.
-Weak answer: "WebSockets are always better".`,
+        q: `How do you design optimistic updates? How do you roll back when the request fails?`,
+        short: `Update the UI at once, keep the previous value, send the request, and on failure restore the old value and tell the user. Then sync with the server result.`,
+        long: `Optimistic updates make the app feel instant: the UI shows the change before the server confirms.
+Steps: save a snapshot, apply the change, send the request, on success replace with the server data, on failure restore the snapshot and show an error.
+Hard parts: two quick changes to the same item (the older response must not overwrite the newer), and server-generated values like ids.
+Use temporary ids, request versions or timestamps, and an idempotency key for safe retries.
+Only use it when failure is rare and easy to undo; payments should not be optimistic.
+Strong answer: covers rollback, ordering problems, idempotency and when not to use it.`,
+        follow: `Which actions should never be optimistic?`,
         exercises: [
           {
-            task: "Write a Server-Sent Events client. After it reconnects, it continues from the last event.",
-            description: "Checks EventSource semantics. Ask what the browser does automatically.",
-            answer: "EventSource auto-reconnects and sends Last-Event-ID if the server set ids, so the server can replay missed events. Strong answers handle onerror and closing on unmount.",
-            solution: `const es = new EventSource('/api/stream', { withCredentials: true });
-es.addEventListener('task-updated', (e) => store.apply(JSON.parse(e.data)));
-es.onerror = () => { /* browser retries automatically; show 'reconnecting' */ };
-// server: "id: 42\\nevent: task-updated\\ndata: {...}\\n\\n"
-// later: es.close();`,
+            task: `Write an optimistic toggle for a "like" button with rollback.`,
+            description: `Checks the snapshot and rollback flow.`,
+            answer: `Save the old value, set the new one, call the API, and restore on error.`,
+            solution: `async function toggleLike(post) {
+  const prev = post.liked;
+  setLiked(post.id, !prev);
+  try { await api.setLike(post.id, !prev); }
+  catch { setLiked(post.id, prev); toast('Could not save'); }
+}`,
           },
           {
-            task: "Add a heartbeat to find WebSocket connections that stopped working.",
-            description: "Checks connection liveness. Ask why onclose may never fire.",
-            answer: "Half-open connections (network drop, sleeping laptop) may not fire close for minutes. Send periodic pings and close/reconnect if no pong arrives in time.",
-            solution: `function withHeartbeat(ws, interval = 15000) {
-  let timeout;
-  const ping = setInterval(() => {
-    ws.send(JSON.stringify({ type: 'ping' }));
-    timeout = setTimeout(() => ws.close(4000, 'heartbeat timeout'), 5000);
-  }, interval);
-  ws.addEventListener('message', (e) => { if (JSON.parse(e.data).type === 'pong') clearTimeout(timeout); });
-  ws.addEventListener('close', () => { clearInterval(ping); clearTimeout(timeout); });
-}`,
+            task: `The user clicks like twice quickly. The first request fails after the second succeeds. What goes wrong?`,
+            description: `Checks ordering of responses.`,
+            answer: `The rollback from the first request restores an old value and overwrites the newer correct state. Track a version per item and ignore rollbacks and responses older than the latest change.`,
           },
         ],
       },
@@ -2372,58 +2302,40 @@ items.forEach((el) => { el.style.width = w + 'px'; });`,
         ai: true,
       },
       {
-        q: "In this single-page app, memory grows each time users change pages, until the tab crashes. Find the leaks and fix them.",
-        code: `function LiveTasks() {
-  const [tasks, setTasks] = useState([]);
-  useEffect(() => {
-    window.addEventListener('resize', () => setTasks((t) => [...t]));
-    const id = setInterval(() => fetchTasks().then(setTasks), 5000);
-    cache.push(tasks);
-  }, []);
-  return <List items={tasks} />;
-}`,
-        fix: `function LiveTasks() {
-  const [tasks, setTasks] = useState([]);
-  useEffect(() => {
-    const onResize = () => setTasks((t) => [...t]);
-    window.addEventListener('resize', onResize);
-    const controller = new AbortController();
-    const id = setInterval(() => fetchTasks({ signal: controller.signal }).then(setTasks).catch(() => {}), 5000);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      clearInterval(id);
-      controller.abort();
-    };
-  }, []);
-  return <List items={tasks} />;
-}`,
-        short: "The effect never cleans up: the resize listener and interval survive unmount and retain the component closure; a module-level cache grows without bound. Return a cleanup that removes listeners, clears intervals and aborts requests; bound caches. Diagnose with heap snapshots comparing before/after navigation.",
-        long: `Typical SPA leaks: listeners on window/document, timers, subscriptions, detached DOM nodes held in JS, unbounded caches/maps.
-Diagnose: Memory panel heap snapshots — navigate away and back several times, compare, look at retainers and "Detached" nodes.
-Fix with effect cleanup, AbortController, WeakMap/WeakRef for caches keyed by objects, LRU limits.
-Third-party widgets often need explicit destroy() calls on unmount.
-Pitfalls: assuming GC handles everything, StrictMode double effects hiding missing cleanups, closures capturing large data.
-Strong answer: systematic heap-snapshot process and correct cleanup patterns.
-Weak answer: "restart the browser".`,
+        q: `This code parses a huge JSON file on the main thread, so the page freezes. Move the work off the main thread.`,
+        code: `const res = await fetch('/api/report');
+const text = await res.text();
+const data = JSON.parse(text); // 80 MB
+const totals = computeTotals(data); // heavy loop
+render(totals);`,
+        short: `Do the download, parsing and heavy loop in a Web Worker and send only the small result back to the page.`,
+        long: `JavaScript on the main thread blocks input and paint, so a long parse makes the page freeze.
+A Web Worker runs on another thread. It can fetch, parse and compute, then post the result.
+Send back only what the UI needs; posting large objects costs time because data is copied with structured clone.
+For binary data, transfer ArrayBuffers instead of copying.
+Also ask whether the server can send less data or pre-computed totals; that is often the best fix.
+Strong answer: moves the work, keeps messages small, and questions the data size.`,
+        fix: `// report.worker.js
+self.onmessage = async () => {
+  const data = await (await fetch('/api/report')).json();
+  self.postMessage(computeTotals(data));
+};
+
+// main.js
+const worker = new Worker(new URL('./report.worker.js', import.meta.url), { type: 'module' });
+worker.onmessage = (e) => render(e.data);
+worker.postMessage('start');`,
+        follow: `What can a Web Worker not access?`,
         exercises: [
           {
-            task: "Describe the exact DevTools steps to confirm and find a leak when changing routes.",
-            description: "Checks hands-on memory profiling. Ask for a step-by-step procedure.",
-            answer: "Take a heap snapshot on page A, navigate to B and back N times, force GC, take another snapshot, use Comparison view to find growing constructors, inspect Retainers to find the holding reference (listener, closure, cache), fix and repeat to verify flat memory.",
+            task: `What can a Web Worker not do?`,
+            description: `Checks worker limits.`,
+            answer: `It cannot touch the DOM or window, and it has no localStorage. It can use fetch, IndexedDB, timers and postMessage.`,
           },
           {
-            task: "This cache has no size limit. Replace it with one that has a limit.",
-            description: "Checks cache design for long-lived SPAs. Ask for an LRU implementation.",
-            code: `const cache = new Map();
-export const getCached = (k, load) => cache.get(k) ?? (cache.set(k, load(k)), cache.get(k));`,
-            answer: "Use a Map's insertion order: on get, re-insert to mark as recent; on set beyond capacity, delete the oldest key.",
-            solution: `export function lru(limit = 100) {
-  const m = new Map();
-  return {
-    get(k) { if (!m.has(k)) return undefined; const v = m.get(k); m.delete(k); m.set(k, v); return v; },
-    set(k, v) { m.delete(k); m.set(k, v); if (m.size > limit) m.delete(m.keys().next().value); },
-  };
-}`,
+            task: `The worker sends back the whole 80 MB object and the page still freezes. Why?`,
+            description: `Checks message cost.`,
+            answer: `postMessage copies data with structured clone, and the main thread must rebuild the big object. Send only the small totals, or transfer an ArrayBuffer.`,
           },
         ],
       },
@@ -2592,41 +2504,25 @@ createApp({ apiUrl: config.apiUrl });`,
         ],
       },
       {
-        q: "What are preview environments that exist only for a short time? How do you set them up safely for a frontend app?",
-        short: "A per-PR deployment with a unique URL so reviewers, QA and designers test changes before merge. Build the PR, deploy to a unique path/subdomain, post the URL to the PR, point it at a non-production API, protect access, and tear it down on close.",
-        long: `Benefits: faster feedback, visual review, E2E against a real deployment, product sign-off.
-Configuration: runtime config or build-time env pointing to staging/mock APIs, never production data.
-Security: forked PRs must not get secrets (pull_request vs pull_request_target), add auth or noindex to previews.
-Cleanup: delete on PR close to control cost; keep URLs predictable (pr-123.preview.example.com).
-Pitfalls: previews hitting production, leaking secrets through untrusted PR code, CORS/auth callbacks not allowing preview domains.
-Strong answer: workflow, security around forks, data isolation and cleanup.
-Weak answer: "Vercel does it".`,
+        q: `What are branch protection and required status checks? How do they fit into CI?`,
+        short: `Branch protection rules stop direct pushes to main and require checks like tests and reviews to pass before a merge.`,
+        long: `Without protection, anyone can push broken code to main.
+Branch protection can require: a pull request, one or more approvals, passing status checks, an up-to-date branch, and no force pushes.
+Required status checks are CI jobs (lint, tests, build) that must be green.
+CODEOWNERS can require a review from the team that owns the changed files.
+A merge queue tests the change on top of the latest main, so two green PRs cannot break main together.
+Strong answer: lists the useful rules and knows about merge queues.`,
+        follow: `How can two green pull requests still break main when merged?`,
         exercises: [
           {
-            task: "Why is this workflow dangerous for a public repository?",
-            description: "Checks GitHub Actions security with forks. Ask what an attacker could do.",
-            code: `on: pull_request_target
-jobs:
-  preview:
-    steps:
-      - uses: actions/checkout@v4
-        with: { ref: \${{ github.event.pull_request.head.sha }} }
-      - run: npm ci && npm run build
-      - run: deploy --token \${{ secrets.DEPLOY_TOKEN }}`,
-            answer: "pull_request_target runs with repository secrets, and checking out the PR head executes untrusted code (npm install scripts, build) with those secrets. Use pull_request for untrusted code or never check out the head in pull_request_target.",
+            task: `Which rules do you turn on for the main branch of a frontend project?`,
+            description: `Checks a practical setup.`,
+            answer: `Require a pull request with at least one approval, require lint, unit tests and build to pass, block force pushes and deletions, and use CODEOWNERS for critical folders.`,
           },
           {
-            task: "Add a job that deletes the preview when the pull request is closed.",
-            description: "Checks lifecycle automation. Ask them to write the trigger and step.",
-            answer: "Trigger on pull_request closed and remove the environment named by the PR number.",
-            solution: `on:
-  pull_request:
-    types: [closed]
-jobs:
-  cleanup:
-    runs-on: ubuntu-latest
-    steps:
-      - run: ./scripts/delete-preview.sh pr-\${{ github.event.number }}`,
+            task: `A check is required but sometimes does not run because of path filters. The PR is stuck. Why?`,
+            description: `Checks a common GitHub trap.`,
+            answer: `A required check that is skipped by a workflow-level path filter never reports, so GitHub waits forever. Run the job always and skip steps inside it, or use a summary job that always reports.`,
           },
         ],
       },

@@ -195,33 +195,30 @@ end? I'd want the same feedback if I did it."`
       ]
     }],
     "techlead": [{
-      "q": "A director already promised a client a deadline that is not realistic. What do you do?",
+      "q": "How do you run a meeting where a technical decision must be made?",
       "ai": true,
-      "short": "Bring data quickly, offer options (reduced scope, phased delivery, extra resources), escalate early rather than late, and protect the team from silent crunch.",
-      "long": `The commitment exists; the lead's job is to turn it into something achievable without burning the team or the relationship.
-Steps: estimate honestly, identify the minimal valuable slice, prepare 2-3 options, meet the director privately first, help them reset expectations with the client.
-Respect the director's position - no "told you so", no public blame.
-Strong candidates: data-driven options, early escalation, care for both the client and the team.
-Weak candidates: "we'll just work weekends" or "not my problem, they promised it".
-Red flags: agreeing silently then missing the date, or going around the director to the client.`,
+      "short": "Send a short pre-read with options and a recommendation, invite only the people needed, name who decides, time-box the discussion, and write down the decision and owners at the end.",
+      "long": `Many decision meetings end with "let's discuss more" because nobody prepared or nobody owns the decision.
+Strong candidates: written pre-read (problem, options, trade-offs, recommendation), clear decider, quiet voices invited to speak, parking lot for side topics, decision + next steps posted within the hour.
+Weak candidates: open discussion with no agenda, hoping for consensus.
+Red flags: deciding alone after the meeting without telling people, or letting the loudest person win by default.`,
+      "follow": "What do you do when the meeting ends without a decision?",
       "exercises": [
         {
-          "task": "Role-play: a director promised a client 6 weeks. Your team estimates 10 weeks. Start a private talk with the director.",
-          "description": "Checks managing up on an unrealistic commitment. Interviewer plays the director; judge tone and options.",
-          "answer": "Strong: private first, no blame, numbers, 2-3 concrete options (phased scope, added people, new date), offer to help with the client conversation, time-bound ask. Red flags: 'told you so', silently accepting with planned overtime, going to the client directly.",
-          "solution": `"Hi Anna - we sized the client project: full scope is ~10 weeks, the promise was 6.
-Two ways to keep the date meaningful: (1) core dashboard in 6 weeks, exports and
-SSO by week 10, or (2) borrow two engineers from Team B, ~8 weeks. Can we talk
-today? I'm happy to join the client call and present the plan with you."`
+          "task": "Role-play: open a 30-minute meeting to choose between two state management libraries.",
+          "description": "Checks facilitation. Interviewer plays a team member; judge structure and clarity.",
+          "answer": "Strong: states the goal and the decider, recaps the pre-read in one minute, sets a time box, asks each person for concerns, closes with a decision or a clear next step. Red flags: no goal, no decider, starts with own opinion for ten minutes.",
+          "solution": `"Goal for today: pick our state library for the new app. I'll make the call at the
+end unless we have a clear consensus. You all read the comparison doc - quick recap:
+option A is simpler, option B handles server cache better. Let's take 15 minutes for
+concerns, starting with the people who'll use it most. Priya, you first?"`
         },
         {
-          "task": "Role-play: the director replies 'No, we can't go back to the client. Make it work.' What do you say next?",
-          "description": "Checks holding a line on quality while respecting a fixed constraint. Continue the previous role-play with pushback.",
-          "answer": "Strong: stays calm, restates the constraint, makes the trade-off explicit (what gets cut or what risk is taken), refuses hidden crunch or skipping quality, documents the decision and risk in writing, escalates if needed. Red flags: caving silently, threatening, agreeing to weekends without the team.",
-          "solution": `"Understood that the date is fixed. Then scope has to move: in 6 weeks we can
-ship reporting and the dashboard; exports and SSO won't fit without cutting
-testing, which I won't recommend for a client launch. I'll put this in writing
-with the risks so we're aligned - and if you want, let's review it with Mark too."`
+          "task": "Role-play: one senior keeps talking and others stay quiet. Handle it in the meeting.",
+          "description": "Checks balancing voices without embarrassing anyone.",
+          "answer": "Strong: thanks the senior, summarizes their point, and directly invites others; uses a round or written input. Red flags: lets it continue, or shames the senior in front of the team.",
+          "solution": `"Thanks, Mark - so your main worry is the learning curve. Let's hear from people
+who haven't spoken yet. Ana, Leo - what concerns do you have? One minute each."`
         }
       ]
     }, {

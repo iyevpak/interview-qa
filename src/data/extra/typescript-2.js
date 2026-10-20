@@ -3,42 +3,77 @@ export default {
     'Class, Prototyping': {
       junior: [
         {
-          q: 'What is a parameter property in a class constructor?',
-          short: 'Adding an access modifier (public/private/protected/readonly) to a constructor parameter declares and assigns a class field in one step.',
-          long: `constructor(private name: string) {} is shorthand for declaring a field and assigning this.name = name.\nIt works with public, private, protected and readonly.\nIt is TS-only syntax that emits real JS assignments, so it is not erasable.\nWith --erasableSyntaxOnly (TS 5.8) or Node type stripping it is rejected.\nMany teams still use it for DI-heavy code (Angular, NestJS).\nPrefer explicit fields when targeting type-stripping runtimes.`,
+          q: 'What does instanceof check? Does it work with interfaces?',
+          short: 'instanceof checks the prototype chain at runtime. Interfaces do not exist at runtime, so you cannot use instanceof with them.',
+          long: `\`x instanceof Foo\` walks x's prototype chain looking for Foo.prototype.
+TypeScript uses it for narrowing inside an if block.
+Interfaces and type aliases are erased, so \`x instanceof User\` fails if User is an interface.
+For interfaces, write a type guard function or use the \`in\` operator.
+Pitfall: instanceof can fail across iframes or with two copies of the same library.
+Strong answer: knows it is a runtime check and suggests a type guard for interfaces.
+Weak answer: thinks TypeScript adds runtime checks for interfaces.`,
+          follow: 'Why can instanceof fail with two copies of a library?',
           exercises: [
             {
-              task: 'Rewrite this class. Use normal fields instead of parameter properties.',
-              description: 'Checks understanding of what the shorthand emits. Run with tsc and compare output JS.',
-              code: `class User { constructor(public id: number, private readonly email: string) {} }`,
-              answer: 'Declare id: number and private readonly email: string as fields and assign them in the constructor body. The emitted JS is identical in behavior. The explicit form also passes erasableSyntaxOnly.',
-              solution: `class User {\n  id: number;\n  private readonly email: string;\n  constructor(id: number, email: string) { this.id = id; this.email = email; }\n}`,
+              task: 'Fix this code. User is an interface.',
+              description: 'Checks that interfaces are erased.',
+              code: `interface User { name: string }
+function hi(x: unknown) { if (x instanceof User) console.log(x.name); }`,
+              answer: 'Write a type guard that checks the shape, or use `\'name\' in x`.',
+              solution: `function isUser(x: unknown): x is User {
+  return typeof x === 'object' && x !== null && 'name' in x;
+}`,
             },
             {
-              task: 'Can you change a readonly field inside a method? Explain.',
-              description: 'Checks readonly semantics. Paste into the TS playground.',
-              answer: 'No. readonly fields may only be assigned in the declaration or the constructor. Assigning in a method gives error TS2540. At runtime nothing prevents mutation; it is compile-time only.',
+              task: 'What does this print?',
+              description: 'Checks the prototype chain.',
+              code: `class Animal {}
+class Dog extends Animal {}
+const d = new Dog();
+console.log(d instanceof Dog, d instanceof Animal);`,
+              answer: 'It prints true twice, because Dog.prototype inherits from Animal.prototype.',
             },
           ],
         },
         {
-          q: 'Fix this error. A field has no starting value.',
-          code: `class Counter {\n  count: number;\n  label: string;\n  constructor() { this.label = 'c'; }\n}`,
-          short: 'Under strictPropertyInitialization every non-optional field must be initialized in the declaration or constructor.',
-          long: `strict enables strictPropertyInitialization.\ncount is never assigned, so TS2564 is reported.\nFix by giving a default, assigning in the constructor, or making it optional.\nThe definite assignment assertion (count!: number) silences the check but is unsafe.\nUse ! only when a framework guarantees initialization (e.g. lifecycle hooks).`,
-          fix: `class Counter {\n  count = 0;\n  label: string;\n  constructor() { this.label = 'c'; }\n}`,
+          q: 'Fix this code. It assigns a value to a getter that has no setter.',
+          code: `class Temp {
+  private c = 0;
+  get celsius() { return this.c; }
+}
+const t = new Temp();
+t.celsius = 20;`,
+          fix: `class Temp {
+  private c = 0;
+  get celsius() { return this.c; }
+  set celsius(v: number) { this.c = v; }
+}
+const t = new Temp();
+t.celsius = 20;`,
+          short: 'A getter without a setter is read-only in TypeScript, so the assignment is an error. Add a setter or use a method.',
+          long: `TypeScript treats a get-only accessor as a readonly property.
+At runtime, the assignment would be ignored or throw in strict mode.
+The getter and setter live on the prototype, not on the instance.
+Pitfall: adding a setter without validation can let bad values in.
+Strong answer: adds a setter and maybe validates the value.
+Weak answer: makes the private field public.`,
+          follow: 'Where do getters live, on the instance or on the prototype?',
           exercises: [
             {
-              task: 'Fix three fields. Use a different way for each one.',
-              description: 'Checks the options for initialization. Run tsc --strict.',
-              code: `class A { a: number; b: string; c: Date; }`,
-              answer: 'Use a default (a = 0), an optional modifier (b?: string), and constructor assignment for c. Each satisfies strictPropertyInitialization. Avoid ! unless initialization is guaranteed externally.',
-              solution: `class A { a = 0; b?: string; c: Date; constructor() { this.c = new Date(); } }`,
+              task: 'Add a setter that rejects negative values.',
+              description: 'Checks setter logic.',
+              code: 'class Box { private w = 0; get width() { return this.w; } }',
+              answer: 'Throw or ignore when v is below zero. A strong answer explains why validation fits in a setter.',
+              solution: `class Box {
+  private w = 0;
+  get width() { return this.w; }
+  set width(v: number) { if (v < 0) throw new Error('negative'); this.w = v; }
+}`,
             },
             {
-              task: 'When is the exclamation mark on a field okay to use?',
-              description: 'Checks judgement on assertions. Discussion.',
-              answer: 'It is acceptable when something outside the constructor reliably assigns the field before use, like Angular @ViewChild or an init() called by a framework. It disables a safety check, so a reviewer should see a reason. Prefer redesigning to constructor injection.',
+              task: 'Does Object.keys(new Temp()) include celsius? Why?',
+              description: 'Checks where accessors live.',
+              answer: 'No. Accessors are on the prototype, so Object.keys only shows own fields like c. This also matters for JSON.stringify.',
             },
           ],
         },
@@ -81,59 +116,114 @@ export default {
           ],
         },
         {
-          q: 'Fix this code. A typo in the child class creates a new method by mistake.',
-          code: `class Base { render() {} }\nclass Child extends Base { renderr() { /* meant to override */ } }`,
-          short: 'Enable noImplicitOverride and mark overriding methods with override so renames and typos become errors.',
-          long: `Without override, a typo or base rename silently creates a new method.\nThe override keyword asserts a base member with that name exists.\nnoImplicitOverride requires override on every overriding member.\nBase renames then produce TS4113/TS4114 errors in subclasses.\nIt also documents intent for readers.\nIt costs nothing at runtime; it is erased.`,
-          fix: `// tsconfig: "noImplicitOverride": true\nclass Base { render() {} }\nclass Child extends Base { override render() {} }`,
+          q: 'Fix this code. A method is added to the prototype by hand, and TypeScript does not know about it.',
+          code: `class Money { constructor(public cents: number) {} }
+(Money.prototype as any).format = function () { return '$' + this.cents / 100; };
+new Money(150).format();`,
+          fix: `class Money { constructor(public cents: number) {} }
+interface Money { format(): string }
+Money.prototype.format = function (this: Money) { return '$' + this.cents / 100; };
+new Money(150).format();`,
+          short: 'Declare the method with an interface that has the same name as the class. The interface merges into the instance type.',
+          long: `A class creates an instance type, and an interface with the same name merges into it.
+Then \`Money.prototype.format = ...\` type-checks, and calls work.
+The \`this: Money\` parameter types \`this\` inside the function.
+Pitfall: the merged interface only promises the method; if the assignment never runs, calls crash.
+Better for your own code: add the method inside the class. Use merging for patches and plugins.
+Strong answer: knows class plus interface merging and its risk.
+Weak answer: keeps \`as any\`.`,
+          follow: 'When is patching a prototype a bad idea?',
           exercises: [
             {
-              task: 'Turn on noImplicitOverride in a small project. Fix all errors.',
-              description: 'Checks migration skill. Run tsc --noEmit.',
-              answer: 'Each method that shadows a base member gets override. Any method marked override without a base counterpart errors, revealing typos. The fix is mechanical and safe.',
+              task: 'Add a typed method last() to arrays with global augmentation.',
+              description: 'Checks augmenting a built-in prototype.',
+              answer: 'Use `declare global { interface Array<T> { last(): T | undefined } }` and add it to Array.prototype. A strong answer warns about conflicts with future standard methods.',
+              solution: `declare global { interface Array<T> { last(): T | undefined } }
+Array.prototype.last = function () { return this[this.length - 1]; };
+export {};`,
             },
             {
-              task: 'A method has the override keyword, but the parent has no such method. What happens?',
-              description: 'Checks keyword semantics. Playground.',
-              answer: 'TS4113: This member cannot have an override modifier because it is not declared in the base class. This catches renames in the base. It is the main value of the keyword.',
+              task: 'Why is the method missing on the instance in this check?',
+              description: 'Checks own versus prototype properties.',
+              code: `const m = new Money(1);
+console.log(m.hasOwnProperty('format'));`,
+              answer: 'hasOwnProperty is false because format is on the prototype. `\'format\' in m` is true.',
             },
           ],
         },
         {
-          q: 'Fix this code. The child method does not replace the parent arrow function.',
-          code: `class Base { handle = () => 'base'; }\nclass Child extends Base { handle() { return 'child'; } }\nnew Child().handle(); // 'base'`,
-          short: 'Arrow fields are own instance properties that shadow prototype methods; use a method and bind where needed.',
-          long: `Field initializers run in the constructor and create own properties.\nChild.handle lives on the prototype, which the own property shadows.\nTS reports an error: a property cannot be overridden by a method (TS2425).\nUse prototype methods and bind at the call site or in the constructor.\nArrow fields also cost memory per instance and cannot use super.\nKeep arrow fields for leaf classes and callbacks only.`,
-          fix: `class Base { handle() { return 'base'; } }\nclass Child extends Base { override handle() { return 'child'; } }\nconst fn = child.handle.bind(child);`,
+          q: 'Fix this code. One class field uses another field before it is set.',
+          code: `class Price {
+  total = this.net * (1 + this.tax);
+  net = 100;
+  tax = 0.2;
+}`,
+          fix: `class Price {
+  net = 100;
+  tax = 0.2;
+  total = this.net * (1 + this.tax);
+}`,
+          short: 'Fields are set from top to bottom. total runs first, when net and tax are still undefined, so it becomes NaN. TS reports "used before its initialization".',
+          long: `Class field initializers run in source order, before the constructor body.
+TypeScript gives error 2729 when a field reads another field declared below it.
+In a subclass, parent fields are set during super(), then child fields.
+Pitfall: a getter for total avoids order problems and stays correct when net changes.
+Strong answer: reorders fields or uses a getter, and explains the order.
+Weak answer: adds \`!\` to silence it.`,
+          follow: 'When do child class fields get their values compared with the parent constructor?',
           exercises: [
             {
-              task: 'Where is the handle function stored in each version? Check with Object.hasOwn.',
-              description: 'Checks prototype understanding. Run with node after tsc.',
-              answer: 'With an arrow field, Object.hasOwn(instance, "handle") is true. With a method it is false and the function is on Base.prototype. This explains the shadowing.',
+              task: 'Change total into a getter so it always matches net and tax.',
+              description: 'Checks derived values.',
+              answer: 'A getter computes on read, so there is no order problem and no stale value.',
+              solution: 'class Price { net = 100; tax = 0.2; get total() { return this.net * (1 + this.tax); } }',
             },
             {
-              task: 'Pass a method as an event callback safely. Do not use an arrow field.',
-              description: 'Checks this-binding options. tsc --strict.',
-              answer: 'Bind in the constructor: this.handle = this.handle.bind(this), or wrap at the call site with () => obj.handle(). Optionally declare a this parameter (handle(this: Base)) so unbound usage errors at compile time.',
+              task: 'What does this print?',
+              description: 'Checks parent and child initialization order.',
+              code: `class A { name = 'base'; constructor() { console.log(this.name); } }
+class B extends A { name = 'child'; }
+new B();`,
+              answer: 'It prints "base" because the parent constructor runs before the child field is set. Weak answers say "child".',
             },
           ],
         },
       ],
       senior: [
         {
-          q: 'How does the "this" return type help with method chaining in child classes?',
-          short: 'Returning this from methods types the return as the subclass instance, so chained calls keep subclass methods.',
-          long: `A method returning this gets the polymorphic this type.\nIn a subclass chain, base methods return the subclass type.\nReturning the class name instead loses subclass members.\nthis types also work in interfaces and type guards (this is Foo).\nThey cannot be used in static members.\nUseful for builders, query DSLs and fluent configs.`,
+          q: 'What is a static block in a class, and when do you use it?',
+          short: 'A `static { ... }` block runs once when the class is defined. Use it for setup of static fields that needs more than one expression.',
+          long: `Static blocks came in ES2022 and TypeScript 4.4.
+They can read and set private static fields, so setup logic stays inside the class.
+They run in order with static field initializers.
+Typical use: building a lookup table, try/catch around setup, or sharing private access with a helper outside the class.
+Pitfall: heavy work in a static block runs on import and slows startup.
+Strong answer: gives a real use and mentions it runs at class definition.
+Weak answer: confuses it with a constructor.`,
+          follow: 'When does a static block run?',
           exercises: [
             {
-              task: 'Build a query builder with a "where" method. Add a child class with "orderBy". Chain both.',
-              description: 'Checks this-typing. tsc --strict.',
-              answer: 'Declare where(): this and return this. The subclass instance calling where() retains its type, so orderBy is available. If where returned QueryBuilder the chain would fail.',
+              task: 'Move this setup code into a static block.',
+              description: 'Checks syntax and access to private statics.',
+              code: `class Currency { static #byCode = new Map<string, number>(); }
+for (const [c, d] of [['USD', 2], ['JPY', 0]] as const) /* cannot reach #byCode here */;`,
+              answer: 'Inside the class, a static block can fill the private map. A strong answer notes this keeps #byCode private.',
+              solution: `class Currency {
+  static #byCode = new Map<string, number>();
+  static {
+    for (const [c, d] of [['USD', 2], ['JPY', 0]] as const) Currency.#byCode.set(c, d);
+  }
+}`,
             },
             {
-              task: 'Write an isFile method that narrows "this" to a file node.',
-              description: 'Checks this-based type guards. Playground.',
-              answer: 'Declare isFile(): this is FileNode { return this instanceof FileNode; }. After if (node.isFile()) node narrows to FileNode. This avoids casting in tree walkers.',
+              task: 'In which order do the logs appear?',
+              description: 'Checks static order.',
+              code: `class X {
+  static a = console.log('a');
+  static { console.log('block'); }
+  static b = console.log('b');
+}`,
+              answer: 'It logs "a" then "block" then "b": static fields and blocks run top to bottom.',
             },
           ],
         },
@@ -315,59 +405,97 @@ export default {
           ],
         },
         {
-          q: 'Fix this cache. It keeps growing and never frees memory.',
-          code: `const cache = new Map<object, string>();\nfunction label(o: object) {\n  if (!cache.has(o)) cache.set(o, expensive(o));\n  return cache.get(o)!;\n}`,
-          short: 'Use WeakMap for object-keyed caches so entries are collected with their keys.',
-          long: `A Map holds strong references; every key stays alive.\nIn long-lived SPAs this leaks memory per processed object.\nWeakMap releases entries when the key is unreachable.\nAlso remove the non-null assertion by storing the computed value.\nFor primitive keys use an LRU with a size bound.\nMeasure with heap snapshots.`,
-          fix: `const cache = new WeakMap<object, string>();\nfunction label(o: object) {\n  let v = cache.get(o);\n  if (v === undefined) { v = expensive(o); cache.set(o, v); }\n  return v;\n}`,
+          q: 'Fix this code. A Map with array keys never finds the value.',
+          code: `const prices = new Map<[string, string], number>();
+prices.set(['USD', 'EUR'], 0.92);
+console.log(prices.get(['USD', 'EUR'])); // undefined`,
+          fix: `const prices = new Map<\`\${string}:\${string}\`, number>();
+const key = (a: string, b: string) => \`\${a}:\${b}\` as const;
+prices.set(key('USD', 'EUR'), 0.92);
+console.log(prices.get(key('USD', 'EUR'))); // 0.92`,
+          short: 'Map compares object keys by reference, so a new array is a different key. Use a string key built from the parts.',
+          long: `Map uses SameValueZero: primitives by value, objects by identity.
+Two arrays with the same items are different objects.
+Build a stable string key, and a template literal type can describe its format.
+Pitfall: choose a separator that cannot appear in the parts.
+Strong answer: explains identity and types the key.
+Weak answer: uses JSON.stringify everywhere without thinking about key order.`,
+          follow: 'Why is JSON.stringify a risky key for objects?',
           exercises: [
             {
-              task: 'Write a generic memoize helper that uses a WeakMap.',
-              description: 'Checks generic WeakMap typing. tsc --strict.',
-              answer: 'Create a WeakMap<K, V> inside and return (k: K) => cached or computed. The constraint K extends object (or WeakKey) is required. Types flow from fn.',
+              task: 'Does this Set have size 1 or 2?',
+              description: 'Checks object identity in Set.',
+              code: 'const s = new Set([{ id: 1 }, { id: 1 }]);',
+              answer: 'Size is 2, because the two objects are different references.',
             },
             {
-              task: 'How do you check that the memory leak is fixed?',
-              description: 'Checks tooling. Chrome DevTools.',
-              answer: 'Take heap snapshots before and after processing many objects, then compare retained sizes. With WeakMap the objects disappear after GC. Node can use --expose-gc and process.memoryUsage.',
+              task: 'Remove duplicate users by id using a Map.',
+              description: 'Checks keyed de-duplication.',
+              code: 'type User = { id: number; name: string };',
+              answer: 'Map by id, then take values.',
+              solution: 'const unique = (us: User[]) => [...new Map(us.map((u) => [u.id, u])).values()];',
             },
           ],
         },
         {
-          q: 'Fix this code. Calling "has" does not make "get" safe.',
-          code: `const users = new Map<string, User>();\nif (users.has(id)) {\n  users.get(id).name; // possibly undefined\n}`,
-          short: 'has does not narrow get in TS; read once, then check undefined.',
-          long: `TS has no link between has and get calls.\nThe get result remains User | undefined.\nUsing ! is unsafe if values can be undefined.\nRead the value into a variable and check it.\nThis also avoids two lookups.\nA wrapper getOrThrow is useful for invariants.`,
-          fix: `const user = users.get(id);\nif (user) user.name;`,
+          q: 'Fix this code. Saving a Map as JSON gives an empty object.',
+          code: `const scores = new Map<string, number>([['ann', 3]]);
+localStorage.setItem('s', JSON.stringify(scores)); // "{}"`,
+          fix: `const scores = new Map<string, number>([['ann', 3]]);
+localStorage.setItem('s', JSON.stringify([...scores]));
+const back = new Map<string, number>(JSON.parse(localStorage.getItem('s') ?? '[]'));`,
+          short: 'JSON.stringify ignores Map entries. Convert to an array of pairs (or Object.fromEntries) before saving, and rebuild the Map when loading.',
+          long: `A Map has no own enumerable properties, so JSON sees an empty object.
+Save \`[...map]\` (pairs) or \`Object.fromEntries(map)\` for string keys.
+When loading, JSON.parse returns any; validate it or type it as unknown first.
+Sets have the same problem: save \`[...set]\`.
+Pitfall: Object.fromEntries turns non-string keys into strings.
+Strong answer: converts both ways and validates on load.
+Weak answer: expects JSON to handle Map.`,
+          follow: 'When would you choose pairs over Object.fromEntries?',
           exercises: [
             {
-              task: 'Write a helper. It gets a value, or creates and saves it if missing.',
-              description: 'Checks typed helper. tsx.',
-              answer: 'Get the value; if undefined, compute with make(), set and return it. Return type V. Newer libs may type Map.prototype.getOrInsert as the proposal advances; check your lib target.',
+              task: 'Write a replacer and reviver for JSON that keep Maps.',
+              description: 'Checks JSON hooks.',
+              answer: 'Tag Maps in the replacer and rebuild them in the reviver.',
+              solution: `const replacer = (_: string, v: unknown) => v instanceof Map ? { __map: [...v] } : v;
+const reviver = (_: string, v: any) => v && v.__map ? new Map(v.__map) : v;`,
             },
             {
-              task: 'The Map values can be undefined. Why is the exclamation mark dangerous?',
-              description: 'Checks value semantics. Discussion.',
-              answer: 'has may be true while the stored value is undefined, so ! lies. The check must be on the value itself. That is why the read-then-check pattern is preferred.',
+              task: 'What does this print?',
+              description: 'Checks Set serialization.',
+              code: 'console.log(JSON.stringify(new Set([\'a\'])));',
+              answer: 'It prints "{}". Use `[...tags]` to get ["a"].',
             },
           ],
         },
       ],
       senior: [
         {
-          q: 'How does TypeScript type the new Set methods, like union and intersection?',
-          short: 'TS 5.5+ lib esnext.collection types them; they accept ReadonlySetLike<U> and return new Sets.',
-          long: `Methods: union, intersection, difference, symmetricDifference, isSubsetOf, isSupersetOf, isDisjointFrom.\nAvailable with lib esnext (TS 5.5+).\nArguments are set-like: size, has, keys — so Maps also work.\nunion<U> returns Set<T | U>; intersection<U> returns Set<T & U>.\nRuntime support: modern evergreen browsers and Node 22.\nPolyfill or guard for older targets.`,
+          q: 'What are ReadonlyMap and ReadonlySet? When do you return them from a function?',
+          short: 'They are types without set, add, delete or clear. Return them when callers should read the collection but not change it.',
+          long: `ReadonlyMap<K, V> and ReadonlySet<T> keep get, has, size and iteration.
+A normal Map is assignable to ReadonlyMap, so no copy is needed.
+This protects internal caches that a class exposes.
+Pitfall: it is only a compile-time check; a cast back to Map can still change it.
+Pitfall: values inside are not deep-readonly.
+Strong answer: uses them for public getters and knows the limits.
+Weak answer: thinks they freeze the Map at runtime.`,
+          follow: 'Can a caller still change the objects stored as values?',
           exercises: [
             {
-              task: 'Find the permissions a user is missing. Use the difference method.',
-              description: 'Checks API usage. Node 22 + lib esnext.',
-              answer: 'required.difference(granted) returns a Set of missing items. Typed as Set<T>. It does not mutate either set.',
+              task: 'Change this getter so callers cannot add users.',
+              description: 'Checks ReadonlyMap.',
+              code: 'class Store { private users = new Map<string, User>(); getUsers() { return this.users; } }',
+              answer: 'Return ReadonlyMap; the internal field stays a Map.',
+              solution: 'class Store { private users = new Map<string, User>(); getUsers(): ReadonlyMap<string, User> { return this.users; } }',
             },
             {
-              task: 'What happens if your lib setting does not include these methods?',
-              description: 'Checks lib config. tsc.',
-              answer: 'TS errors that the property does not exist on Set. Runtime may still support it. Add the lib or write a helper function.',
+              task: 'Does this compile?',
+              description: 'Checks readonly methods.',
+              code: `const tags: ReadonlySet<string> = new Set(['a']);
+tags.add('b');`,
+              answer: 'No, add does not exist on ReadonlySet.',
             },
           ],
         },
@@ -412,40 +540,64 @@ export default {
       ],
       techlead: [
         {
-          q: 'Some state must be saved as JSON. What rules do you set for Map and Set in that state?',
-          short: 'Keep serializable state as plain records/arrays and derive Maps/Sets in selectors; enforce with types and middleware checks.',
-          long: `JSON drops Map/Set to {}; structuredClone keeps them but not across HTTP.\nSSR hydration and localStorage need JSON-safe types.\nDefine a Serializable<T> type that rejects Map/Set/Date/functions.\nDerive indexes (Map by id) with memoized selectors.\nRedux Toolkit's serializableCheck enforces it at runtime in dev.\nDocument exceptions such as in-memory query caches.`,
-          ai: true,
+          q: 'When would you use a WeakMap to store private data instead of #private fields?',
+          short: 'Use a WeakMap when you add data to objects you do not own, like DOM nodes or objects from a library. Use #private for your own classes.',
+          long: `A WeakMap keyed by an object holds extra data without changing the object and without stopping garbage collection.
+#private fields only work inside the class that declares them.
+WeakMap fits caches, metadata, and per-object state in shared libraries.
+TypeScript downlevels #private to WeakMaps for old targets anyway.
+Pitfall: WeakMaps are not iterable and cannot be debugged easily.
+Strong answer: picks by ownership of the object.
+Weak answer: uses WeakMap for everything.`,
+          follow: 'Why is a WeakMap not iterable?',
           exercises: [
             {
-              task: 'Write a type check that finds Map fields in a state type.',
-              description: 'Checks type-level enforcement. tsc.',
-              answer: 'Define a recursive type mapping Map/Set/functions to never, then assert State extends Serializable<State>. Compile errors point at offending fields. type-fest Jsonify is a ready alternative.',
+              task: 'Store a click count for any DOM element without adding a property to it.',
+              description: 'Checks WeakMap for foreign objects.',
+              answer: 'Use WeakMap<Element, number>.',
+              solution: `const clicks = new WeakMap<Element, number>();
+function track(el: Element) { clicks.set(el, (clicks.get(el) ?? 0) + 1); }`,
             },
             {
-              task: 'The store already uses many Sets. How do you migrate it?',
-              description: 'Checks rollout thinking. Discussion.',
-              answer: 'Introduce selectors that return Sets derived from arrays, migrate writers slice by slice, and add a persistence migration version. Keep tests on selector outputs. Remove the Sets once no writer uses them.',
+              task: 'A team writes this. What would you change?',
+              description: 'Checks the better choice for own classes.',
+              code: `const tokens = new WeakMap<Client, string>();
+class Client { constructor(t: string) { tokens.set(this, t); } }`,
+              answer: 'For their own class, #token is simpler and clearer.',
             },
           ],
         },
         {
-          q: 'Fix this code. It builds a new Map on every call in a hot path.',
-          code: `export function findCountry(code: string) {\n  const m = new Map(COUNTRIES.map(c => [c.code, c]));\n  return m.get(code);\n}`,
-          short: 'Build the index once at module scope (or lazily) and type it as ReadonlyMap.',
-          long: `Rebuilding is O(n) per call and allocates garbage.\nHoist to module scope or lazy-init once.\nExpose ReadonlyMap to prevent mutation by consumers.\nas const on the source gives literal key types.\nProfile to confirm; small tables may not matter.\nAdd a lint or review rule for allocation in hot paths.`,
-          fix: `const BY_CODE: ReadonlyMap<string, Country> = new Map(COUNTRIES.map(c => [c.code, c] as const));\nexport const findCountry = (code: string) => BY_CODE.get(code);`,
-          ai: true,
+          q: 'Fix this server code. A module-level Map is shared between requests and leaks user data.',
+          code: `const currentUser = new Map<string, User>();
+export async function handler(req: Request) {
+  currentUser.set('me', await auth(req));
+  return render(currentUser.get('me')!);
+}`,
+          fix: `import { AsyncLocalStorage } from 'node:async_hooks';
+const userStore = new AsyncLocalStorage<User>();
+export async function handler(req: Request) {
+  return userStore.run(await auth(req), () => render(userStore.getStore()!));
+}`,
+          short: 'A module Map lives for the whole server process, so concurrent requests overwrite each other. Keep per-request data in request scope, like AsyncLocalStorage or passed parameters.',
+          long: `In SSR and Node servers, modules load once and are shared by all requests.
+Two awaiting requests can read each other's data from a shared Map.
+Pass data as arguments, use framework request context, or AsyncLocalStorage.
+Module-level Maps are fine for real global caches with no user data.
+Pitfall: the bug only appears under load, so tests pass.
+Strong answer: explains concurrency and gives a scoped solution.
+Weak answer: clears the Map at the end of each request.`,
+          follow: 'Which caches are safe at module level on a server?',
           exercises: [
             {
-              task: 'Measure the speed of both versions.',
-              description: 'Checks measurement. Use vitest bench or mitata.',
-              answer: 'The hoisted version is orders of magnitude faster for repeated calls. Allocation also drops to zero per call. Present numbers before mandating a pattern.',
+              task: 'Why does clearing the Map at the end of the handler not fix it?',
+              description: 'Checks concurrency reasoning.',
+              answer: 'Requests overlap at await points, so another request can read or overwrite the entry before it is cleared.',
             },
             {
-              task: 'Make the key type a union of the real country codes.',
-              description: 'Checks as const typing. tsc.',
-              answer: 'Declare COUNTRIES as const and type CountryCode = typeof COUNTRIES[number]["code"]. Use ReadonlyMap<CountryCode, Country>. Callers then get autocomplete and errors on bad codes.',
+              task: 'Write a code review rule for module state in SSR code.',
+              description: 'Checks policy.',
+              answer: 'No mutable module state with user data; caches must have a key that includes the tenant or be read-only.',
             },
           ],
         },
@@ -566,21 +718,43 @@ export default {
           ],
         },
         {
-          q: 'Fix this helper. It does not close the source when the loop stops early.',
-          code: `function* mapIter<T, U>(src: Iterator<T>, f: (t: T) => U) {\n  let r = src.next();\n  while (!r.done) { yield f(r.value); r = src.next(); }\n}`,
-          short: 'Consume via for..of over an Iterable so return() propagates, or call src.return?.() in finally.',
-          long: `Manual next() loops do not propagate early termination.\nfor..of calls return() on break, throw or return.\nAccept Iterable<T> and use for..of inside the generator.\nOr wrap the loop in try/finally calling src.return?.().\nThis matters for resources (file handles, DB cursors).\nES2025 iterator helpers (Iterator.prototype.map) do this natively.`,
-          fix: `function* mapIter<T, U>(src: Iterable<T>, f: (t: T) => U) {\n  for (const v of src) yield f(v);\n}`,
+          q: 'Fix this code. The generator return value is lost in the for-of loop.',
+          code: `function* steps(): Generator<string, number> {
+  yield 'a'; yield 'b';
+  return 2;
+}
+for (const s of steps()) console.log(s);
+// how many steps? the 2 is never seen`,
+          fix: `function* steps(): Generator<string, number> {
+  yield 'a'; yield 'b';
+  return 2;
+}
+const it = steps();
+let r = it.next();
+while (!r.done) { console.log(r.value); r = it.next(); }
+console.log('count', r.value); // 2`,
+          short: 'for-of ignores the value from return. Call next() by hand to read the final result, where done is true.',
+          long: `A generator yields TYield values and finally returns TReturn.
+for-of, spread and Array.from stop when done is true and drop that value.
+To read it, loop with next(), or use \`yield*\` inside another generator, which evaluates to the return value.
+Pitfall: putting real data in the return value surprises users; yield it instead if callers need it.
+Strong answer: knows for-of drops the return and shows next() or yield*.
+Weak answer: thinks the return value is yielded.`,
+          follow: 'What does `const x = yield* inner()` give you?',
           exercises: [
             {
-              task: 'Prove that cleanup runs. Add a finally block to the source generator.',
-              description: 'Checks return propagation. tsx.',
-              answer: 'Put console.log in finally of the source; break after the first item of the mapped iterator. With for..of the finally logs; with manual next it does not. That demonstrates the fix.',
+              task: 'Get the inner return value in an outer generator.',
+              description: 'Checks yield* result.',
+              code: 'function* inner(): Generator<number, string> { yield 1; return \'done\'; }',
+              answer: 'yield* passes inner values through and evaluates to the return.',
+              solution: 'function* outer() { const msg = yield* inner(); yield msg.length; }',
             },
             {
-              task: 'Rewrite it with the new iterator helper methods.',
-              description: 'Checks modern API. Node 22 + lib esnext.',
-              answer: 'Use Iterator.from(src).map(f). TS 5.6+ types it as IteratorObject. It handles return propagation correctly.',
+              task: 'What does this log?',
+              description: 'Checks spread with return.',
+              code: `function* g() { yield 1; yield 2; return 3; }
+console.log([...g()]);`,
+              answer: 'It logs [1, 2]; 3 is dropped.',
             },
           ],
         },
@@ -623,21 +797,36 @@ export default {
           ],
         },
         {
-          q: 'Fix this async generator. Requests keep running after the consumer stops.',
-          code: `async function* pages(url: string) {\n  while (url) { const r = await fetch(url).then(r => r.json()); yield r.items; url = r.next; }\n}`,
-          short: 'Accept an AbortSignal, abort in finally when the consumer returns, and type the yielded items.',
-          long: `If the consumer breaks, no new page is fetched, but an in-flight request is not cancelled.\nfinally in the generator runs on return(), but only after the pending await resolves.\nPass AbortSignal to fetch and abort it on teardown.\nType as AsyncGenerator<Item[], void, undefined>.\nValidate JSON with a schema rather than trusting any.\nConsumers use for await with break.`,
-          fix: `async function* pages(url: string, signal?: AbortSignal): AsyncGenerator<Item[], void, undefined> {\n  const ac = new AbortController();\n  signal?.addEventListener('abort', () => ac.abort());\n  try {\n    let next: string | null = url;\n    while (next) {\n      const r = PageSchema.parse(await (await fetch(next, { signal: ac.signal })).json());\n      yield r.items; next = r.next;\n    }\n  } finally { ac.abort(); }\n}`,
+          q: 'Fix this code. A sync generator tries to read an async source.',
+          code: `function* lines(stream: AsyncIterable<string>) {
+  for await (const l of stream) yield l.trim();
+}`,
+          fix: `async function* lines(stream: AsyncIterable<string>): AsyncGenerator<string> {
+  for await (const l of stream) yield l.trim();
+}
+for await (const l of lines(src)) console.log(l);`,
+          short: 'for await only works in async functions. Make it an async generator, and consume it with for await.',
+          long: `A normal generator cannot use await or for await.
+\`async function*\` returns an AsyncGenerator; each next() returns a Promise.
+Consumers must use for await or call next() and await it.
+TS types it as AsyncGenerator<T, TReturn, TNext>.
+Pitfall: a sync for-of on an async generator is a type error, since it has Symbol.asyncIterator, not Symbol.iterator.
+Strong answer: makes it async and fixes the consumer.
+Weak answer: wraps in Promise.all.`,
+          follow: 'Which symbol does for await look for?',
           exercises: [
             {
-              task: 'Write a test. Check that fetch is stopped after the loop breaks.',
-              description: 'Checks teardown. vitest with mocked fetch.',
-              answer: 'Mock fetch to capture signal, consume one page and break. Assert signal.aborted is true. Finally runs on return().',
+              task: 'Type this async generator that yields numbers and returns a total.',
+              description: 'Checks AsyncGenerator type parameters.',
+              code: 'async function* nums() { let t = 0; for (const n of [1, 2]) { t += n; yield n; } return t; }',
+              answer: 'Use AsyncGenerator<number, number>.',
+              solution: 'async function* nums(): AsyncGenerator<number, number> { let t = 0; for (const n of [1, 2]) { t += n; yield n; } return t; }',
             },
             {
-              task: 'Why can "return" not stop a waiting await inside the generator?',
-              description: 'Checks async generator queueing. Discussion.',
-              answer: 'Async generator requests are queued; return() waits until the current next() settles. So cancellation must come from outside via a signal. That is why AbortSignal is required.',
+              task: 'Why does this not compile?',
+              description: 'Checks sync loops on async iterables.',
+              code: 'for (const n of nums()) console.log(n);',
+              answer: 'An AsyncGenerator is not iterable with for-of. Use for await inside an async function.',
             },
           ],
         },
@@ -705,20 +894,31 @@ export default {
     'Event Loop': {
       junior: [
         {
-          q: 'What does an async function always return? How do you type it?',
-          short: 'It always returns a Promise; TS types the return as Promise<T> where T is the returned value.',
-          long: `async function f() { return 1 } has type () => Promise<number>.\nThrowing inside rejects the promise.\nThe return annotation must be Promise<...>.\nawait pauses the function and schedules continuation as a microtask.\nCallers must await or handle the promise.\nForgetting await is a common bug caught by no-floating-promises.`,
+          q: 'What does Promise.all return, and how does TypeScript type it?',
+          short: 'It returns one promise with an array of results in the same order. TS types it as a tuple, so each position keeps its own type.',
+          long: `\`await Promise.all([getUser(), getPosts()])\` gives \`[User, Post[]]\`.
+It rejects as soon as any promise rejects; other work keeps running.
+TypeScript uses a mapped tuple type with Awaited for each item.
+Pitfall: passing an array variable, not a literal, gives an array type instead of a tuple.
+Strong answer: knows order, fail-fast, and tuple typing.
+Weak answer: thinks it runs promises one by one.`,
+          follow: 'What is the difference with Promise.allSettled?',
           exercises: [
             {
-              task: 'Type an async function that returns a user or null.',
-              description: 'Checks return typing. tsc.',
-              answer: 'Write async function load(): Promise<User | null>. Annotating as User | null errors with TS1064. The promise wraps the union.',
+              task: 'What are the types of user and posts?',
+              description: 'Checks tuple inference.',
+              code: `declare function getUser(): Promise<User>;
+declare function getPosts(): Promise<Post[]>;
+const [user, posts] = await Promise.all([getUser(), getPosts()]);`,
+              answer: 'user is User and posts is Post[].',
             },
             {
-              task: 'Look at this code. In what order are the numbers printed?',
-              description: 'Checks microtask scheduling. node.',
-              code: `async function f() { await null; console.log(2); }\nconsole.log(1); f(); console.log(3);`,
-              answer: 'It logs 1, 3, 2. Code after await resumes in a microtask. The sync code runs to completion first.',
+              task: 'Make these two calls run at the same time.',
+              description: 'Checks sequential vs parallel awaits.',
+              code: `const a = await loadA();
+const b = await loadB();`,
+              answer: 'Start both, then await Promise.all.',
+              solution: 'const [a, b] = await Promise.all([loadA(), loadB()]);',
             },
           ],
         },
@@ -742,41 +942,70 @@ export default {
           ],
         },
         {
-          q: 'Fix the type of the setTimeout result in browser code.',
-          code: `let timer: number = setTimeout(() => {}, 100); // error when @types/node is present`,
-          short: 'Use ReturnType<typeof setTimeout> so it works with both DOM and Node typings.',
-          long: `DOM types return number; @types/node returns NodeJS.Timeout.\nIf both are loaded, the Node overload often wins.\nReturnType<typeof setTimeout> adapts to the environment.\nOr use window.setTimeout explicitly for DOM number.\nClear with clearTimeout(timer).`,
-          fix: `let timer: ReturnType<typeof setTimeout> = setTimeout(() => {}, 100);`,
+          q: 'Fix this code. The try/catch does not catch the error from the async call.',
+          code: `async function save() {
+  try {
+    api.post('/save');
+  } catch (e) {
+    showError(e);
+  }
+}`,
+          fix: `async function save() {
+  try {
+    await api.post('/save');
+  } catch (e) {
+    showError(e);
+  }
+}`,
+          short: 'Without await, the promise rejects later, after try has finished. Add await so the rejection is thrown inside try.',
+          long: `try/catch only catches errors thrown while the try block runs.
+A promise that rejects later becomes an unhandled rejection.
+Adding await pauses the function, so the rejection is thrown inside try.
+The lint rule no-floating-promises finds this.
+Pitfall: \`return api.post()\` inside try also escapes the catch; use \`return await\`.
+Strong answer: adds await and mentions return await.
+Weak answer: wraps it in another try.`,
+          follow: 'Why does `return api.post()` inside try also skip the catch?',
           exercises: [
             {
-              task: 'Why are Node types loaded in a browser project?',
-              description: 'Checks types inclusion. Inspect tsconfig types.',
-              answer: 'Tools like Vite or test frameworks depend on it and TS includes all @types by default. Set "types": [] or a list in tsconfig to limit. That prevents global leaks.',
+              task: 'Does the catch run here?',
+              description: 'Checks return vs return await.',
+              code: 'async function f() { try { return fail(); } catch { return \'caught\'; } }',
+              answer: 'No, the promise is returned and rejects later. Use return await.',
             },
             {
-              task: 'Write a debounce function. Type the timer correctly.',
-              description: 'Checks typing in practice. tsx.',
-              answer: 'Store let t: ReturnType<typeof setTimeout> | undefined, clear it on each call, and set a new timeout. Type the function generically over args with Parameters. It works in both environments.',
+              task: 'Which lint rule catches the original bug?',
+              description: 'Checks tooling.',
+              answer: '@typescript-eslint/no-floating-promises.',
             },
           ],
         },
       ],
       middle: [
         {
-          q: 'Compare queueMicrotask, promise then, setTimeout zero, and requestAnimationFrame. When does each run?',
-          short: 'Microtasks (queueMicrotask, then) run before rendering and next task; setTimeout queues a task; rAF runs before next paint.',
-          long: `After each task, all microtasks drain.\nqueueMicrotask and resolved promise callbacks are microtasks.\nsetTimeout(fn, 0) schedules a task (min ~4ms when nested).\nrequestAnimationFrame runs once per frame before paint.\nLong microtask chains can starve rendering.\nscheduler.yield (Chrome) yields to let input be processed.`,
+          q: 'What does the Awaited type do? When do you need it?',
+          short: 'Awaited<T> unwraps promise types recursively, like await does. Awaited<Promise<Promise<number>>> is number.',
+          long: `Awaited was added in TS 4.5 to model what await really returns.
+It also unwraps thenables and works through unions.
+Use it with ReturnType: \`Awaited<ReturnType<typeof fetchUser>>\` gives the resolved data type.
+Promise.all and async functions use it inside their types.
+Pitfall: writing your own \`T extends Promise<infer U> ? U : T\` only unwraps one level.
+Strong answer: shows ReturnType plus Awaited.
+Weak answer: does not know it exists.`,
+          follow: 'How does Awaited handle a union like Promise<string> | number?',
           exercises: [
             {
-              task: 'Look at this code. In what order are the letters printed?',
-              description: 'Checks queue order. node.',
-              code: `setTimeout(() => console.log('A'));\nqueueMicrotask(() => console.log('B'));\nPromise.resolve().then(() => console.log('C'));\nconsole.log('D');`,
-              answer: 'D, B, C, A. Synchronous first, then microtasks in queue order, then the timer task. Microtasks fully drain before tasks.',
+              task: 'Get the data type that loadUser resolves to.',
+              description: 'Checks Awaited with ReturnType.',
+              code: 'async function loadUser() { return { id: 1, name: \'A\' }; }',
+              answer: 'Combine Awaited and ReturnType.',
+              solution: 'type User = Awaited<ReturnType<typeof loadUser>>;',
             },
             {
-              task: 'Write a nextFrame helper that returns a promise.',
-              description: 'Checks promise wrapping. tsc DOM lib.',
-              answer: 'return new Promise<number>(r => requestAnimationFrame(r)). The resolved value is the timestamp. Useful for awaiting layout.',
+              task: 'What is the type T?',
+              description: 'Checks unions.',
+              code: 'type T = Awaited<Promise<string> | number>;',
+              answer: 'string | number.',
             },
           ],
         },
@@ -857,41 +1086,76 @@ export default {
           ],
         },
         {
-          q: 'Fix this search. An old response can replace a newer one.',
-          code: `async function search(q: string) { const r = await api(q); render(r); }`,
-          short: 'Abort the previous request with AbortController (or compare a request id) before rendering.',
-          long: `Responses can resolve out of order.\nAn older slow response overwrites newer results.\nKeep an AbortController per in-flight request and abort on new call.\nIgnore AbortError in the catch.\nAlternatively compare a monotonically increasing id.\nGeneralize as latest<A, R>(fn) returning a wrapped function.`,
-          fix: `function latest<A extends unknown[], R>(fn: (signal: AbortSignal, ...a: A) => Promise<R>) {\n  let ac: AbortController | undefined;\n  return (...a: A) => { ac?.abort(); ac = new AbortController(); return fn(ac.signal, ...a); };\n}\nconst search = latest((signal, q: string) => api(q, { signal }));`,
+          q: 'Fix this retry helper. It retries without any delay and without a limit.',
+          code: `async function retry<T>(fn: () => Promise<T>): Promise<T> {
+  try { return await fn(); }
+  catch { return retry(fn); }
+}`,
+          fix: `const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+async function retry<T>(fn: () => Promise<T>, tries = 3, delay = 200): Promise<T> {
+  try { return await fn(); }
+  catch (e) {
+    if (tries <= 1) throw e;
+    await sleep(delay);
+    return retry(fn, tries - 1, delay * 2);
+  }
+}`,
+          short: 'Add a maximum number of tries and an exponential backoff with a delay, and rethrow the last error.',
+          long: `Retrying with no delay floods the server and can loop forever.
+Use a limit, a growing delay (backoff), and maybe random jitter.
+Only retry errors that can succeed later, like network errors or 503, not 400.
+Keep T generic so the result type flows to the caller.
+Pitfall: retrying non-idempotent POST requests can create duplicates.
+Strong answer: limit, backoff, which errors to retry, idempotency.
+Weak answer: adds a fixed delay only.`,
+          follow: 'Which requests are not safe to retry?',
           exercises: [
             {
-              task: 'Write a test. Two responses come back in the wrong order.',
-              description: 'Checks race handling. vitest fake timers.',
-              answer: 'Mock api to resolve the first call after 200ms and the second after 50ms. Assert only the second result renders and the first rejects with AbortError. Advance timers to drive it.',
+              task: 'Add a shouldRetry callback so 4xx errors are not retried.',
+              description: 'Checks selective retry.',
+              answer: 'Pass a predicate and rethrow when it returns false.',
+              solution: `async function retry<T>(fn: () => Promise<T>, shouldRetry: (e: unknown) => boolean, tries = 3): Promise<T> {
+  try { return await fn(); }
+  catch (e) { if (tries <= 1 || !shouldRetry(e)) throw e; return retry(fn, shouldRetry, tries - 1); }
+}`,
             },
             {
-              task: 'How does the generic tuple keep the argument types here?',
-              description: 'Checks generic inference. Playground.',
-              answer: 'A extends unknown[] captures the parameter list as a tuple. The returned function reuses ...a: A. Calls are checked exactly against the original signature.',
+              task: 'Why add random jitter to the delay?',
+              description: 'Checks distributed thinking.',
+              answer: 'Many clients failing at the same time would retry at the same moment. Jitter spreads them out.',
             },
           ],
         },
       ],
       techlead: [
         {
-          q: 'What company-wide rules do you set for correct async code?',
-          short: 'Type-aware lint (no-floating-promises, no-misused-promises, await-thenable), signal-threading conventions, and global rejection telemetry.',
-          long: `Enable typed linting via projectService in typescript-eslint.\nMake async lint rules errors, not warnings.\nRequire AbortSignal in public async APIs.\nRegister unhandledrejection handlers reporting to monitoring.\nDocument patterns for fire-and-forget, retries and timeouts.\nTrack violations in CI and fail on new ones.`,
-          ai: true,
+          q: 'How do you handle errors from async code in React components across the app?',
+          short: 'Error boundaries do not catch errors from promises. Handle them in the data layer (like TanStack Query error states), and rethrow into a boundary when you want the boundary UI.',
+          long: `React error boundaries only catch errors during render, lifecycle and constructors.
+Errors in event handlers and effects with promises must be caught by your code.
+Data libraries expose error state, and can throw to the nearest boundary with throwOnError.
+Add a global unhandledrejection listener for logging.
+Pitfall: every component inventing its own try/catch and toast leads to inconsistent UX.
+Strong answer: one strategy per error type: inline, toast, boundary, and logging.
+Weak answer: "wrap the app in an error boundary".`,
+          follow: 'How do you send a promise error to an error boundary?',
           exercises: [
             {
-              task: 'What does typed linting cost in CI for a big repo?',
-              description: 'Checks trade-off analysis. Discussion.',
-              answer: 'Typed lint needs a TS program, so it can be several times slower. Mitigate with projectService, caching and linting only changed packages. The bug prevention usually justifies it.',
+              task: 'Why does the boundary not show here?',
+              description: 'Checks boundary limits.',
+              code: `function Page() {
+  useEffect(() => { fetch('/x').then(() => { throw new Error('x'); }); }, []);
+  return null;
+}`,
+              answer: 'The error happens in a promise after render, so the boundary never sees it.',
             },
             {
-              task: 'There are eight hundred old errors. Plan how to turn on no-floating-promises.',
-              description: 'Checks incremental adoption. Discussion.',
-              answer: 'Baseline existing violations (ESLint bulk suppressions or a generated disable list), make the rule error for new code, and burn down by package. Owners get dashboards. Remove the baseline when empty.',
+              task: 'Show a way to rethrow an async error so the boundary catches it.',
+              description: 'Checks a known pattern.',
+              answer: 'Store the error in state and throw it during render.',
+              solution: `const [err, setErr] = useState<unknown>();
+if (err) throw err;
+useEffect(() => { load().catch(setErr); }, []);`,
             },
           ],
         },
@@ -939,19 +1203,28 @@ export default {
     'Performance Optimization': {
       junior: [
         {
-          q: 'What does skipLibCheck do? Is it safe?',
-          short: 'It skips type-checking of all .d.ts files, speeding up builds; it is widely used and generally safe for apps.',
-          long: `Declaration files from node_modules can be large.\nskipLibCheck stops checking them for internal consistency.\nYour code is still checked against their types.\nIt can hide conflicts between two @types versions.\nMost templates (Vite, Next) enable it.\nLibrary authors should still validate their own .d.ts output.`,
+          q: 'What is the difference between tsc and tools like esbuild or Vite for TypeScript?',
+          short: 'esbuild, SWC and Vite only remove types and do not type-check. tsc checks types and can also emit code. Most projects use a fast transpiler plus tsc --noEmit.',
+          long: `Transpilers handle each file alone, so they are very fast.
+They cannot report type errors, and they need isolatedModules-safe code.
+Run tsc --noEmit in CI and in the editor to catch type errors.
+Pitfall: "the dev server works" does not mean the types are correct.
+Strong answer: explains the split and the isolatedModules link.
+Weak answer: thinks Vite reports type errors.`,
+          follow: 'Why do transpilers need isolatedModules?',
           exercises: [
             {
-              task: 'Measure build time with and without skipLibCheck.',
-              description: 'Checks measurement. tsc --extendedDiagnostics.',
-              answer: 'Compare Check time in extendedDiagnostics output. It is typically lower with the flag. Report numbers.',
+              task: 'Does Vite fail to build this code?',
+              description: 'Checks that bundlers skip type checks.',
+              code: 'const n: number = \'text\';',
+              answer: 'No, Vite builds it. Only tsc reports the error.',
             },
             {
-              task: 'Name one risk of skipLibCheck.',
-              description: 'Checks awareness. Discussion.',
-              answer: 'Broken or conflicting declaration files go unnoticed until types misbehave. Duplicate global declarations may silently merge. Library authors should run without it.',
+              task: 'Add a type check to this package.json.',
+              description: 'Checks scripts.',
+              code: '{ "scripts": { "build": "vite build" } }',
+              answer: 'Add a typecheck script with tsc --noEmit and run it in CI.',
+              solution: '{ "scripts": { "build": "vite build", "typecheck": "tsc --noEmit" } }',
             },
           ],
         },
@@ -1013,21 +1286,34 @@ export default {
           ],
         },
         {
-          q: 'Fix this slow type. It makes the editor lag.',
-          code: `type Paths<T> = T extends object ? { [K in keyof T]: \`\${K & string}\` | \`\${K & string}.\${Paths<T[K]>}\` }[keyof T] : never;\ntype All = Paths<HugeConfig>;`,
-          short: 'Limit recursion depth, avoid full cross-product unions, and compute paths lazily per key.',
-          long: `Recursive template literals over deep objects explode into huge unions.\nTS caps unions at 100k members and instantiations depth.\nAdd a depth counter tuple to stop recursion.\nPrefer checking a given path (ValidPath<T, P>) over enumerating all.\nUse tsc --generateTrace to locate costly types.\nSimplify or replace with codegen for very large configs.`,
-          fix: `type Prev = [never, 0, 1, 2, 3, 4];\ntype Paths<T, D extends number = 4> = [D] extends [never] ? never :\n  T extends object ? { [K in keyof T & string]: K | \`\${K}.\${Paths<T[K], Prev[D]>}\` }[keyof T & string] : never;`,
+          q: 'Fix this code. A type re-export breaks the build with isolatedModules.',
+          code: `// index.ts
+import { User, createUser } from './user';
+export { User, createUser };`,
+          fix: `// index.ts
+export type { User } from './user';
+export { createUser } from './user';`,
+          short: 'User is only a type. A file-by-file transpiler cannot know that, so it keeps the export and fails at runtime. Use export type.',
+          long: `With isolatedModules (or verbatimModuleSyntax), TS reports "Re-exporting a type requires export type".
+The transpiler sees one file and cannot tell if User is a value.
+\`export type\` and \`import type\` are always removed from output.
+This also keeps bundles smaller and avoids side-effect imports.
+Pitfall: inline \`import { type User }\` still keeps the import line under verbatimModuleSyntax if other values are imported.
+Strong answer: explains why the transpiler needs the hint.
+Weak answer: turns off isolatedModules.`,
+          follow: 'What does verbatimModuleSyntax change?',
           exercises: [
             {
-              task: 'Make a trace and find the slow type.',
-              description: 'Checks diagnostics. tsc --generateTrace out && npx @typescript/analyze-trace out.',
-              answer: 'analyze-trace lists hot spots with file positions. The Paths instantiation shows up with large check times. Fix and re-run to confirm.',
+              task: 'Fix this re-export so it works with verbatimModuleSyntax.',
+              description: 'Checks export type with star exports.',
+              code: 'export * from \'./types\'; // types.ts only has types',
+              answer: 'Use export type * (TS 5.0+) for type-only modules.',
+              solution: 'export type * from \'./types\';',
             },
             {
-              task: 'Why is checking one path cheaper than listing all paths?',
-              description: 'Checks type complexity reasoning. Discussion.',
-              answer: 'Validation walks one branch per segment, linear in path length. Enumeration builds every possible path, exponential in breadth and depth. Prefer validating the path the user wrote.',
+              task: 'Which lint rule adds type keywords for you?',
+              description: 'Checks tooling.',
+              answer: '@typescript-eslint/consistent-type-imports and consistent-type-exports.',
             },
           ],
         },
@@ -1128,40 +1414,59 @@ export default {
           ],
         },
         {
-          q: 'Fix this CI step. Type checking takes fifteen minutes.',
-          code: `- run: pnpm -r exec tsc --noEmit`,
-          short: 'Use project references with tsc -b, cache tsbuildinfo, run only affected packages, and parallelize with a task runner.',
-          long: `Running tsc per package re-checks shared dependencies repeatedly.\ntsc -b shares built declarations across projects.\nCache .tsbuildinfo and dist d.ts between CI runs.\nUse Turborepo/Nx affected detection for PRs.\nRemote cache lets CI reuse local results.\nTrack typecheck duration as a team metric.`,
-          fix: `- uses: actions/cache@v4\n  with: { path: '**/*.tsbuildinfo', key: tsc-\${{ github.sha }}, restore-keys: tsc- }\n- run: pnpm turbo run typecheck --filter=...[origin/master]`,
-          ai: true,
+          q: 'Fix this setup. Every package copies the same tsconfig settings, and they slowly become different.',
+          code: `// packages/a/tsconfig.json
+{ "compilerOptions": { "strict": true, "target": "ES2022" } }
+// packages/b/tsconfig.json
+{ "compilerOptions": { "strict": false, "target": "ES2017" } }`,
+          fix: `// tsconfig.base.json
+{ "compilerOptions": { "strict": true, "target": "ES2022", "skipLibCheck": true } }
+// packages/a/tsconfig.json
+{ "extends": "../../tsconfig.base.json", "include": ["src"] }`,
+          short: 'Put shared options in a base tsconfig and use extends. Packages only add what is really different.',
+          long: `Copied configs drift, so packages get different strictness and targets.
+A base config, or a shared package like @acme/tsconfig, keeps one source.
+Since TS 5.0, extends can take an array of configs.
+Paths like include and outDir are relative to the config that defines them, so keep them per package.
+Pitfall: overriding strict in one package hides bugs that appear when code moves.
+Strong answer: base config, small overrides, and a check in CI.
+Weak answer: keeps copies and syncs them in reviews.`,
+          follow: 'Why should include and outDir stay in each package config?',
           exercises: [
             {
-              task: 'Why does the cache use restore keys?',
-              description: 'Checks CI caching. GitHub Actions.',
-              answer: 'Exact keys rarely match across commits; restore-keys loads the latest prefix match. tsc incremental then only checks changes. Save a fresh cache at the end.',
+              task: 'Extend two shared configs in one package.',
+              description: 'Checks the TS 5.0 array extends.',
+              answer: 'Use an array in extends; later configs win.',
+              solution: '{ "extends": ["@acme/tsconfig/base.json", "@acme/tsconfig/react.json"], "include": ["src"] }',
             },
             {
-              task: 'Set a time limit and an alert for type checking.',
-              description: 'Checks governance. Discussion.',
-              answer: 'Record duration per run, set a budget like 3 minutes p90, and alert on regressions. Investigate with generateTrace when exceeded. Assign ownership to platform team.',
+              task: 'How do you see the final options after extends?',
+              description: 'Checks tooling.',
+              answer: 'Run tsc --showConfig in the package.',
             },
           ],
         },
         {
-          q: 'How do you balance clever types against build speed and developer comfort?',
-          short: 'Define a complexity budget: prefer simple types at boundaries, keep advanced types in a few vetted libraries, and measure type performance in CI.',
-          long: `Clever types can multiply check time and produce unreadable errors.\nMost app code benefits from plain interfaces and generics.\nAllow advanced types in shared, tested utilities only.\nRequire type tests (expectTypeOf, tsd) for them.\nMeasure via extendedDiagnostics and attest budgets.\nReview DX: error message quality and IDE latency.`,
-          ai: true,
+          q: 'How do you measure type-check time and keep it from growing over months?',
+          short: 'Record tsc --extendedDiagnostics in CI, track check time per package, and alert on big jumps. Use --generateTrace to find the cause.',
+          long: `extendedDiagnostics prints check time, memory and the number of types.
+Save these numbers from CI runs and plot them over time.
+Set a budget, like "check time may not grow more than 20 percent in one PR".
+When it jumps, run --generateTrace and @typescript/analyze-trace.
+Pitfall: CI machines vary, so compare type counts too, not only seconds.
+Strong answer: measures, budgets, and has a way to debug.
+Weak answer: waits until people complain.`,
+          follow: 'Why is the number of instantiated types a useful metric?',
           exercises: [
             {
-              task: 'Write review rules for adding a new complex utility type.',
-              description: 'Checks standards setting. Discussion.',
-              answer: 'It must solve a recurring problem, have type tests, stay under an instantiation budget, and produce readable errors. Document usage examples. Otherwise prefer simpler types.',
+              task: 'Which tsc flags do you use to find a slow file?',
+              description: 'Checks diagnostics tools.',
+              answer: '--extendedDiagnostics for totals, --generateTrace for details, then analyze-trace.',
             },
             {
-              task: 'A teammate keeps adding deep recursive types. What do you do?',
-              description: 'Checks leadership. Discussion.',
-              answer: 'Show measured cost and DX impact, agree on the budget together, and channel the expertise into the shared utilities library. Pair on simpler alternatives. Keep it about outcomes, not taste.',
+              task: 'Write a CI rule for type-check time.',
+              description: 'Checks policy.',
+              answer: 'Save diagnostics each run; fail or warn if check time or instantiations grow over a set budget versus main.',
             },
           ],
         },
@@ -1264,21 +1569,39 @@ export default {
           ],
         },
         {
-          q: 'Fix this switch. A new shape type does not cause an error.',
-          code: `type Shape = { kind: 'circle'; r: number } | { kind: 'square'; s: number } | { kind: 'tri'; b: number; h: number };\nfunction area(x: Shape) {\n  switch (x.kind) { case 'circle': return 3.14 * x.r ** 2; case 'square': return x.s ** 2; }\n  return 0;\n}`,
-          short: 'Add a default branch assigning to never (or satisfies never) so unhandled kinds fail compilation.',
-          long: `return 0 hides missing cases.\nIn default, x is narrowed to remaining members.\nAssigning to never fails if any remain.\nswitch-exhaustiveness-check lint rule is another guard.\nThrow at runtime for unexpected data from outside.\nExplicit return type helps too.`,
-          fix: `function area(x: Shape): number {\n  switch (x.kind) {\n    case 'circle': return Math.PI * x.r ** 2;\n    case 'square': return x.s ** 2;\n    case 'tri': return (x.b * x.h) / 2;\n    default: { const _e: never = x; throw new Error('unknown ' + JSON.stringify(_e)); }\n  }\n}`,
+          q: 'Fix this code. An npm package has no types, so the import fails.',
+          code: `import slugify from 'tiny-slug';
+// Could not find a declaration file for module 'tiny-slug'`,
+          fix: `// src/types/tiny-slug.d.ts
+declare module 'tiny-slug' {
+  export default function slugify(text: string, sep?: string): string;
+}
+// app code
+import slugify from 'tiny-slug';`,
+          short: 'Check for @types/tiny-slug first. If there is none, write a small declaration file with declare module.',
+          long: `Many packages ship types, others have them in DefinitelyTyped as @types/name.
+If neither exists, add a .d.ts file with \`declare module 'name'\` and type only what you use.
+A quick \`declare module 'name';\` makes everything any, which is a temporary escape only.
+Make sure the .d.ts is in the tsconfig include.
+Pitfall: a .d.ts file with a top-level import becomes a module and changes how declare module works.
+Strong answer: tries @types, then writes a narrow declaration.
+Weak answer: uses @ts-ignore on the import.`,
+          follow: 'What is the risk of the short `declare module \'x\';` form?',
           exercises: [
             {
-              task: 'Write an assertNever helper function.',
-              description: 'Checks helper. tsc.',
-              answer: 'function assertNever(x: never): never { throw new Error("Unexpected " + String(x)); }. Call it in default. Compile errors appear if cases are missing.',
+              task: 'Write types for a CSS module import.',
+              description: 'Checks wildcard module declarations.',
+              answer: 'Declare a module pattern for *.module.css.',
+              solution: `declare module '*.module.css' {
+  const classes: Record<string, string>;
+  export default classes;
+}`,
             },
             {
-              task: 'Turn on the lint rule that checks all switch cases.',
-              description: 'Checks lint. typescript-eslint.',
-              answer: 'Add @typescript-eslint/switch-exhaustiveness-check as error with typed linting. It reports missing cases even without default. Useful for many switches.',
+              task: 'Why is the declaration ignored here?',
+              description: 'Checks include settings.',
+              code: '{ "include": ["src/app"] } // file is in src/types/tiny-slug.d.ts',
+              answer: 'The types folder is outside include, so TS never reads the file.',
             },
           ],
         },
@@ -1342,20 +1665,33 @@ export default {
       ],
       techlead: [
         {
-          q: 'How do you build a type-safe contract between frontend and backend teams?',
-          short: 'Pick a single source of truth (OpenAPI, tRPC, GraphQL schema, or shared zod), generate or infer types, and enforce compatibility in CI.',
-          long: `Hand-maintained duplicate types drift.\nOpenAPI fits polyglot backends; tRPC fits TS full-stack monorepos.\nGraphQL codegen gives typed operations per query.\nRun breaking-change detection (oasdiff, graphql-inspector) in CI.\nValidate at runtime where trust is low.\nDefine versioning and deprecation policy.`,
-          ai: true,
+          q: 'How do you manage @ts-ignore and @ts-expect-error comments in a big codebase?',
+          short: 'Ban @ts-ignore and allow @ts-expect-error only with a description. Track the count, and remove them when the cause is fixed.',
+          long: `@ts-ignore hides any error, even new ones, and stays forever.
+@ts-expect-error fails when the error goes away, so it cleans itself up.
+The lint rule ban-ts-comment can require a description of at least some length.
+Count suppressions in CI and make the number go down, like a ratchet.
+Pitfall: a suppression on a line hides every error on that line, not only the expected one.
+Strong answer: policy, lint rule, tracking, and ownership.
+Weak answer: allows them freely to keep shipping.`,
+          follow: 'Why is @ts-expect-error safer than @ts-ignore?',
           exercises: [
             {
-              task: 'The backend is .NET and the frontend is React. Do you choose tRPC or OpenAPI?',
-              description: 'Checks architecture judgement. Discussion.',
-              answer: 'tRPC requires a TS server, so OpenAPI with generated TS types fits a .NET backend. Add codegen in CI and contract tests. tRPC is only viable with a BFF in TS.',
+              task: 'Configure the lint rule for these comments.',
+              description: 'Checks ban-ts-comment.',
+              answer: 'Ban ts-ignore and require a description for ts-expect-error.',
+              solution: `"@typescript-eslint/ban-ts-comment": ["error", {
+  "ts-ignore": true,
+  "ts-expect-error": "allow-with-description",
+  "minimumDescriptionLength": 10
+}]`,
             },
             {
-              task: 'Write a rule for breaking changes in the API contract.',
-              description: 'Checks governance. Discussion.',
-              answer: 'Breaking changes need a new version or deprecation window, detected automatically with oasdiff in PRs. Additive changes are allowed. Consumers get changelog and migration notes.',
+              task: 'What happens when the bug under this comment is fixed?',
+              description: 'Checks behavior.',
+              code: `// @ts-expect-error lib types are wrong, see issue 123
+lib.call(1);`,
+              answer: 'tsc reports "Unused @ts-expect-error directive", so the comment must be removed.',
             },
           ],
         },

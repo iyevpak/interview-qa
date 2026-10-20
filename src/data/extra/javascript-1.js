@@ -97,15 +97,34 @@ export default {
               { solution: `function shallowEqual(a, b) {\n  if (Object.is(a, b)) return true;\n  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;\n  const ka = Object.keys(a);\n  return ka.length === Object.keys(b).length && ka.every((k) => Object.hasOwn(b, k) && Object.is(a[k], b[k]));\n}` }),
           ],
           { code: `function changed(prev, next) { return prev !== next; }\nchanged(NaN, NaN); // true -> endless re-render`, fix: `const changed = (prev, next) => !Object.is(prev, next);` }),
-        Q('How do engines like V8 store numbers and objects inside? How does it affect your code?',
-          'V8 stores small integers as tagged Smis and gives objects hidden classes (shapes). Stable types and shapes keep hot code on fast, monomorphic paths.',
-          'Shapes depend on property order; create all fields in the same order, for example in a constructor.\ndelete obj.prop can move an object to slow dictionary mode.\nArrays have element kinds (SMI, DOUBLE, generic, holey); mixing types or holes slows them.\nCall sites that see many shapes are slower than ones that see one.\nThis matters in hot paths, not in normal UI code; profile first.\nStrong answer ties it to profiling; weak answer micro-optimises everything.',
-          [
-            E('Find the slowdown in a loop that adds z only to some point objects.', 'Shows code that sets z conditionally.',
-              'Objects get different shapes, so the consumer becomes polymorphic. Set z to a default for all objects to keep one shape.'),
-            E('Explain why new Array(1000) and then filling it can be slower than push.', 'Checks holey arrays.',
-              'new Array(n) creates a holey array, and it stays holey after filling. In practice the gap is small; strong answers say to measure.'),
-          ], { ai: true }),
+        {
+          q: 'Your code mixes up a user ID and an order ID. Both are strings. How can types help? What are branded types?',
+          short: 'Structural typing treats all strings the same. A branded type adds a fake tag, like string & { __brand: "UserId" }, so the compiler stops you from passing one ID where another is expected.',
+          long: `TypeScript is structural: two types with the same shape are interchangeable, so UserId = string gives no protection.
+A brand adds a phantom property that never exists at runtime: type UserId = string & { readonly __brand: 'UserId' }.
+You create branded values only in one place, such as a parser or constructor function, after validation.
+At runtime nothing changes; the brand is erased, so it costs nothing.
+Use cases: IDs, money in cents vs dollars, sanitized HTML, validated emails.
+Trade-offs: more ceremony, and casts can bypass it; keep "as UserId" inside one module.
+Strong answer: explains structural vs nominal typing and where brands are created. Weak answer: says type aliases already prevent this.`,
+          exercises: [
+            {
+              task: 'Make a branded UserId type and a function that creates it.',
+              description: 'Checks the brand pattern and a single creation point.',
+              answer: 'Declare the brand type, then a toUserId function that validates the string and casts once. Other code can only get a UserId through it.',
+              solution: `type UserId = string & { readonly __brand: 'UserId' };
+function toUserId(s: string): UserId {
+  if (!/^u_\\d+$/.test(s)) throw new Error('Bad user id');
+  return s as UserId;
+}`,
+            },
+            {
+              task: 'Does a branded type change the JavaScript output? Explain.',
+              description: 'Checks that the candidate knows types are erased.',
+              answer: 'No. The brand exists only for the type checker. The emitted code is a plain string, so there is no runtime cost and also no runtime protection.',
+            },
+          ],
+        },
       ],
       techlead: [
         Q('You start a new frontend codebase with a mixed team. Do you choose strict TypeScript, JSDoc types, or plain JavaScript? Why?',
@@ -142,16 +161,34 @@ export default {
     },
     'Function context': {
       junior: [
-        Q('How does JavaScript decide the value of this in a normal function? Is it where the function is written, or how it is called?',
-          'For normal functions, this depends on how the function is called, not where it is written. obj.method() gives obj; a plain call gives undefined in strict mode.',
-          'Method call obj.f(): this is obj.\nPlain call f(): undefined in strict mode (modules and classes are strict), globalThis in sloppy scripts.\nnew F(): this is the new object.\nf.call(x) or f.bind(x): this is x.\nArrow functions are the exception: they take this from the outer scope.\nStrong answer says "look left of the dot at call time"; weak answer says this is the function itself.',
-          [
-            E('Predict what each call logs.', 'The interviewer shows a method called in two ways.',
-              'user.hi() logs "Ann". The detached call fn() logs undefined (or throws when reading name on undefined in strict code). The call site lost the object.',
-              { code: `'use strict';\nconst user = { name: 'Ann', hi() { console.log(this?.name); } };\nuser.hi();\nconst fn = user.hi;\nfn();` }),
-            E('Name the four rules for this in a normal function.', 'Theory check, the candidate lists them in order.',
-              'new binding, explicit binding (call/apply/bind), method (implicit) binding, default binding. Strong candidates also mention arrows ignore all four.'),
-          ]),
+        {
+          q: 'What does the new keyword do, step by step? What happens to this if you forget new?',
+          short: 'new creates an empty object linked to the function prototype, runs the function with this set to that object, and returns it. Without new, a plain function runs with this as undefined in strict mode, or the global object otherwise.',
+          long: `Steps of new F(args):
+1. Create a new object.
+2. Set its prototype to F.prototype.
+3. Call F with this bound to the new object.
+4. Return the new object, unless F returns another object.
+Forgetting new on a constructor function: in sloppy mode this is globalThis, so properties leak to the global object; in strict mode it throws because this is undefined.
+Classes protect you: calling a class without new throws a TypeError.
+Arrow functions cannot be used with new.
+Strong answer: lists the four steps and the class safety check. Weak answer: "new makes a copy of the function".`,
+          exercises: [
+            {
+              code: `function Person(name) { this.name = name; }
+const p = Person('Ann');
+console.log(p);`,
+              task: 'Predict what happens in sloppy mode and in strict mode.',
+              description: 'A constructor function is called without new.',
+              answer: 'Sloppy mode: this is the global object, so a global variable name is created and p is undefined. Strict mode: this is undefined, so setting this.name throws a TypeError.',
+            },
+            {
+              task: 'What does new return if the constructor returns an object? What if it returns a number?',
+              description: 'Checks the return rule.',
+              answer: 'If it returns an object, new gives you that object instead. If it returns a primitive like a number, the return value is ignored and the new instance is returned.',
+            },
+          ],
+        },
         Q('Find and fix the bug. The counter does not increase after one second.',
           'The method is passed to setTimeout without its object, so this is not counter. Use an arrow wrapper or bind.',
           'setTimeout calls the function as a plain function.\nInside, this is not counter (globalThis in browsers for timers in sloppy mode, or undefined in strict class code).\nFix 1: setTimeout(() => counter.inc(), 1000).\nFix 2: setTimeout(counter.inc.bind(counter), 1000).\nThe same bug happens with event listeners and array callbacks.\nStrong answer explains why the call site matters.',
@@ -187,18 +224,47 @@ export default {
             E('Choose method or arrow field for a Row class with 10,000 instances. Explain.', 'Short judgment question.',
               'Prefer a prototype method and bind only where it is passed as a callback, or use event delegation. Arrow fields would create 10,000 function objects.'),
           ], { ai: true }),
-        Q('Find and fix the bug. Inside forEach, this.prefix is undefined.',
-          'The forEach callback is a normal function, so it gets its own this. Use an arrow callback, or pass thisArg as the second argument.',
-          'Array methods call the callback as a plain function.\nArrow callbacks keep this from the method.\nforEach, map, filter, some, every accept a thisArg argument.\nthisArg is ignored for arrow callbacks.\nOld code used const self = this; arrows replace that.\nStrong answer mentions thisArg and that it does nothing with arrows.',
-          [
-            E('Predict the output when thisArg is passed with an arrow callback.', 'Shows [1].forEach(() => console.log(this), { a: 1 }) at module top level.',
-              'undefined in a module, because arrows ignore thisArg. Candidates often expect { a: 1 }.'),
-            E('Rewrite old code that uses var self = this with modern syntax.', 'Checks refactoring skill.',
-              'Replace the inner function with an arrow and remove self. Behaviour stays the same.',
-              { code: `var self = this;\nitems.forEach(function (i) { self.add(i); });`, solution: `items.forEach((i) => this.add(i));` }),
+        {
+          q: 'Find and fix the bug. Method chaining throws "Cannot read properties of undefined".',
+          code: `class Query {
+  constructor() { this.parts = []; }
+  where(cond) { this.parts.push('WHERE ' + cond); }
+  limit(n) { this.parts.push('LIMIT ' + n); return this; }
+  build() { return this.parts.join(' '); }
+}
+new Query().where('a = 1').limit(10).build();`,
+          short: 'where does not return anything, so the next call runs on undefined. Every chainable method must return this.',
+          long: `A fluent API works because each method returns the same object (this).
+If one method forgets "return this", the chain gets undefined and the next call throws.
+An arrow function class field also works with return this, because this is the instance.
+Alternative design: return a new object each time (immutable builder), which is safer when builders are shared.
+Add a unit test that chains every method, or a TypeScript return type of this, to catch it.
+Strong answer: fixes it and mentions the "this" return type or immutable builders. Weak answer: splits the chain into separate lines without understanding why.`,
+          fix: `class Query {
+  constructor() { this.parts = []; }
+  where(cond) { this.parts.push('WHERE ' + cond); return this; }
+  limit(n) { this.parts.push('LIMIT ' + n); return this; }
+  build() { return this.parts.join(' '); }
+}`,
+          follow: 'How would you make this builder immutable, so one base query can be reused?',
+          exercises: [
+            {
+              task: 'Make where return a new Query instead of changing the old one.',
+              description: 'Checks the immutable builder idea.',
+              answer: 'Create a new instance, copy the parts with the new item added, and return it. The original stays the same, so it can be shared safely.',
+              solution: `where(cond) {
+  const q = new Query();
+  q.parts = [...this.parts, 'WHERE ' + cond];
+  return q;
+}`,
+            },
+            {
+              task: 'In TypeScript, what return type makes chaining work in subclasses?',
+              description: 'Checks the polymorphic this type.',
+              answer: 'Use the return type this. Then a subclass method chain keeps the subclass type, not the base class type.',
+            },
           ],
-          { code: `class Logger {\n  prefix = '[app]';\n  logAll(msgs) {\n    msgs.forEach(function (m) {\n      console.log(this.prefix, m);\n    });\n  }\n}`,
-            fix: `logAll(msgs) {\n  msgs.forEach((m) => console.log(this.prefix, m));\n}` }),
+        },
         Q('What is this at the top level of a module, a script, and a function in strict mode?',
           'At the top of an ES module, this is undefined. At the top of a classic script, it is globalThis (window). In a strict-mode plain function call, it is undefined.',
           'ES modules and class bodies are always strict.\nClassic scripts without "use strict" use sloppy mode: plain calls get globalThis.\nIn CommonJS (Node), top-level this is module.exports.\nUse globalThis when you need the global object everywhere.\nThis matters when moving old scripts to modules: code using this as window breaks.\nStrong answer covers modules versus scripts.',
@@ -245,25 +311,58 @@ export default {
           ], { ai: true }),
       ],
       techlead: [
-        Q('Code review: a shared SDK exposes classes whose methods break when passed as callbacks. Do you change the API design? How?',
-          'Prefer an API that does not depend on this: factory functions with closures, or methods bound once in the constructor. Ship it as a non-breaking change and add lint rules for consumers.',
-          'Options: auto-bind in constructor, arrow fields, or plain object factories.\nFactories avoid this completely but change how consumers extend classes.\nKeep backwards compatibility: keep the class, add bound behaviour, deprecate old patterns.\nAdd tests that pass methods as callbacks.\nLint: @typescript-eslint/unbound-method flags risky usage.\nStrong answer balances API stability with safety.',
-          [
-            E('Write a factory version of a small Counter class.', 'Shows a class with inc and get.',
-              'Use closures over local state and return plain functions. They can be passed anywhere safely.',
-              { solution: `function createCounter() {\n  let count = 0;\n  return { inc: () => { count++; }, get: () => count };\n}` }),
-            E('List the rollout steps so existing consumers do not break.', 'Leadership and compatibility judgment.',
-              'Additive change first, deprecation notice and codemod, a major version only if needed, and a changelog. Strong answers mention semver and consumer communication.'),
-          ], { ai: true }),
-        Q('Your team writes new code mostly as functions, but legacy code uses classes and this. What guidelines do you set?',
-          'Set a clear default (functions and closures for new code), keep classes where they model real entities or are required by frameworks, and use lint rules to catch unsafe this.',
-          'Do not rewrite stable legacy code only for style.\nTouch-to-improve: refactor when a file changes for a real reason.\nRules: no-invalid-this, unbound-method, prefer arrow callbacks.\nDocument when classes are still the right tool (custom elements, error types, stateful engines).\nReview examples in a short guide; pair new hires on it.\nStrong answer shows pragmatism and examples from experience.',
-          [
-            E('Write a short guideline paragraph for the team wiki.', 'The candidate drafts the text live.',
-              'Good text is short, gives a default, lists exceptions, and links lint rules. Overly long or absolute rules are a weaker answer.'),
-            E('Decide: refactor a working 2,000-line class to functions this sprint?', 'Judgment question with no single right answer.',
-              'Usually no, unless it blocks features or causes bugs. Strong answers ask about test coverage, change frequency and business value.'),
-          ], { ai: true }),
+        {
+          q: 'Your team uses TypeScript. How can the compiler and the linter catch this bugs? Which settings do you turn on?',
+          short: 'Turn on strict (it includes noImplicitThis), type the this parameter where needed, and add lint rules like @typescript-eslint/unbound-method and no-invalid-this.',
+          long: `noImplicitThis (part of strict) errors when this has an implicit any type.
+A fake first parameter "this: Foo" documents and checks what this must be; it is removed in the output.
+@typescript-eslint/unbound-method flags passing obj.method as a value when the method uses this.
+ThisParameterType and OmitThisParameter help when wrapping functions.
+Prefer APIs that do not need this (closures, arrow fields) for callbacks in shared code.
+Roll out: enable rules as warnings, fix hot spots, then make them errors in CI.
+Strong answer: names concrete flags and rules and a rollout plan. Weak answer: "TypeScript solves this automatically".`,
+          exercises: [
+            {
+              task: 'Type this in a standalone function so it can only be called on a Button.',
+              description: 'Checks the this parameter syntax.',
+              answer: 'Add this: Button as the first parameter. Callers must use call, apply, or a method call on a Button, or the compiler errors.',
+              solution: `function onClick(this: Button, e: MouseEvent) {
+  this.setPressed(true);
+}`,
+            },
+            {
+              task: 'Which lint rule warns about passing a class method as a callback? What does it suggest?',
+              description: 'Checks tool knowledge.',
+              answer: '@typescript-eslint/unbound-method. It suggests binding, using an arrow wrapper, or declaring the method as an arrow field or with this: void.',
+            },
+          ],
+        },
+        {
+          q: 'Many new team members come from Java or C#. How do you explain this in JavaScript so they avoid common bugs?',
+          short: 'Explain that this is set by the call, not by the class. Show the four rules, then the common traps: detached methods, callbacks and arrow functions. Back it with lint rules and examples.',
+          long: `In Java and C#, this always means the current instance. In JavaScript, a normal function gets this from how it is called.
+Teach the rules in order: new, explicit (call, apply, bind), method call (obj.fn()), plain call.
+Arrow functions have no own this; they use the outer one.
+Show the classic traps with small runnable examples: passing obj.method to setTimeout, callbacks inside methods, listener removal with bind.
+Give clear defaults: arrow functions for callbacks, arrow fields or bind for handlers, avoid this in utilities.
+Use code review checklists and lint rules so the knowledge is enforced, not just taught.
+Strong answer: maps the mental model from their language and uses practice. Weak answer: "just tell them to always use arrow functions".`,
+          exercises: [
+            {
+              code: `const obj = { name: 'Ann', greet() { return this.name; } };
+const g = obj.greet;
+g(); // undefined or TypeError`,
+              task: 'Write a short code example you would show to explain a detached method.',
+              description: 'Checks teaching ability with a minimal example.',
+              answer: 'Show a method that works as obj.greet() but fails as const g = obj.greet; g(). Then fix it with bind or an arrow wrapper.',
+            },
+            {
+              task: 'List three rules you would put in the team guide about this.',
+              description: 'Checks practical, short guidance.',
+              answer: 'For example: use arrow functions for callbacks; never pass a method that uses this without binding it; prefer plain functions and closures in shared utilities.',
+            },
+          ],
+        },
         Q('Code review: find the this-related bugs in this plugin system and propose a safer design.',
           'Hooks are stored and called detached, so this is lost, and the bind in register creates references that cannot be removed. Pass context as an argument instead of relying on this.',
           'Calling hook() from an array loses the plugin object.\nExplicit context argument (hook(ctx)) is clearer and easier to type.\nReturn an unregister function from register so callers do not need the reference.\nCatch errors per hook so one plugin cannot break others.\nDocument the contract in types.\nStrong answer combines bug fix and API improvement.',
@@ -419,16 +518,39 @@ export default {
     },
     'Asynchronous code': {
       junior: [
-        Q('Predict the order of the logs. Does setTimeout with zero delay run right away?',
-          'No. The callback runs after the current code finishes and the call stack is empty. So the order is A, C, B.',
-          'setTimeout puts the callback in the task queue after at least the delay.\nThe current script always finishes first.\nBrowsers clamp nested timers to at least 4 ms after five levels.\nBackground tabs may delay timers much more.\nStrong answer explains the call stack and queue; weak answer says "0 means now".\nPredicting before running is the point of the question.',
-          [
-            E('Predict the order with two timers of 10 ms and 0 ms.', 'Shows setTimeout logging "slow" at 10 ms, then "fast" at 0 ms, then a sync log.',
-              'sync, fast, slow. Order depends on delay first, then on scheduling order.'),
-            E('Explain why a timer can fire later than its delay.', 'Short theory.',
-              'The delay is a minimum. Long tasks on the main thread, throttling in background tabs, and clamping can delay it.'),
+        {
+          q: 'Find and fix the bug. The numbers should print one per second, but they all print at once.',
+          code: `for (let i = 1; i <= 3; i++) {
+  setTimeout(() => console.log(i), 1000);
+}`,
+          short: 'All three timers are started at the same moment with the same delay, so they fire together after one second. Use different delays, or await a sleep inside the loop.',
+          long: `setTimeout does not pause the loop. The loop finishes right away and schedules three timers.
+Each timer counts from the moment it was created, so all end at about 1000 ms.
+Fix 1: delay i * 1000.
+Fix 2: write a sleep helper that returns a promise and await it in an async loop.
+The await version is easier to stop and keeps steps in order.
+Strong answer: explains that timers do not block. Weak answer: thinks setTimeout waits like sleep in other languages.`,
+          fix: `const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+for (let i = 1; i <= 3; i++) {
+  await sleep(1000);
+  console.log(i);
+}`,
+          follow: 'How would you stop this loop early if the user leaves the page?',
+          exercises: [
+            {
+              task: 'Write the sleep helper.',
+              description: 'Checks wrapping setTimeout in a promise.',
+              answer: 'Return a new promise and pass resolve to setTimeout as the callback.',
+              solution: 'const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));',
+            },
+            {
+              task: 'Fix it without async and await.',
+              description: 'Checks the delay-based fix.',
+              answer: 'Multiply the delay by i, so the timers end at 1, 2 and 3 seconds.',
+              solution: 'for (let i = 1; i <= 3; i++) setTimeout(() => console.log(i), i * 1000);',
+            },
           ],
-          { ai: true, code: `console.log('A');\nsetTimeout(() => console.log('B'), 0);\nconsole.log('C');` }),
+        },
         Q('Find and fix the bug. The check is always true, even when the user is not an admin.',
           'isAdmin is async, so it returns a Promise. A Promise object is always truthy. Await the result.',
           'Every async function returns a Promise.\nif (promise) is always true.\nFix: if (await isAdmin(user)) inside an async function.\nTypeScript and the lint rule no-misused-promises catch this.\nThe same bug happens with filter(async ...) which keeps every item.\nStrong answer mentions the lint rule and the filter trap.',
@@ -566,18 +688,40 @@ export default {
               'save() is called now and its result is passed. Pass save or () => save().',
               { solution: `setTimeout(save, 1000);` }),
           ]),
-        Q('Find and fix the bug. The second then gets undefined.',
-          'The first then does not return the inner promise, so the chain continues with undefined. Return the value or promise from each then.',
-          'Each then returns a new promise resolved with whatever the callback returns.\nNo return means undefined.\nReturning a promise makes the chain wait for it.\nArrow functions with braces need an explicit return.\nasync/await avoids this class of bug.\nStrong answer explains chaining; weak answer nests then calls instead.',
-          [
-            E('Rewrite the fixed chain with async and await.', 'Checks translation between styles.',
-              'Await each step in order inside an async function with try and catch.',
-              { solution: `async function load() {\n  const user = await getUser();\n  const orders = await getOrders(user.id);\n  render(orders);\n}` }),
-            E('Predict the value printed by this chain.', 'Shows Promise.resolve(1).then((x) => { x + 1; }).then(console.log).',
-              'undefined, because the braces make a block without return. Without braces it would print 2.'),
+        {
+          q: 'Find and fix the bug. The wait function does not wait at all.',
+          code: `function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve(), ms);
+  });
+}
+await wait(2000);
+console.log('two seconds later?');`,
+          short: 'resolve() is called right away, and its return value (undefined) is passed to setTimeout. Pass the function itself: setTimeout(resolve, ms).',
+          long: `Writing fn() calls the function now. Writing fn passes it to be called later.
+Here the promise resolves immediately, so await finishes at once.
+setTimeout(undefined, ms) does nothing useful.
+Same bug appears with addEventListener('click', handler()).
+Strong answer: explains call versus reference. Weak answer: increases the delay.`,
+          fix: `function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}`,
+          follow: 'How would you make wait return a value after the delay?',
+          exercises: [
+            {
+              code: 'button.addEventListener(\'click\', save());',
+              task: 'Find the same kind of bug in this code.',
+              description: 'Checks recognizing call versus reference in another place.',
+              answer: 'save() runs right away when the page loads, and its result is used as the listener. Pass save, or an arrow function that calls it.',
+            },
+            {
+              task: 'Make a delay helper that resolves with a value.',
+              description: 'Checks passing arguments through setTimeout.',
+              answer: 'Call resolve with the value inside an arrow function, or pass the value as the third argument of setTimeout.',
+              solution: 'const delay = (ms, value) => new Promise((r) => setTimeout(r, ms, value));',
+            },
           ],
-          { code: `getUser()\n  .then((user) => {\n    getOrders(user.id);\n  })\n  .then((orders) => render(orders)); // orders is undefined`,
-            fix: `getUser()\n  .then((user) => getOrders(user.id))\n  .then((orders) => render(orders))\n  .catch(showError);` }),
+        },
         Q('What does finally do in a promise chain? Does it change the result?',
           'finally runs a callback when the promise settles, success or error. It does not get the value and normally passes the original result or error through.',
           'Use it for cleanup like hiding a spinner.\nThe callback gets no arguments.\nIf finally throws or returns a rejected promise, that error replaces the result.\nA normal return value from finally is ignored.\nIn async functions use try/finally the same way.\nStrong answer knows the "throw replaces" rule.',
@@ -625,16 +769,60 @@ export default {
           ]),
       ],
       senior: [
-        Q('Predict the order of the logs. Explain how await and then use microtasks.',
-          'Order: 1, 4, 2, 3, 5. Sync code runs first, then microtasks in order; each await or then continuation is a separate microtask.',
-          'Code after await runs in a microtask when the awaited value settles.\nawait of a non-promise still yields one microtask.\nEach then in a chain needs one more microtask.\nAwaiting a native promise takes one tick since ES2019 optimisation; returning a promise from an async function or then adds extra ticks.\nStrong candidates predict before running and can explain each step.\nThis order is a guarantee of the spec, not an engine detail, for native promises.',
-          [
-            E('Predict the order with a timer and a microtask.', 'Shows setTimeout log, Promise.resolve().then log, queueMicrotask log, sync log.',
-              'sync, then, microtask, timeout. All microtasks run before the next task.'),
-            E('Explain why returning a promise from then adds extra ticks.', 'Advanced theory.',
-              'The outer promise must adopt the inner one using a NewPromiseResolveThenableJob, which costs extra microtasks. This rarely matters but explains surprising orders.'),
+        {
+          q: 'Find and fix the bug. After one network error, this user loader fails forever for that ID.',
+          code: `const cache = new Map();
+function getUser(id) {
+  if (!cache.has(id)) {
+    cache.set(id, fetch('/api/users/' + id).then((r) => r.json()));
+  }
+  return cache.get(id);
+}`,
+          short: 'The cache stores the promise, including a rejected one. Remove the entry when the promise rejects, and treat HTTP errors as failures with r.ok.',
+          long: `Caching the promise (not the value) is good: parallel callers share one request.
+But a rejected promise stays in the cache, so every later call gets the same error.
+Fix: on rejection, delete the key, then rethrow.
+fetch does not reject on 404 or 500, so check r.ok, or you cache error bodies as users.
+Consider a time limit (TTL) and a size limit, or a library like TanStack Query.
+Strong answer: keeps request sharing, evicts failures, and checks r.ok. Weak answer: removes caching altogether.`,
+          fix: `const cache = new Map();
+function getUser(id) {
+  if (!cache.has(id)) {
+    const p = fetch('/api/users/' + id)
+      .then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .catch((e) => {
+        cache.delete(id);
+        throw e;
+      });
+    cache.set(id, p);
+  }
+  return cache.get(id);
+}`,
+          follow: 'How would you add a time limit so cached users expire after one minute?',
+          exercises: [
+            {
+              task: 'Why cache the promise and not the resolved value?',
+              description: 'Checks understanding of request de-duplication.',
+              answer: 'If two callers ask at the same time, both get the same pending promise, so only one request is sent. Caching the value only helps after the first request finishes.',
+            },
+            {
+              task: 'Add a TTL so entries expire.',
+              description: 'Checks a simple expiry design.',
+              answer: 'Store the promise with a timestamp and ignore or delete entries older than the TTL.',
+              solution: `const TTL = 60_000;
+function getUser(id) {
+  const hit = cache.get(id);
+  if (hit && Date.now() - hit.at < TTL) return hit.p;
+  const p = load(id).catch((e) => { cache.delete(id); throw e; });
+  cache.set(id, { p, at: Date.now() });
+  return p;
+}`,
+            },
           ],
-          { ai: true, code: `async function a() {\n  console.log(1);\n  await null;\n  console.log(2);\n}\na();\nPromise.resolve().then(() => console.log(3)).then(() => console.log(5));\nconsole.log(4);` }),
+        },
         Q('Find and fix the bug. A catch logs the error but the caller thinks the save worked.',
           'The catch returns undefined, so the promise resolves and the caller shows success. Rethrow after logging, or return an explicit result type.',
           'A catch that does not rethrow turns a failure into a success.\nCallers then run success code with undefined.\nRule: handle the error where you can act; otherwise log and rethrow.\nAlternative: return { ok: false, error } and make callers check it.\nAdd a cause: new Error("Save failed", { cause: e }).\nStrong answer uses error cause and explains where to handle.',
@@ -671,16 +859,32 @@ export default {
           ],
           { code: `export function get(key, cb) {\n  if (cache[key]) return cb(cache[key]);\n  load(key).then((v) => { cache[key] = v; cb(v); });\n}`,
             fix: `const cache = new Map();\nexport function get(key) {\n  if (!cache.has(key)) cache.set(key, load(key).catch((e) => { cache.delete(key); throw e; }));\n  return cache.get(key);\n}` }),
-        Q('A legacy codebase still uses many callback-style APIs. How do you plan the move to promises?',
-          'Wrap callback APIs with promisified versions first, use them in new code, and migrate old callers step by step. Keep the old API working until all callers move.',
-          'Inventory callback APIs and their callers.\nAdd promise versions next to old ones (util.promisify in Node, small wrappers in the browser).\nLint to block new usage of the old API.\nMigrate hot spots first, measured by bug reports or change rate.\nRemove old APIs in a major version with notice.\nStrong answer has a measurable plan and talks about risk.',
-          [
-            E('Write a generic promisify for Node-style callbacks.', 'Classic coding check inside the strategy question.',
-              'Return a function that calls the original with a final callback that rejects on err and resolves on result.',
-              { solution: `const promisify = (fn) => (...args) => new Promise((resolve, reject) => {\n  fn(...args, (err, result) => (err ? reject(err) : resolve(result)));\n});` }),
-            E('How do you measure progress of the migration?', 'Leadership question.',
-              'Count remaining callers with a script or lint report each sprint and show the trend. Strong answers tie it to fewer bugs.'),
-          ], { ai: true }),
+        {
+          q: 'A team wants every async function to return a result object, like { ok, data, error }, instead of throwing. Is that a good idea in JavaScript?',
+          short: 'It makes errors explicit and typed, but it fights the language: await, try and catch, Promise.all and most libraries expect rejections. Use it at clear boundaries, not everywhere.',
+          long: `Pros: errors are visible in types, callers cannot forget them, and expected failures (validation, not found) are separate from bugs.
+Cons: every call site must unwrap; Promise.all, retries and libraries still throw; unexpected exceptions still happen, so you need both styles.
+A good middle ground: throw for unexpected errors; return result objects for expected business outcomes at module boundaries, like an API client.
+Define one shared Result type and helpers, so teams do not invent five versions.
+Make sure error monitoring still sees real failures.
+Strong answer: weighs both sides and defines a boundary rule. Weak answer: picks one style for everything without trade-offs.`,
+          exercises: [
+            {
+              task: 'Write a small helper that turns a promise into a result object.',
+              description: 'Checks the adapter pattern between styles.',
+              answer: 'Await the promise in try and catch, and return ok true with data, or ok false with the error.',
+              solution: `async function toResult(p) {
+  try { return { ok: true, data: await p }; }
+  catch (error) { return { ok: false, error }; }
+}`,
+            },
+            {
+              task: 'Which failures should be returned as values, and which should be thrown?',
+              description: 'Checks the boundary rule.',
+              answer: 'Return expected outcomes the caller must handle, like "email taken" or "not found". Throw for bugs and unexpected failures, like a null reference or a broken server, so they reach monitoring.',
+            },
+          ],
+        },
         Q('Many promises in the app never settle and memory grows. How do you find and prevent this?',
           'Look for promises waiting on events that never come, like missing reject paths, lost messages, or forgotten dialogs. Add timeouts, AbortSignal support and cleanup, and test the unhappy paths.',
           'A pending promise keeps its callbacks and their closures alive while something can still resolve it.\nCommon causes: new Promise without reject on error, listeners never removed, request maps never cleaned.\nUse heap snapshots and count pending entries in your own maps.\nRule: every waiting API accepts a signal and has a timeout.\nReview checklist: "what if this never resolves?"\nStrong answer combines tooling with a design rule.',
@@ -743,16 +947,34 @@ export default {
           ],
           { code: `class Cart {\n  items = [];\n  total() { return this.items.length; }\n}\nconst copy = { ...cart };\ncopy.total(); // TypeError`,
             fix: `class Cart {\n  items = [];\n  total() { return this.items.length; }\n  clone() { const c = new Cart(); c.items = [...this.items]; return c; }\n}\nconst copy = cart.clone();` }),
-        Q('How do you write a function parameter with destructuring and defaults so it works with no argument?',
-          'Give the whole parameter a default empty object: function f({ a = 1, b = 2 } = {}). Without it, calling f() throws because you cannot destructure undefined.',
-          'Destructuring undefined or null throws TypeError.\nThe outer = {} handles the missing argument.\nInner defaults handle missing properties.\nCalling f(null) still throws; handle it if the API allows null.\nThis pattern is common for options objects.\nStrong answer explains both levels of defaults.',
-          [
-            E('Predict which calls throw.', 'Shows f() and f(null) for function f({ a } = {}).',
-              'f() works, a is undefined. f(null) throws, because the default only applies to undefined.'),
-            E('Write createButton with label default "OK" and size default "md".', 'Checks the pattern.',
-              'Use defaults inside the pattern plus = {} for the whole parameter.',
-              { solution: `function createButton({ label = 'OK', size = 'md' } = {}) {\n  return { label, size };\n}` }),
-          ]),
+        {
+          q: 'When do you use optional chaining, and when destructuring with defaults, to read nested API data?',
+          short: 'Optional chaining (a?.b?.c) safely reads one deep value and gives undefined if a link is missing. Destructuring with defaults pulls several values at once and fills defaults, but throws if a parent is null.',
+          long: `user?.address?.city returns undefined if user or address is null or undefined.
+const { address: { city } = {} } = user; gives a default only when address is undefined; null still throws.
+Destructuring defaults apply only to undefined; ?? applies to null and undefined.
+Use optional chaining plus ?? for one or two values from unreliable data.
+Use destructuring for many values from a known shape, often after validation.
+Too much nested destructuring is hard to read; flatten data at the API boundary.
+Strong answer: knows the null trap in destructuring. Weak answer: thinks both behave the same.`,
+          exercises: [
+            {
+              code: `const user = { address: null };
+console.log(user.address?.city ?? 'Unknown');
+const { address: { city } = {} } = user;`,
+              task: 'Predict the result of each line.',
+              description: 'Checks the null versus undefined behavior.',
+              answer: 'Line 1 gives "Unknown". Line 2 throws a TypeError, because the default {} is used only for undefined, and address is null.',
+            },
+            {
+              task: 'Read name and city safely with defaults, even if address is null.',
+              description: 'Checks combining both tools.',
+              answer: 'Use optional chaining with ?? for each value, or replace null with an empty object before destructuring.',
+              solution: `const name = user?.name ?? 'Guest';
+const city = user?.address?.city ?? 'Unknown';`,
+            },
+          ],
+        },
         Q('Predict the values. Explain nested destructuring and renaming.',
           'x is 1, y is 3, and city is "Kyiv". The name before the colon is the source key, the name after is the new variable. Nested patterns do not create a variable for the parent key.',
           '{ a: x } means "read a, store in x".\n{ address: { city } } creates city, not address.\nIf address is undefined, nested destructuring throws.\nGuard with a default: { address: { city } = {} }.\nDefaults and renaming combine: { a: x = 5 }.\nStrong answer knows typeof address is "undefined": no address variable is created.',
@@ -826,16 +1048,39 @@ export default {
           ],
           { code: `app.get('/me', (req, res) => {\n  const { password, ...safeUser } = req.user;\n  res.json(safeUser);\n});`,
             fix: `const toPublicUser = ({ id, name, email, avatarUrl }) => ({ id, name, email, avatarUrl });\napp.get('/me', (req, res) => res.json(toPublicUser(req.user)));` }),
-        Q('How do you set a team standard for immutable updates in a large codebase? Spread, Immer, or something else?',
-          'Pick one default by complexity: spread for shallow updates, Immer (or a store that uses it) for deep nested state. Document it, enforce with lint, and avoid mixing styles in one module.',
-          'Spread is fine for one or two levels; deeper levels become hard to read and easy to break.\nImmer gives readable "mutating" code with structural sharing; it adds a small runtime cost.\nNormalising state (by id) reduces nesting more than any tool.\nLint: no-param-reassign for reducers, or eslint-plugin-functional for key folders.\nConsider freezing in development to catch mutations.\nStrong answer starts from data shape, not tools.',
-          [
-            E('Write the same deep update with spread and with Immer.', 'Comparison exercise.',
-              'Spread needs copying each level; Immer uses produce with a draft. Strong answers comment on readability and bugs.',
-              { solution: `// spread\nconst next = { ...s, users: { ...s.users, [id]: { ...s.users[id], name } } };\n// Immer\nconst next2 = produce(s, (d) => { d.users[id].name = name; });` }),
-            E('How would you catch accidental mutations in development?', 'Practical check.',
-              'Deep freeze state in dev builds or use the store\'s built-in checks (like Redux Toolkit\'s immutability middleware).'),
-          ], { ai: true }),
+        {
+          q: 'Shared functions in your codebase take many positional arguments. When would you switch to one options object with destructuring? What are the costs?',
+          short: 'An options object makes calls readable, order-free and easy to extend without breaking callers. Costs: a small allocation, weaker discovery without types, and a risk of growing "god" options. Use it for more than two or three optional settings.',
+          long: `createUser('Ann', true, false, null, 3) is hard to read and easy to break.
+createUser({ name: 'Ann', admin: true, retries: 3 }) is self-describing, and new options can be added later.
+Keep required, obvious values positional (like an id) and put optional settings in an object.
+Define types and defaults in one place: function f(id, { retries = 3, timeout = 5000 } = {}).
+Risks: misspelled keys are silent in plain JS, so use TypeScript or validation; options objects can grow too large, which is a sign to split the function.
+Allocation cost is tiny except in very hot loops.
+Plan a migration: accept both forms for one release, then deprecate.
+Strong answer: gives a clear rule and a backward compatible migration. Weak answer: "always use objects".`,
+          exercises: [
+            {
+              code: 'function fetchList(url, page, pageSize, sort) { /* ... */ }',
+              task: 'Change this function to an options object without breaking old callers.',
+              description: 'Checks backward compatible API changes.',
+              answer: 'Check if the second argument is an object. If not, map the old positional values into the new options, and log a deprecation warning.',
+              solution: `function fetchList(url, opts = {}, ...rest) {
+  if (typeof opts !== 'object') {
+    console.warn('fetchList positional args are deprecated');
+    opts = { page: opts, pageSize: rest[0], sort: rest[1] };
+  }
+  const { page = 1, pageSize = 20, sort = 'name' } = opts;
+  /* ... */
+}`,
+            },
+            {
+              task: 'How do you catch a misspelled option key, like retires instead of retries?',
+              description: 'Checks safety of options objects.',
+              answer: 'In TypeScript, the excess property check flags unknown keys in object literals. In plain JS, validate keys against an allowed list in development builds.',
+            },
+          ],
+        },
       ],
     },
     'Event handling, bubbling & delegation': {
@@ -969,18 +1214,43 @@ export default {
             E('Name signs that a bus is being misused.', 'Judgment.',
               'Events that expect a reply, events used to sync state, chains of events triggering events, or nobody knowing all listeners.'),
           ], { ai: true }),
-        Q('Find and fix the problem. A click handler does heavy work and the INP score is poor. How do you change the code and the team habits?',
-          'The handler blocks the main thread before the next paint. Update the UI first, then yield to the browser (scheduler.yield or setTimeout), and move heavy work later or to a worker.',
-          'INP measures time from input to the next paint.\nGive visual feedback first, then do the rest.\nscheduler.yield() keeps priority and is available in Chromium; fall back to setTimeout(0).\nSplit long loops into chunks; move pure work to a Web Worker.\nTeam habits: INP field data in dashboards, long task budgets, profiling in reviews of interaction code.\nStrong answer combines code fix with monitoring.',
-          [
-            E('Write a yieldToMain helper with a fallback.', 'Checks feature detection.',
-              'Use scheduler.yield when it exists, otherwise a resolved timeout.',
-              { solution: `const yieldToMain = () => globalThis.scheduler?.yield ? scheduler.yield() : new Promise((r) => setTimeout(r, 0));` }),
-            E('How would you find the slowest interactions in production?', 'Monitoring question.',
-              'Collect INP with the web-vitals library including attribution (target, script), send to analytics, and rank by p75.'),
+        {
+          q: 'Code review: a shared component sets onclick properties, and some pages use inline onclick in HTML. What problems do you see? What rule do you set?',
+          code: `// shared/toolbar.js
+saveButton.onclick = () => save();
+// analytics.js
+saveButton.onclick = () => track('save');
+// page.html
+// <button onclick="openHelp()">Help</button>`,
+          short: 'An onclick property holds only one handler, so the second assignment silently removes the first. Inline handlers need global functions and block a strict Content Security Policy. Use addEventListener everywhere.',
+          long: `el.onclick = fn replaces any earlier handler; addEventListener adds one more.
+Here save never runs, only tracking does. This kind of bug is silent.
+Inline onclick in HTML runs in the global scope and needs 'unsafe-inline' or hashes in the CSP, which weakens XSS protection.
+addEventListener also supports options: once, passive, capture, and signal for cleanup.
+Rule: no on* properties and no inline handlers; enforce with lint rules and a strict CSP without 'unsafe-inline'.
+Strong answer: finds the overwrite and the CSP issue, and sets an enforceable rule. Weak answer: only mentions style.`,
+          fix: `const controller = new AbortController();
+saveButton.addEventListener('click', save, { signal: controller.signal });
+saveButton.addEventListener('click', () => track('save'), { signal: controller.signal });
+helpButton.addEventListener('click', openHelp, { signal: controller.signal });
+// later: controller.abort() removes all three`,
+          follow: 'How would you roll out a strict CSP when the old pages still use inline handlers?',
+          exercises: [
+            {
+              code: `btn.onclick = () => console.log('A');
+btn.onclick = () => console.log('B');
+btn.addEventListener('click', () => console.log('C'));`,
+              task: 'What is logged when the button is clicked?',
+              description: 'Checks property versus listener behavior.',
+              answer: 'Only "B" and "C". The second onclick replaced the first. The listener added with addEventListener runs too.',
+            },
+            {
+              task: 'Which CSP setting blocks inline event handlers?',
+              description: 'Checks the security link.',
+              answer: 'A script-src without unsafe-inline (for example with nonces or strict-dynamic). Inline on* attributes are then blocked, unless you add unsafe-hashes, which you should avoid.',
+            },
           ],
-          { ai: true, code: `button.addEventListener('click', () => {\n  const report = buildHugeReport(data); // 400 ms\n  sendAnalytics(report);\n  showDone();\n});`,
-            fix: `button.addEventListener('click', async () => {\n  showLoading();\n  await yieldToMain();\n  const report = await runInWorker('buildHugeReport', data);\n  showDone();\n  queueMicrotask(() => sendAnalytics(report));\n});` }),
+        },
       ],
     },
   },

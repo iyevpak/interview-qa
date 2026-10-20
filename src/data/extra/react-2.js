@@ -348,36 +348,15 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
       ],
       techlead: [
         {
-          q: "Fix this setup. One error in any widget makes the whole app blank.",
-          code: `root.render(
-  <ErrorBoundary fallback={<FullPageError />}>
-    <App />
-  </ErrorBoundary>
-);`,
-          short: "Use layered boundaries: root last resort, per-route, and per-independent-widget, each with appropriate fallback and reset, plus a shared component so teams apply it consistently.",
-          long: "A single root boundary turns a small bug into a full outage.\nLayer by blast radius: app shell, route content, independent widgets.\nWidgets that are optional (recommendations, charts) degrade to a small placeholder.\nCritical flows (checkout) use route-level fallbacks with clear recovery.\nProvide a shared <Boundary name=\"...\"> that reports the name for ownership.\nReview boundary placement in design reviews like you review loading states.",
-          fix: `function Boundary({ name, fallback, children }) {
-  return (
-    <ErrorBoundary
-      fallbackRender={({ resetErrorBoundary }) => fallback ?? <WidgetError onRetry={resetErrorBoundary} />}
-      onError={(e, info) => report(e, { boundary: name, stack: info.componentStack })}
-    >
-      {children}
-    </ErrorBoundary>
-  );
-}
-
-root.render(
-  <Boundary name="root" fallback={<FullPageError />}>
-    <App />
-  </Boundary>
-);
-// inside pages:
-<Boundary name="revenue-chart"><RevenueChart /></Boundary>`,
+          q: `Review this shared request helper. During a backend outage it made the incident worse. What would you change?`,
+          code: `export async function request(url, opts) {\n  for (;;) {\n    try {\n      const res = await fetch(url, opts);\n      if (!res.ok) throw new Error("HTTP " + res.status);\n      return await res.json();\n    } catch (e) {\n      await new Promise(r => setTimeout(r, 500));\n    }\n  }\n}`,
+          short: `It retries forever, every 500 ms, for every error, including 400 and 401, and from every client at once. That floods a struggling backend. Use limited retries with exponential backoff and jitter, retry only safe and transient failures, respect Retry-After, and support abort.`,
+          long: `Infinite retries never surface errors to the UI, so users see endless spinners.\nA fixed short delay from thousands of clients creates a retry storm that keeps the backend down.\nClient errors (400, 401, 403, 404) will not succeed on retry; only retry network errors, 408, 429 and 5xx.\nRetrying POST can create duplicates unless the API uses idempotency keys.\nUse exponential backoff with jitter, a max attempt count, and honor Retry-After.\nPass an AbortSignal so unmounted components stop retrying.\nAt scale, add a circuit breaker per service and prefer TanStack Query retry settings over custom loops.`,
+          fix: `const RETRY = new Set([408, 429, 500, 502, 503, 504]);\nexport async function request(url, { signal, retries = 3, ...opts } = {}) {\n  for (let attempt = 0; ; attempt++) {\n    let res;\n    try {\n      res = await fetch(url, { ...opts, signal });\n    } catch (e) {\n      if (signal?.aborted || attempt >= retries) throw e;\n    }\n    if (res?.ok) return res.json();\n    if (res && (!RETRY.has(res.status) || attempt >= retries)) {\n      throw new HttpError(res.status);\n    }\n    const after = Number(res?.headers.get("Retry-After")) * 1000;\n    const backoff = Math.min(8000, 2 ** attempt * 300) * (0.5 + Math.random());\n    await sleep(after || backoff, signal);\n  }\n}`,
           exercises: [
-            { task: "A dashboard has six widgets and a sidebar. Where do you put error boundaries?", description: "Checks placement strategy. Draw the tree and justify each boundary.", answer: "Root boundary for shell crashes, a route boundary for the dashboard content, and one per widget so failures stay local. The sidebar sits outside the content boundary so navigation always works." },
-            { task: "How do you make sure new widgets always have a boundary?", description: "Checks governance. Describe how to enforce boundaries.", answer: "Require the shared Boundary in a widget template/generator and check in PR review; optionally a custom ESLint rule for components in /widgets. Dashboards by boundary name show ownership of errors." }
-          ]
+            { task: `Why add random jitter to the backoff delay?`, description: `Checks retry storm knowledge. Explain.`, answer: `Without jitter, all clients that failed at the same moment retry at the same moments, creating waves of traffic. Jitter spreads retries over time, so the backend can recover.` },
+            { task: `How do you make sure a retried payment POST is not charged twice?`, description: `Checks idempotency. Describe the contract with the backend.`, answer: `Send an idempotency key, like a UUID made once per user action, in a header. The server stores the result per key and returns the same response for repeats. Without it, do not auto-retry non-idempotent requests.` },
+          ],
         },
         {
           q: "How do you set reliability goals for the frontend? How do error numbers guide priorities?",
@@ -444,13 +423,13 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
           ]
         },
         {
-          q: "What is useReducer? When is it better than useState?",
-          short: "useReducer manages state via a pure reducer(state, action), which is better when the next state depends on multiple fields or many event types update related state.",
-          long: "dispatch({ type: 'add', item }) describes what happened; the reducer decides how state changes.\nAll transitions live in one testable pure function.\ndispatch is stable, so passing it down does not break memoization.\nGood for forms, wizards, and state machines.\nuseState is simpler for independent values.\nCombine with context to share dispatch without prop drilling.",
+          q: `What does useId do? Why not use Math.random for element ids?`,
+          short: `useId returns a stable, unique id that is the same on the server and the client. Math.random gives a different value on each render and breaks hydration.`,
+          long: `Labels and ARIA attributes need ids: htmlFor, aria-describedby, aria-labelledby.\nuseId() gives a unique string per component instance, stable across re-renders.\nIt matches between server rendering and hydration, so there is no mismatch.\nMath.random or a global counter changes between server and client, or between renders.\nDo not use useId for list keys. Keys must come from your data.\nFor several ids in one component, use one useId and add suffixes: id + "-email".`,
           exercises: [
-            { task: "A cart uses three useState calls. Change it to useReducer.", description: "Checks reducer design. Write unit tests for the reducer alone.", answer: "Define actions add/remove/clear and a reducer that returns new state immutably. Test the reducer as a pure function without rendering. Components only dispatch actions." },
-            { task: "Block wrong state changes in a loading reducer.", description: "Checks state machines. Ignore 'success' when not 'loading'.", answer: "In the reducer, switch on state.status first and return state unchanged for invalid actions. This avoids impossible states like success after cancel." }
-          ]
+            { task: `Connect a label and a hint to an input with useId.`, description: `Checks accessible ids. Render two copies of the field and check that ids differ.`, answer: `Call const id = useId(), then use htmlFor={id} on the label, id={id} on the input, and aria-describedby={id + "-hint"} pointing to the hint. Each instance of the component gets its own id, so two fields on one page do not clash.`, solution: `function EmailField() {\n  const id = useId();\n  return (\n    <>\n      <label htmlFor={id}>Email</label>\n      <input id={id} aria-describedby={id + "-hint"} />\n      <p id={id + "-hint"}>We never share it.</p>\n    </>\n  );\n}` },
+            { task: `Why is useId a bad choice for keys in a list?`, description: `Checks the limits of useId. Explain with a map example.`, answer: `Hooks cannot be called inside a loop, and the id belongs to the component, not to each data item. Keys must be stable ids from the data, so React can match items when the list changes.` },
+          ],
         }
       ],
       middle: [
@@ -829,23 +808,15 @@ export default function RootLayout({ children }) {
     "Performance Optimization in React": {
       junior: [
         {
-          q: "Fix this list. React warns about keys. Inputs show wrong values after sorting.",
-          code: `{items.map((item, index) => (
-  <li key={index}>
-    <input defaultValue={item.name} />
-  </li>
-))}`,
-          short: "Index keys tie state to position, so reordering mixes up DOM state; use a stable unique id from the data.",
-          long: "Keys tell React which element is which between renders.\nWith index keys, after sorting React reuses the wrong DOM nodes.\nUncontrolled inputs keep their old values in the wrong rows.\nUse item.id (from the backend or generated once on creation).\nNever generate keys with Math.random() during render: everything remounts.\nIndex keys are fine only for static lists that never reorder.",
-          fix: `{items.map(item => (
-  <li key={item.id}>
-    <input defaultValue={item.name} />
-  </li>
-))}`,
+          q: `Fix this component. It does slow work on every render, even when nothing changed.`,
+          code: `function Report({ rows, theme }) {\n  const [sortDir, setSortDir] = useState("asc");\n  const sorted = [...rows].sort((a, b) =>\n    sortDir === "asc" ? a.total - b.total : b.total - a.total\n  );\n  const stats = calculateStats(rows); // slow\n  return <Table rows={sorted} stats={stats} theme={theme} onSort={setSortDir} />;\n}`,
+          short: `Sorting and calculateStats run on every render, including renders caused only by theme. Wrap them in useMemo with the right dependencies, after measuring that they are slow.`,
+          long: `Any re-render, for example a theme change, runs all code in the component again.\nuseMemo caches a result until its dependencies change.\nsorted depends on rows and sortDir; stats depends only on rows.\nMeasure first with the Profiler or console.time; small arrays do not need memoization.\nIf the React Compiler is enabled, it can add this memoization automatically.\nDo not memoize everything; memoize slow work and values passed to memoized children.`,
+          fix: `function Report({ rows, theme }) {\n  const [sortDir, setSortDir] = useState("asc");\n  const sorted = useMemo(\n    () => [...rows].sort((a, b) =>\n      sortDir === "asc" ? a.total - b.total : b.total - a.total),\n    [rows, sortDir]\n  );\n  const stats = useMemo(() => calculateStats(rows), [rows]);\n  return <Table rows={sorted} stats={stats} theme={theme} onSort={setSortDir} />;\n}`,
           exercises: [
-            { task: "Show the bug by sorting the list.", description: "Checks key understanding. Type in the first input, then sort reverse.", answer: "With index keys the typed value stays in the first row even though the item moved. With id keys the value moves with its item." },
-            { task: "What happens if the key is a random number?", description: "Checks remount cost. Observe key={Math.random()} with the Profiler.", answer: "Every render creates new keys, so React unmounts and remounts every row, losing state and focus and costing performance." }
-          ]
+            { task: `Prove that calculateStats is slow enough to memoize.`, description: `Checks measuring before optimizing. Use the browser tools.`, answer: `Wrap the call in console.time and console.timeEnd, or record with the React DevTools Profiler, and use CPU throttling. If it takes more than about 1 ms, memoizing is worth it.` },
+            { task: `The parent creates rows with rows={data.filter(r => r.active)}. Does useMemo in Report still help?`, description: `Checks dependency identity. Explain.`, answer: `No. filter makes a new array on each parent render, so the rows dependency always changes and useMemo recalculates every time. Memoize the filter in the parent too, or move the filter into Report.` },
+          ],
         },
         {
           q: "What is React memo? When should you use it?",
@@ -868,41 +839,15 @@ export default function RootLayout({ children }) {
       ],
       middle: [
         {
-          q: "Fix this slow filter. Each key press filters a big list and typing feels slow.",
-          code: `function Products({ products }) {
-  const [query, setQuery] = useState("");
-  const filtered = products.filter(p => expensiveMatch(p, query));
-  return (
-    <>
-      <input value={query} onChange={e => setQuery(e.target.value)} />
-      <List items={filtered} />
-    </>
-  );
-}`,
-          short: "Keep the input urgent and defer the expensive list with useDeferredValue, memoizing the filter and the list so React can interrupt stale renders.",
-          long: "Expensive synchronous work in the same render as the input update delays the keystroke.\nuseDeferredValue(query) gives a lagging value React renders at low priority.\nuseMemo on the deferred value avoids recomputation when unrelated state changes.\nmemo(List) lets the urgent render skip the list.\nShow staleness via query !== deferredQuery (e.g. dim the list).\nFor huge lists also virtualize.",
-          fix: `const List = memo(function List({ items }) { /* ... */ });
-
-function Products({ products }) {
-  const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query);
-  const filtered = useMemo(
-    () => products.filter(p => expensiveMatch(p, deferredQuery)),
-    [products, deferredQuery]
-  );
-  return (
-    <>
-      <input value={query} onChange={e => setQuery(e.target.value)} />
-      <div style={{ opacity: query !== deferredQuery ? 0.6 : 1 }}>
-        <List items={filtered} />
-      </div>
-    </>
-  );
-}`,
+          q: `The chart page uses React lazy. Users wait two seconds after clicking the Charts tab. How do you make it feel instant?`,
+          code: `const Charts = lazy(() => import("./Charts"));\n\nfunction Tabs() {\n  const [tab, setTab] = useState("table");\n  return (\n    <>\n      <button onClick={() => setTab("charts")}>Charts</button>\n      <Suspense fallback={<Spinner />}>\n        {tab === "charts" ? <Charts /> : <Table />}\n      </Suspense>\n    </>\n  );\n}`,
+          short: `The chunk download starts only on click. Preload it on hover or focus, or when the browser is idle, and switch tabs inside startTransition so the old tab stays visible instead of a spinner.`,
+          long: `lazy calls the import function only on first render of Charts, so the network wait starts at the click.\nKeep the import function in a variable and call it early: on pointerenter, on focus, or in requestIdleCallback after the page loads.\nThe module cache means the second call reuses the same request.\nWrap setTab in startTransition: React keeps showing the table while Charts loads, instead of replacing it with the fallback.\nUse isPending to show a small loading hint on the tab.\nCheck the chunk size too; a big chart library may need its own split.`,
+          fix: `const loadCharts = () => import("./Charts");\nconst Charts = lazy(loadCharts);\n\nfunction Tabs() {\n  const [tab, setTab] = useState("table");\n  const [isPending, startTransition] = useTransition();\n  return (\n    <>\n      <button\n        onPointerEnter={loadCharts}\n        onFocus={loadCharts}\n        onClick={() => startTransition(() => setTab("charts"))}\n      >\n        Charts {isPending && "…"}\n      </button>\n      <Suspense fallback={<Spinner />}>\n        {tab === "charts" ? <Charts /> : <Table />}\n      </Suspense>\n    </>\n  );\n}`,
           exercises: [
-            { task: "Compare input speed before and after the fix.", description: "Checks measurement. Use Chrome Performance panel with 4x CPU throttle and look at INP.", answer: "Before, input events show long tasks blocking the next paint. After, keystrokes paint quickly while the list renders in the background. INP improves noticeably." },
-            { task: "How is debounce different from useDeferredValue?", description: "Checks concepts. Short comparison.", answer: "Debounce delays work by a fixed time even on fast devices; useDeferredValue renders as soon as possible and is interruptible. Debounce is still useful for network requests." }
-          ]
+            { task: `Preload the chart chunk after the page is idle, without hurting first load.`, description: `Checks idle preloading. Write the effect.`, answer: `In an effect on mount, call requestIdleCallback(() => loadCharts()), with a setTimeout fallback where it is not supported. Cancel it in cleanup. The chunk loads when the main thread is free.` },
+            { task: `Why does startTransition stop the spinner from flashing?`, description: `Checks transitions with Suspense. Explain.`, answer: `In a transition, React does not replace already visible content with a fallback. It keeps the old UI until the new content is ready, and isPending tells you it is waiting.` },
+          ],
         },
         {
           q: "How do you show a list of ten thousand rows quickly?",
@@ -981,37 +926,24 @@ function Dashboard() {
       ],
       techlead: [
         {
-          q: "Fix this store usage. Every component re-renders on any store change.",
-          code: `const useStore = create(set => ({ user: null, cart: [], ui: {}, set }));
-
-function CartBadge() {
-  const { cart } = useStore();
-  return <span>{cart.length}</span>;
-}`,
-          short: "Calling the store hook without a selector subscribes to the whole state; select the minimal value (primitive if possible) so components only update when it changes.",
-          long: "Zustand compares the selected value; with no selector it is the whole state object.\nAny change (ui flag, user) re-renders CartBadge.\nSelect primitives: useStore(s => s.cart.length).\nFor multiple values use useShallow to compare shallowly.\nAgree on this as a team convention and lint for it.\nThe same principle applies to Redux useSelector and context splitting.",
-          fix: `function CartBadge() {
-  const count = useStore(s => s.cart.length);
-  return <span>{count}</span>;
-}
-
-// multiple fields
-import { useShallow } from "zustand/react/shallow";
-const { name, email } = useStore(useShallow(s => ({ name: s.user?.name, email: s.user?.email })));`,
+          q: `Review these imports. The main bundle is 900 kilobytes. What would you change, and how do you stop it from coming back?`,
+          code: `import _ from "lodash";\nimport moment from "moment";\nimport * as Icons from "@mui/icons-material";\nimport { Chart } from "chart.js/auto";\n\nexport function OrderRow({ order }) {\n  const Icon = Icons[order.statusIcon];\n  return (\n    <tr>\n      <td>{_.capitalize(order.name)}</td>\n      <td>{moment(order.date).format("LL")}</td>\n      <td><Icon /></td>\n    </tr>\n  );\n}`,
+          short: `Whole libraries are bundled: all of lodash, moment with locales, every MUI icon through a namespace import, and the full Chart.js registry in a row component. Use per-function imports or native APIs, a small date library or Intl, a fixed icon map, and lazy-load charts. Add size checks in CI.`,
+          long: `import _ from "lodash" pulls the whole CommonJS build; use lodash-es named imports or native code.\nmoment is large and not tree-shakeable; use Intl.DateTimeFormat or date-fns.\nimport * as Icons with a dynamic lookup forces the bundler to include every icon.\nchart.js/auto registers all chart types; import only what you need, and only in a lazy-loaded chart route.\nFind these with a bundle analyzer (rollup-plugin-visualizer, source-map-explorer).\nPrevent regressions: size-limit in CI, ESLint no-restricted-imports for known heavy paths, and review of new dependencies.`,
+          fix: `import { CheckCircle, Schedule, Cancel } from "@mui/icons-material";\n\nconst statusIcons = { done: CheckCircle, pending: Schedule, cancelled: Cancel };\nconst dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "long" });\nconst capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);\n\nexport function OrderRow({ order }) {\n  const Icon = statusIcons[order.status];\n  return (\n    <tr>\n      <td>{capitalize(order.name)}</td>\n      <td>{dateFmt.format(new Date(order.date))}</td>\n      <td>{Icon && <Icon />}</td>\n    </tr>\n  );\n}`,
           exercises: [
-            { task: "Prove the fix with the Profiler.", description: "Checks measurement. Toggle a UI flag and see if CartBadge renders.", answer: "Before, CartBadge appears in every commit. After, it renders only when cart length changes. Include the profiler evidence in the PR." },
-            { task: "Write a lint rule or review rule for store usage.", description: "Checks governance. Describe enforcement.", answer: "Ban destructuring from useStore() without a selector via no-restricted-syntax, and document selector patterns. Reviewers check for whole-store subscriptions." }
-          ]
+            { task: `Write a lint rule that stops new full lodash and moment imports.`, description: `Checks prevention. Write the ESLint config.`, answer: `Use no-restricted-imports with paths for lodash and moment and a message that points to the approved alternative.`, solution: `"no-restricted-imports": ["error", {\n  "paths": [\n    { "name": "lodash", "message": "Use lodash-es named imports or native code." },\n    { "name": "moment", "message": "Use Intl or date-fns." }\n  ]\n}]` },
+            { task: `How do you decide if a new dependency is allowed?`, description: `Checks dependency governance. List the criteria.`, answer: `Check its compressed size and tree-shaking support on bundlephobia, maintenance and license, and whether a native API or an existing dependency already does the job. Large packages need approval and should load lazily.` },
+          ],
         },
         {
-          q: "How do you make performance a habit across many React teams?",
-          ai: true,
-          short: "Define user-centric budgets per route (LCP, INP, JS size), automate checks in CI, monitor RUM in production, and give teams ownership and time to fix regressions.",
-          long: "Pick a few metrics everyone understands: p75 LCP, INP, CLS, JS per route.\nBudgets in CI (Lighthouse CI, size-limit) catch regressions before merge.\nRUM dashboards per team/route show real impact.\nMake regressions visible in PRs, not quarterly audits.\nReserve capacity each sprint for performance debt.\nCelebrate wins with before/after data to keep momentum.",
+          q: `How do you set and track performance budgets, like Core Web Vitals, for several React apps?`,
+          short: `Pick a few user-centered metrics (LCP, INP, CLS, plus JavaScript size), set targets per page type, collect real user data with the web-vitals library, and show it per release and per team. Use lab checks in CI to stop regressions early.`,
+          long: `Field data shows what users feel: collect LCP, INP and CLS with web-vitals and send them to your analytics with route and release tags.\nGood thresholds at the 75th percentile: LCP under 2.5 s, INP under 200 ms, CLS under 0.1.\nAdd budgets the team controls directly: JavaScript per route, number of requests, image weight.\nLab tools (Lighthouse CI, size-limit) catch regressions in pull requests; field data confirms the effect.\nGive each budget an owner; a dashboard by route makes it clear which team acts.\nWhen a budget is broken, the fix goes to the next sprint, like a bug.\nReview targets every quarter as devices and features change.`,
           exercises: [
-            { task: "Set performance limits for three pages.", description: "Checks budget design. Give numbers and reasons.", answer: "Landing: LCP under 2.5s, 150 KB JS. Search: INP under 200ms. Editor: allowed 400 KB JS but lazy loaded after shell. Targets reflect user expectations and device mix." },
-            { task: "A pull request breaks a limit. What is the process?", description: "Checks process. Describe the workflow.", answer: "CI fails or warns with the diff; the PR author either fixes or requests a time-boxed exception with an owner and ticket. Exceptions are reviewed regularly." }
-          ]
+            { task: `Field INP got worse after a release, but Lighthouse scores did not change. Why, and what do you do?`, description: `Checks lab versus field. Explain the gap.`, answer: `Lighthouse does not measure real interactions well; INP comes from real users clicking on real devices. Use the web-vitals attribution build to find which element and script caused slow interactions, then profile that flow with CPU throttling.` },
+            { task: `Write a JavaScript budget rule for a route.`, description: `Checks concrete budgets. Give an example config.`, answer: `For example: the checkout route may ship at most 170 KB of compressed JavaScript. A size-limit check in CI fails the pull request if a change goes over it, and the owner must approve any raise.`, solution: `[\n  { "path": "dist/assets/checkout-*.js", "limit": "170 KB" }\n]` },
+          ],
         },
         {
           q: "Your app reacts slowly to clicks on cheap Android phones. What is your plan?",
@@ -1107,13 +1039,13 @@ async function api(url, init = {}) {
           ]
         },
         {
-          q: "How do you build forms with validation in a large React app?",
-          short: "Use a form library (react-hook-form) with schema validation (zod/yup) shared with the backend where possible, and keep fields uncontrolled for performance.",
-          long: "react-hook-form registers inputs and avoids re-rendering the whole form per keystroke.\nSchemas define rules once and give TypeScript types.\nShow errors accessibly (aria-invalid, aria-describedby).\nMap server validation errors back to fields with setError.\nIn React 19/Next, forms can use actions with useActionState for progressive enhancement.\nBuild reusable field components wrapping the design system.",
+          q: `How do you load a third-party script, like a payment or maps SDK, only once and only when it is needed?`,
+          short: `Wrap the script loading in a module-level promise so it runs once, start it only on the pages or actions that need it, and expose it through a hook or Suspense. Clean up widgets, not the script, on unmount.`,
+          long: `Adding a script tag in every component that needs it loads it many times and causes race bugs.\nKeep one cached promise per script URL at module level; every caller awaits the same promise.\nLoad it when needed: on the checkout route, or when the user opens the map.\nIn React 19 you can render <script async src="..." /> in a component; React dedupes it and can hoist it.\nUse a hook that returns the loading status, or use() with the promise inside Suspense.\nAdd a timeout and error state; ad blockers and network issues are common.\nCheck the Content Security Policy and use the vendor official loader if there is one.`,
           exercises: [
-            { task: "Build a sign up form with zod and react-hook-form.", description: "Checks integration. Use zodResolver and test with RTL.", answer: "Define a schema, use useForm({ resolver: zodResolver(schema) }), register fields and render errors. Tests type invalid values and assert error messages appear." },
-            { task: "The server says the email already exists. Show it on the email field.", description: "Checks server errors. Use setError for a 409 response.", answer: "In the submit catch, call setError('email', { message: 'Email already registered' }). The field shows the error and gets focus." }
-          ]
+            { task: `Write a loadScript function that loads each URL only once.`, description: `Checks promise caching. Call it from two components at the same time.`, answer: `Keep a Map from URL to promise. If the URL is in the map, return the stored promise. Otherwise create a script element, resolve on load, reject on error and remove the entry so it can retry.`, solution: `const cache = new Map();\nexport function loadScript(src) {\n  if (!cache.has(src)) {\n    cache.set(src, new Promise((resolve, reject) => {\n      const s = document.createElement("script");\n      s.src = src;\n      s.async = true;\n      s.onload = () => resolve();\n      s.onerror = () => { cache.delete(src); reject(new Error("Failed: " + src)); };\n      document.head.appendChild(s);\n    }));\n  }\n  return cache.get(src);\n}` },
+            { task: `The maps SDK is blocked by an ad blocker. What should the user see?`, description: `Checks graceful failure. Describe the UI.`, answer: `Show a clear fallback: a static address or a link to open the map elsewhere, plus a retry button. Log the failure with the reason, but do not crash the page or show an endless spinner.` },
+          ],
         },
         {
           q: "How do you share state between React and a third-party widget or an iframe?",

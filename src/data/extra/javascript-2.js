@@ -236,41 +236,47 @@ console.log(m instanceof Named, m.name, [...m]);`,
           ],
         },
         {
-          q: 'Code review. This class does not remove its event listener. Find the bug and fix it.',
-          code: `class Tracker {
-  constructor(el) {
-    this.el = el;
-    this.clicks = 0;
-    el.addEventListener('click', this.onClick.bind(this));
-  }
-  onClick() { this.clicks++; }
-  destroy() { this.el.removeEventListener('click', this.onClick); }
-}`,
-          short: 'bind creates a new function each time, so removeEventListener receives a different reference and the listener never detaches; store the bound handler or use an AbortController.',
-          long: `removeEventListener needs the identical function reference that was added.
-this.onClick in destroy is the unbound prototype method, not the bound one.
-The listener keeps the Tracker (and its data) alive as long as el lives.
-Fixes: arrow-function field handler, store bound reference, or AbortController signal for bulk cleanup.
-AbortController scales best when a class registers many listeners.
-Strong answer: also nulls references, makes destroy idempotent, and considers the WeakRef-free design.`,
-          fix: `class Tracker {
-  #ac = new AbortController();
-  clicks = 0;
-  constructor(el) {
-    el.addEventListener('click', () => { this.clicks++; }, { signal: this.#ac.signal });
-  }
-  destroy() { this.#ac.abort(); }
-}`,
+          q: 'Find and fix the bug. After saving and loading from localStorage, calling format throws.',
+          code: `class Money {
+  #cents;
+  constructor(cents) { this.#cents = cents; }
+  format() { return '$' + (this.#cents / 100).toFixed(2); }
+}
+localStorage.setItem('price', JSON.stringify(new Money(500)));
+const price = JSON.parse(localStorage.getItem('price'));
+price.format();`,
+          short: 'JSON.stringify keeps only own enumerable public properties, so a private field gives "{}". JSON.parse returns a plain object without the class prototype. Add toJSON and a static fromJSON.',
+          long: `JSON has no idea about classes, prototypes, methods or private fields.
+JSON.stringify calls toJSON if it exists; use it to choose the saved shape.
+JSON.parse always returns plain objects; you must rebuild instances yourself, for example with a static fromJSON or a reviver.
+Version the saved shape so you can migrate old data later.
+The same applies to postMessage and structuredClone: class identity and private fields are lost.
+Strong answer: explains both directions and suggests a schema check on load. Weak answer: makes the field public.`,
+          fix: `class Money {
+  #cents;
+  constructor(cents) { this.#cents = cents; }
+  format() { return '$' + (this.#cents / 100).toFixed(2); }
+  toJSON() { return { cents: this.#cents }; }
+  static fromJSON({ cents }) { return new Money(cents); }
+}
+localStorage.setItem('price', JSON.stringify(new Money(500)));
+const price = Money.fromJSON(JSON.parse(localStorage.getItem('price')));`,
+          follow: 'How would you restore many different classes from one JSON document?',
           exercises: [
             {
-              task: 'Prove the original destroy does not remove the listener.',
-              description: 'Checks reference equality reasoning. Run in a browser: create Tracker, destroy, click, log clicks.',
-              answer: 'clicks still increments after destroy because a different function was passed to removeEventListener. Candidates sometimes blame bind "changing this". Strong answers verify with getEventListeners(el) in Chrome DevTools.',
+              code: `class User { #token = 'x'; name = 'Ann'; hi() {} }
+console.log(JSON.stringify(new User()));`,
+              task: 'Predict the output.',
+              description: 'Checks JSON rules for classes.',
+              answer: '{"name":"Ann"}. The private field is skipped, and the method lives on the prototype, so it is not saved.',
             },
             {
-              task: 'Compare arrow function fields and bound prototype methods. Think about memory and tests.',
-              description: 'Checks trade-off judgment. Discuss verbally.',
-              answer: 'Arrow fields allocate one closure per instance and are not on the prototype, so they cannot be spied on via Class.prototype in tests or overridden with super. Prototype methods are shared but need binding at registration. Strong answers pick based on instance count and inheritance needs, not dogma.',
+              task: 'Use a JSON.parse reviver to restore Money objects.',
+              description: 'Checks the reviver function.',
+              answer: 'Save a type tag, then in the reviver check the tag and return a new instance.',
+              solution: `const data = JSON.parse(text, (key, value) =>
+  value && value.type === 'Money' ? Money.fromJSON(value) : value
+);`,
             },
           ],
         },
@@ -306,25 +312,34 @@ Strong answer: distinguishes legacy vs standard, and limits decorators to well-u
       ],
       techlead: [
         {
-          q: 'The codebase mixes old constructor functions, classes and factory functions. How do you choose one standard and roll it out?',
-          short: 'Pick per use case (classes for stateful entities with identity and inheritance-free composition, plain functions/modules for logic), codify it with lint rules, and migrate opportunistically rather than via big-bang rewrite.',
-          long: `Start by inventorying patterns and where bugs come from (this-binding, prototype mutation, deep hierarchies).
-Standard: classes for domain entities and framework-required APIs, composition over inheritance, max depth 1–2.
-Factories/closures for small stateful utilities; plain functions for pure logic.
-Enforce via ESLint (prefer-class or no-proto, no-extend-native) and code review checklists.
-Migrate when touching code, with codemods for mechanical ES5 → class conversions, behind tests.
-Strong answer: ties the decision to measurable pain and team skills; weak answer imposes personal taste.`,
-          ai: true,
+          q: 'How would you design error classes for a large frontend app? Should you extend Error? What fields do you add?',
+          short: 'Extend Error so stack traces and instanceof work. Add a stable code, a name, and the original error as cause. Keep a small, shared set of error types, and make them easy to log and show to users.',
+          long: `class AppError extends Error with this.name set, so logs show the right type.
+Use the standard cause option: new AppError('Load failed', { cause: err }) keeps the original error.
+Add a stable machine-readable code (like "AUTH_EXPIRED") for handling and analytics; message text can change.
+Keep a small set: NetworkError, HttpError (with status), ValidationError, AuthError.
+instanceof breaks across realms and duplicated package copies, so also check code or name.
+Do not put secrets or personal data in messages; they go to monitoring.
+Map errors to user messages in one place, not in every component.
+Strong answer: covers cause, codes, and the instanceof limits. Weak answer: throws plain strings.`,
           exercises: [
             {
-              task: 'Draft three ESLint rules you would enable for this standard and justify each.',
-              description: 'Checks practical governance. Write a short config and rationale.',
-              answer: 'Examples: no-extend-native (no patching built-ins), no-proto (no __proto__), class-methods-use-this (signals methods that should be functions), max-classes-per-file. Weak answers list formatting rules. Strong answers connect each rule to a past incident type.',
+              task: 'Write an HttpError class with status and cause.',
+              description: 'Checks correct Error subclassing.',
+              answer: 'Call super with the message and options, set name and status. The cause is stored by the Error constructor.',
+              solution: `class HttpError extends Error {
+  constructor(status, message, options) {
+    super(message, options);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+throw new HttpError(404, 'User not found', { cause: originalError });`,
             },
             {
-              task: 'Plan a migration of a 40-file ES5 prototype module to classes with minimal risk.',
-              description: 'Checks rollout planning. Outline steps verbally.',
-              answer: 'Add characterization tests first, run a codemod (e.g. lebab) per file, review behavior differences (classes are strict, non-callable without new, methods non-enumerable), ship incrementally behind normal CI. Ignoring the enumerable/strict differences is the common miss. Strong answers time-box and measure regression rate.',
+              task: 'Why can instanceof HttpError be false for a real HttpError?',
+              description: 'Checks realm and package duplication issues.',
+              answer: 'If the error comes from an iframe or a second copy of the library, it was made by a different class object. Check err.name or a code field as a fallback.',
             },
           ],
         },
@@ -503,34 +518,37 @@ Older environments need a polyfill (core-js).`,
           ],
         },
         {
-          q: 'Find and fix the bug. The Set of points still has duplicates.',
-          code: `const seen = new Set();
-for (const p of [{ x: 1, y: 2 }, { x: 1, y: 2 }]) {
-  seen.add(p);
-}
-console.log(seen.size); // expected 1`,
-          short: 'Sets compare objects by reference, not by content; use a stable primitive key such as a string.',
-          long: `Each object literal is a new reference, so both are added.
-Fix: derive a key like \`\${x},\${y}\` and store that, or use a Map from key to object.
-JSON.stringify keys work but depend on property order, so they are fragile.
-For value semantics, Records and Tuples were withdrawn; composite keys remain a manual job.
-Strong answer: builds a key function and explains why JSON.stringify is risky.
-Weak answer: expects Set to do deep equality.`,
-          fix: `const byKey = new Map();
-for (const p of points) {
-  byKey.set(\`\${p.x},\${p.y}\`, p);
-}
-const unique = [...byKey.values()];`,
+          q: 'Find and fix the bug. Saved preferences are empty after a page reload.',
+          code: `const prefs = new Map([['theme', 'dark'], ['lang', 'en']]);
+localStorage.setItem('prefs', JSON.stringify(prefs));
+const loaded = JSON.parse(localStorage.getItem('prefs'));
+console.log(loaded.get('theme'));`,
+          short: 'JSON.stringify turns a Map into "{}", because Map entries are not object properties. Save the entries as an array or a plain object, and rebuild the Map when you load.',
+          long: `JSON only knows objects, arrays, strings, numbers, booleans and null.
+A Map stores data internally, not as properties, so it serializes to {}.
+Sets have the same problem.
+Save with [...map] or Object.fromEntries(map), and load with new Map(array) or new Map(Object.entries(obj)).
+Object.fromEntries only works well when keys are strings.
+structuredClone and postMessage do support Map and Set, but JSON does not.
+Strong answer: knows both directions and the string-key limit. Weak answer: switches everything to plain objects.`,
+          fix: `localStorage.setItem('prefs', JSON.stringify([...prefs]));
+const loaded = new Map(JSON.parse(localStorage.getItem('prefs')));
+console.log(loaded.get('theme')); // "dark"`,
+          follow: 'How would you save a Set of numbers?',
           exercises: [
             {
-              task: 'Remove duplicate users by id, keeping the first one.',
-              description: 'Checks Map-based dedupe. Test with two users having the same id.',
-              answer: 'Loop and set only if !map.has(u.id), then take map.values(). Using new Map(users.map(u => [u.id, u])) keeps the last one, which surprises people. Strong answers state which one is kept.',
+              task: 'Save and load a Set of tags.',
+              description: 'Checks the same idea with Set.',
+              answer: 'Spread the Set into an array before stringify, and pass the parsed array to new Set.',
+              solution: `localStorage.setItem('tags', JSON.stringify([...tags]));
+const tags2 = new Set(JSON.parse(localStorage.getItem('tags')));`,
             },
             {
-              task: 'Why is JSON.stringify a weak key for objects?',
-              description: 'Checks key stability. Compare {a:1,b:2} and {b:2,a:1}.',
-              answer: 'The two strings differ because key order differs, so equal objects get different keys. It is also slow for large objects and fails on cycles or BigInt. Strong answers prefer explicit key fields.',
+              task: 'Write a JSON replacer that handles Maps everywhere in an object.',
+              description: 'Checks the replacer argument.',
+              answer: 'In the replacer, return a tagged object with the entries when the value is a Map. Use a matching reviver on parse.',
+              solution: `const replacer = (k, v) => v instanceof Map ? { __map: [...v] } : v;
+const reviver = (k, v) => v && v.__map ? new Map(v.__map) : v;`,
             },
           ],
         },
@@ -597,25 +615,35 @@ const registry = []; // leak: holds el forever
           ],
         },
         {
-          q: 'How fast are Map and plain objects? When does each win?',
-          short: 'Maps are tuned for frequent add/delete and many dynamic keys; objects with a fixed shape get hidden-class optimizations and are faster for record-like data.',
-          long: `V8 gives objects hidden classes and inline caches when shapes are stable.
-Adding and deleting many keys turns objects into slow dictionary mode.
-Map has predictable performance for dynamic keys, any key type, and a cheap size.
-Objects risk prototype keys (__proto__, constructor) unless you use Object.create(null).
-Measure with real data; micro-benchmarks are easily misleading due to JIT.
-Strong answer: chooses by access pattern and correctness, then measures.`,
-          follow: 'What changes if you need to send the data as JSON to a server?',
+          q: 'You need a Map with a two-part key, like user ID and date. Map compares objects by reference. What are your options?',
+          short: 'Use a string key built from the parts, a nested Map (Map of Maps), or a helper that interns key objects. Each has trade-offs in speed, memory and safety.',
+          long: `Map uses SameValueZero: primitives by value, objects by reference. So map.get([1, 'x']) never finds a new array.
+Option 1: string key, like userId + '|' + date. Simple and fast; pick a separator that cannot appear in the parts, or use JSON.stringify of an array.
+Option 2: nested Maps: map.get(userId)?.get(date). No string building, easy to delete all entries for one user, but more code.
+Option 3: intern keys: keep one canonical key object per combination and reuse it; useful with WeakMap, but the intern table itself needs cleanup.
+The Records and Tuples proposal that would have given value-based keys was withdrawn, so do not plan on it.
+Strong answer: compares options and mentions separator collisions. Weak answer: uses arrays as keys and expects them to match.`,
           exercises: [
             {
-              task: 'Show a bug with user keys in a plain object.',
-              description: 'Checks prototype key risks. Use the key "__proto__" or "constructor".',
-              answer: 'counts["constructor"] returns a function from Object.prototype, so counts[k] = (counts[k] || 0) + 1 gives garbage like "function...1". Map or Object.create(null) avoids it. Strong answers mention prototype pollution.',
+              code: `const m = new Map();
+m.set([1, 'a'], 'x');
+m.get([1, 'a']); // undefined`,
+              task: 'Why does this lookup return undefined? Fix it with a string key.',
+              description: 'Checks reference equality of keys.',
+              answer: 'Each [1, "a"] is a new array, so the key in get is a different object. Build a string key instead.',
+              solution: `const key = (id, d) => id + '|' + d;
+m.set(key(1, 'a'), 'x');
+m.get(key(1, 'a')); // 'x'`,
             },
             {
-              task: 'Write a fair benchmark plan for Map vs object.',
-              description: 'Checks measurement discipline. Outline steps.',
-              answer: 'Use realistic key counts and access patterns, warm up, run many iterations with a tool like tinybench or mitata, and avoid dead-code elimination by using results. Test on target engines. Weak answers run one console.time loop.',
+              task: 'Write get and set helpers for a nested Map with two keys.',
+              description: 'Checks the Map of Maps pattern.',
+              answer: 'Get or create the inner Map for the first key, then use the second key on it.',
+              solution: `function set2(m, a, b, v) {
+  if (!m.has(a)) m.set(a, new Map());
+  m.get(a).set(b, v);
+}
+const get2 = (m, a, b) => m.get(a)?.get(b);`,
             },
           ],
         },
@@ -692,63 +720,71 @@ Strong answer: combines tooling, ownership, and prevention; weak answer just say
           ],
         },
         {
-          q: 'Code review. This PR uses an object as a lookup table for user-provided keys. What do you change?',
-          code: `const settings = {};
-function save(key, value) { settings[key] = value; }
-function read(key) { return settings[key] ?? 'default'; }
-save(req.body.key, req.body.value);`,
-          short: 'Plain objects with untrusted keys allow prototype pollution and inherited-key bugs; switch to a Map or Object.create(null), and validate keys against an allow list.',
-          long: `save('__proto__', {...}) can change the prototype; read('toString') returns a function, not 'default'.
-Map has no inherited keys and no special __proto__ handling.
-Validate keys with an allow list or schema (zod, valibot) at the boundary.
-Add tests for dangerous keys and enable a lint rule or security scanner.
-Explain the fix in the review so the team learns the pattern.
-Strong answer: covers both the code fix and the team-level prevention.`,
-          fix: `const ALLOWED = new Set(['theme', 'lang']);
-const settings = new Map();
-function save(key, value) {
-  if (!ALLOWED.has(key)) throw new Error('Unknown setting');
-  settings.set(key, value);
+          q: 'Code review: this WeakMap cache never gets a hit after state updates. Why? What team rule would you add?',
+          code: `const heightCache = new WeakMap();
+function getHeight(row) {
+  if (!heightCache.has(row)) heightCache.set(row, measure(row));
+  return heightCache.get(row);
 }
-const read = (key) => settings.get(key) ?? 'default';`,
+// reducer
+state.rows = state.rows.map((r) => ({ ...r }));`,
+          short: 'The WeakMap is keyed by object identity, but the reducer copies every row on each update, so every key is new. Keep identity for unchanged items, or key by a stable ID.',
+          long: `WeakMap caches only work if the same object is used again.
+Copying all rows makes every lookup a miss, so measure runs again for every row, and the old entries wait for garbage collection.
+Fix the reducer: copy only the row that changed and keep the others as they are.
+Or key a bounded Map by row.id plus a version, if objects are always recreated.
+Team rule: immutable updates must keep identity for unchanged data. This also helps React memo and selectors.
+Add a check in tests or dev tools that counts cache hits.
+Strong answer: links the cache miss to identity and fixes the reducer. Weak answer: switches to a Map and leaks memory.`,
+          fix: `// reducer: only the changed row gets a new object
+state.rows = state.rows.map((r) => (r.id === changedId ? { ...r, ...patch } : r));`,
+          follow: 'When is keying by ID in a normal Map better than a WeakMap here?',
           exercises: [
             {
-              task: 'Show the read bug with the key "toString".',
-              description: 'Checks inherited key behavior. Run read("toString") on the original code.',
-              answer: 'It returns Object.prototype.toString, not "default", because ?? only checks null/undefined. Strong answers then show Object.hasOwn or Map as the fix.',
+              code: `const a = { id: 1 };
+getHeight(a);
+getHeight(a);
+getHeight({ ...a });`,
+              task: 'How many times does measure run in this code?',
+              description: 'Checks identity versus copies.',
+              answer: 'Twice. The second call gets a copy, which is a different object, so it misses the cache.',
             },
             {
-              task: 'How would you find this pattern across a big codebase?',
-              description: 'Checks scaling the fix. Describe tools.',
-              answer: 'Use Semgrep or CodeQL rules for obj[userInput] = ..., plus code search for known shapes. Run them in CI. Strong answers prioritize by data source (request bodies, query strings).',
+              task: 'Write a cache keyed by id and version, with a size limit.',
+              description: 'Checks the alternative design.',
+              answer: 'Build a string key from id and version, and delete the oldest key when the Map is too large.',
+              solution: `const cache = new Map();
+function getHeight(row) {
+  const k = row.id + ':' + row.version;
+  if (!cache.has(k)) {
+    if (cache.size > 1000) cache.delete(cache.keys().next().value);
+    cache.set(k, measure(row));
+  }
+  return cache.get(k);
+}`,
             },
           ],
         },
         {
-          q: 'Should the team allow WeakRef and FinalizationRegistry in product code? What rules would you set?',
-          short: 'Allow them only in small, reviewed infrastructure modules; never for business logic, because GC timing is not guaranteed.',
-          long: `Finalizers may run late or never; code must work if they never run.
-WeakRef.deref() can change between turns, so read it once per task.
-Valid uses: caches of large, re-creatable objects; cleanup of native or WASM resources as a backup.
-Rules: wrapper module with tests, documented fallback, review by a senior.
-Prefer explicit lifecycle (dispose, using with Symbol.dispose) for cleanup.
-Strong answer: knows the spec gives no timing guarantee and offers explicit alternatives.`,
-          follow: 'Does the new using keyword with Symbol.dispose change your answer?',
+          q: 'A team wants to add an immutable collections library, like Immutable.js. When is it worth it compared with native Map, Set and plain objects?',
+          short: 'Usually it is not worth it today. Native structures with spread, Immer, and readonly types cover most needs. A persistent collections library helps only for very large, often-changed data where structural sharing matters.',
+          long: `Costs: extra bundle size, a second API to learn, and conversions (toJS, fromJS) at every boundary, which are slow and cause bugs.
+Libraries and devtools expect plain objects and arrays.
+Benefits: structural sharing makes updates of huge collections cheap; value equality for keys; immutability enforced at runtime.
+Alternatives: Immer for easy immutable updates, Object.freeze in dev, TypeScript readonly types, and normalized state.
+Decide with a measured problem, such as slow updates on lists with 100k items, not a feeling.
+If you adopt it, keep it inside one module and expose plain data.
+Strong answer: weighs bundle size, interop and real need. Weak answer: "immutable is always better".`,
           exercises: [
             {
-              task: 'Rewrite finalizer-based cleanup to explicit cleanup with using.',
-              description: 'Checks explicit resource management. Write a class with [Symbol.dispose] (needs TS 5.2+ or a runtime that supports it).',
-              answer: 'Give the class a [Symbol.dispose]() method and declare it with using conn = open(); cleanup runs at block exit, even on errors. Strong answers mention await using and Symbol.asyncDispose for async resources.',
-              solution: `class Conn { [Symbol.dispose]() { this.close(); } close() {} }
-{
-  using c = new Conn();
-  // work
-} // c.close() runs here`,
+              task: 'What is structural sharing? Why does it make updates cheap?',
+              description: 'Checks the core idea behind persistent data.',
+              answer: 'A new version reuses most of the old tree and copies only the path to the changed item. So an update costs about log n, not a full copy.',
             },
             {
-              task: 'Why must code not depend on a finalizer running?',
-              description: 'Checks spec knowledge. Explain.',
-              answer: 'The engine may never collect the object (for example the page closes, or memory is not under pressure), so the callback never runs. Timing also differs between engines. Strong answers name this as the core rule.',
+              task: 'How would you get runtime immutability in development without a library?',
+              description: 'Checks native tools.',
+              answer: 'Deep freeze state in development builds, so accidental writes throw in strict mode. Skip it in production for speed, and use readonly types for compile-time checks.',
             },
           ],
         },
@@ -785,31 +821,42 @@ console.log(it.next(), it.next(), it.next(), it.next());`,
           ],
         },
         {
-          q: 'Find and fix the bug. The second loop prints nothing.',
-          code: `function* letters() { yield 'a'; yield 'b'; }
-const it = letters();
-for (const l of it) console.log(l);
-for (const l of it) console.log(l);`,
-          short: 'A generator object can be consumed only once; create a new one for each loop or make an iterable whose [Symbol.iterator] calls the generator.',
-          long: `Generator objects are iterators that return themselves from [Symbol.iterator].
-After the first loop finishes, the generator is done forever.
-Arrays are iterables that create a fresh iterator each time, so they can be looped many times.
-Fix: call letters() again, or wrap it in an object with [Symbol.iterator]: letters.
-Strong answer: explains iterable vs iterator.
-Weak answer: thinks the generator is "broken" or needs reset().`,
-          fix: `const letters = { *[Symbol.iterator]() { yield 'a'; yield 'b'; } };
-for (const l of letters) console.log(l);
-for (const l of letters) console.log(l);`,
+          q: 'Find and fix the bug. The last value is missing from the array.',
+          code: `function* steps() {
+  yield 'start';
+  yield 'middle';
+  return 'end';
+}
+console.log([...steps()]); // expected ['start', 'middle', 'end']`,
+          short: 'Spread and for...of ignore the value from return; they stop when done is true. Use yield for every value you want in the loop.',
+          long: `Each next() gives { value, done }.
+yield gives { value, done: false }. return gives { value, done: true }.
+Loops and spread stop as soon as done is true, and they drop that value.
+You can still see the return value by calling next() by hand.
+Use return for a final summary only when you call next() yourself or use yield*.
+Strong answer: explains the done flag. Weak answer: adds an extra yield without knowing why.`,
+          fix: `function* steps() {
+  yield 'start';
+  yield 'middle';
+  yield 'end';
+}`,
+          follow: 'How can you read the return value of a generator?',
           exercises: [
             {
-              task: 'What is the difference between an iterable and an iterator?',
-              description: 'Checks protocol vocabulary. Explain with Array as an example.',
-              answer: 'An iterable has a [Symbol.iterator]() method that returns an iterator; an iterator has next(). Arrays are iterables; arr.values() is an iterator. Strong answers know generator objects are both.',
+              code: `function* g() { yield 1; return 2; }
+const it = g();
+it.next(); it.next(); it.next();`,
+              task: 'Write what each next call returns.',
+              description: 'Checks the iterator result objects.',
+              answer: '{ value: 1, done: false }, then { value: 2, done: true }, then { value: undefined, done: true }.',
             },
             {
-              task: 'What does breaking out of a for...of do to the generator?',
-              description: 'Checks return() behavior. Add a finally block to the generator and break early.',
-              answer: 'break calls it.return(), so the finally block runs and the generator is closed. Later next() calls return done: true. Strong answers use this for cleanup.',
+              task: 'Write a generator that yields numbers from 1 to n.',
+              description: 'Checks basic generator writing.',
+              answer: 'Use a for loop and yield each number.',
+              solution: `function* range(n) {
+  for (let i = 1; i <= n; i++) yield i;
+}`,
             },
           ],
         },
@@ -921,32 +968,31 @@ naturals().filter(n => n % 2 === 0).take(3).toArray();`,
           ],
         },
         {
-          q: 'What is Symbol.toPrimitive? How does it change type conversion?',
-          short: 'A method under Symbol.toPrimitive is called with a hint ("number", "string" or "default") whenever JS converts the object to a primitive.',
-          long: `It runs before valueOf and toString, and overrides both.
-Hints: +obj gives "number", template literals give "string", obj + '' and == give "default".
-Date uses "default" as "string", which is why date + 1 concatenates.
-It must return a primitive, else a TypeError.
-Use it sparingly: implicit conversion surprises readers.
-Strong answer: lists the hints and a sensible use case such as Money objects.`,
+          q: 'What does yield star (yield*) do? How do you use it to combine generators?',
+          short: 'yield* hands control to another iterable and yields all of its values. Its result is the return value of the inner generator.',
+          long: `yield* works with any iterable: arrays, strings, Sets, other generators.
+It forwards next, throw and return calls to the inner generator.
+The expression const r = yield* inner() gets inner's return value.
+Useful for recursion, like walking a tree, and for building pipelines out of small generators.
+yield inner() (without the star) yields the generator object itself, a common bug.
+Strong answer: mentions recursion and the return value. Weak answer: thinks yield* is just a loop.`,
           exercises: [
             {
-              task: 'Predict output for each hint.',
-              description: 'Checks hint rules. Run in Node.',
-              code: `const m = { [Symbol.toPrimitive](h) { return h === 'number' ? 42 : h; } };
-console.log(+m, \`\${m}\`, m + '');`,
-              answer: 'Prints 42 string default. The + operator with a string uses the "default" hint, not "string". Many guess "string" for the last one. Strong answers explain why.',
+              task: 'Write a generator that walks a tree and yields every node value.',
+              description: 'Checks recursion with yield*.',
+              answer: 'Yield the node value, then yield* the walk of each child.',
+              solution: `function* walk(node) {
+  yield node.value;
+  for (const child of node.children ?? []) yield* walk(child);
+}`,
             },
             {
-              task: 'Implement Money that prints "$1.50" in templates and gives cents for math.',
-              description: 'Checks practical use. Write the class and test both cases.',
-              answer: 'Return this.cents for "number" and a formatted string otherwise. Strong answers warn that money math should stay explicit and use integers.',
-              solution: `class Money {
-  constructor(cents) { this.cents = cents; }
-  [Symbol.toPrimitive](hint) {
-    return hint === 'number' ? this.cents : \`$\${(this.cents / 100).toFixed(2)}\`;
-  }
-}`,
+              code: `function* b() { yield 1; yield 2; return 'done'; }
+function* a() { const r = yield* b(); yield r; }
+console.log([...a()]);`,
+              task: 'Predict the output.',
+              description: 'Checks the return value of yield*.',
+              answer: '[1, 2, "done"]. a yields 1 and 2 from b, then r is "done" (b\'s return value), and a yields it.',
             },
           ],
         },
@@ -993,33 +1039,32 @@ Weak answer: adds a flag variable the consumer must set.`,
           ],
         },
         {
-          q: 'How would you add cancellation to an async generator that polls an API?',
-          short: 'Pass an AbortSignal, forward it to fetch and timers, check signal.aborted in the loop, and rely on return() when the consumer breaks.',
-          long: `Consumer break only takes effect at the next yield; a pending await fetch keeps running.
-AbortSignal lets you stop the in-flight request at once.
-Use AbortSignal.any([userSignal, AbortSignal.timeout(ms)]) to combine timeout and user cancel.
-Sleep must also listen to the signal, or the generator waits out the delay.
-Treat AbortError as normal exit, not as a failure to log.
-Strong answer: covers both cancel paths (break and signal) and cleanup.`,
-          ai: true,
+          q: 'What are iterator helpers, like map, filter, take and drop on iterators? How are they different from array methods?',
+          short: 'Iterator helpers (ES2025) add lazy methods to iterators, such as gen().filter(f).map(g).take(5). They process one value at a time and never build full arrays, so they work with large or infinite sequences.',
+          long: `Methods include map, filter, take, drop, flatMap, reduce, toArray, forEach, some, every and find.
+They are lazy: nothing runs until you pull values, for example with for...of or toArray.
+take(5) stops after five values and closes the source, so an infinite generator is fine.
+Array methods are eager and create a new array at every step.
+Iterator.from wraps any iterable or iterator-like object.
+Iterators can be used only once.
+Async iterator helpers are a separate, later proposal.
+Strong answer: explains laziness and single use. Weak answer: thinks they are the same as array methods.`,
           exercises: [
             {
-              task: 'Write an abortable sleep(ms, signal).',
-              description: 'Checks signal handling in timers. Test by aborting during the sleep.',
-              answer: 'Create a promise with setTimeout, and on abort clear the timer and reject with signal.reason. Strong answers use { once: true } and remove the listener after the timer fires.',
-              solution: `function sleep(ms, signal) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(signal.reason);
-    const t = setTimeout(() => { signal?.removeEventListener('abort', onAbort); resolve(); }, ms);
-    function onAbort() { clearTimeout(t); reject(signal.reason); }
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
-}`,
+              task: 'Get the first three even squares from an infinite generator.',
+              description: 'Checks lazy helper chaining.',
+              answer: 'Chain map, filter and take, then toArray. Only the needed values are computed.',
+              solution: `function* naturals() { let n = 1; while (true) yield n++; }
+const result = naturals().map((n) => n * n).filter((n) => n % 2 === 0).take(3).toArray();
+// [4, 16, 36]`,
             },
             {
-              task: 'Write the polling generator using sleep and fetch with the signal.',
-              description: 'Checks composition. Iterate with for await and abort after 3 results.',
-              answer: 'Loop: fetch(url, { signal }), yield the JSON, then await sleep(ms, signal). Strong answers stop cleanly on AbortError and do not swallow other errors.',
+              code: `const it = [1, 2, 3].values().map((x) => x * 2);
+it.toArray();
+it.toArray(); // []`,
+              task: 'Why does the second toArray return an empty array?',
+              description: 'Checks single-use iterators.',
+              answer: 'The iterator is used up by the first toArray. Create a new iterator from the source each time.',
             },
           ],
         },
@@ -1076,33 +1121,39 @@ Strong answer: avoids big-bang rewrites and gives decision criteria, not taste.`
           ],
         },
         {
-          q: 'Code review. A library adds a "_cache" string property to user objects. What do you suggest?',
-          code: `export function getSize(obj) {
-  if (obj._cache) return obj._cache;
-  obj._cache = computeSize(obj);
-  return obj._cache;
+          q: 'Code review: a library stores a session token under a Symbol key and calls it private. Is it private? What do you suggest?',
+          code: `const TOKEN = Symbol('token');
+export class Session {
+  constructor(token) { this[TOKEN] = token; }
+  request(url) { return fetch(url, { headers: { Authorization: this[TOKEN] } }); }
 }`,
-          short: 'Do not write string-keyed properties onto objects you do not own; use a module-private WeakMap (best) or a unique Symbol key.',
-          long: `_cache can collide with user data, shows up in JSON, Object.keys and spreads.
-Mutating input objects can break frozen objects (TypeError in strict mode) and React state.
-A Symbol key avoids collisions but is still visible via Reflect.ownKeys and still mutates.
-A WeakMap keeps the cache fully outside the object, with automatic cleanup.
-Strong answer: ranks WeakMap over Symbol and explains why mutation is the core issue.`,
-          fix: `const cache = new WeakMap();
-export function getSize(obj) {
-  if (!cache.has(obj)) cache.set(obj, computeSize(obj));
-  return cache.get(obj);
+          short: 'Symbol keys are hidden from for...in, Object.keys and JSON, but not private. Object.getOwnPropertySymbols and Reflect.ownKeys reveal them. Use a #private field or a module WeakMap for real privacy.',
+          long: `Symbols avoid name clashes, which is their real job.
+Any code with the object can list its symbols and read the value.
+Private fields (#token) are truly private: no reflection can read them from outside the class.
+A module-level WeakMap keyed by instance is another option and works with any object.
+Note: a token in memory is never safe from code running in the same page (XSS). Keeping secrets out of JS, like HttpOnly cookies, is the stronger fix.
+Team rule: Symbol for clash-free extension points, #private for secrets and invariants.
+Strong answer: shows how to read the symbol and mentions XSS limits. Weak answer: says Symbols are private.`,
+          fix: `export class Session {
+  #token;
+  constructor(token) { this.#token = token; }
+  request(url) { return fetch(url, { headers: { Authorization: this.#token } }); }
 }`,
+          follow: 'Even with a private field, how could an attacker on the page still get the token?',
           exercises: [
             {
-              task: 'Show how the original code breaks with a frozen object.',
-              description: 'Checks strict-mode behavior. Call getSize(Object.freeze({})) in an ES module.',
-              answer: 'It throws a TypeError because modules are strict and the object is not extensible. Strong answers note this hits state from Immer or Redux Toolkit in dev mode.',
+              task: 'Read the symbol value from outside the class.',
+              description: 'Checks that the candidate can show the leak.',
+              answer: 'Get the symbols with Object.getOwnPropertySymbols and read the first one.',
+              solution: `const s = new Session('secret');
+const [sym] = Object.getOwnPropertySymbols(s);
+console.log(s[sym]); // 'secret'`,
             },
             {
-              task: 'When would a Symbol key still be the right choice?',
-              description: 'Checks nuance. Give one case.',
-              answer: 'When the data must travel with the object across modules or realms, for example a protocol method like Symbol.for("app.inspect"). Strong answers recognize that WeakMap state is local to one module instance.',
+              task: 'When is a Symbol key the right choice?',
+              description: 'Checks correct use of Symbols.',
+              answer: 'When you need a property that will not clash with other code, like a protocol hook (Symbol.iterator) or metadata on shared objects. Not when you need privacy.',
             },
           ],
         },
@@ -1142,27 +1193,25 @@ Strong answer: names concrete APIs and a way to check compliance.`,
     'Event Loop': {
       junior: [
         {
-          q: 'Why does setTimeout with 0 milliseconds not run right away?',
-          short: 'setTimeout(fn, 0) schedules a task; it runs only after the current code finishes and all microtasks are done, and browsers may clamp the delay.',
-          long: `JavaScript runs one piece of code at a time on the main thread.
-A timer callback waits in the task queue until the call stack is empty.
-Promise callbacks (microtasks) run before the next task, so they go first.
-Nested timers are clamped to at least 4 ms after 5 levels; background tabs are throttled more.
-Strong answer: explains the stack, queues, and that the delay is a minimum, not a guarantee.
-Weak answer: says 0 means "immediately".`,
+          q: 'JavaScript runs on one thread. So how can the browser download files and count timers at the same time?',
+          short: 'Your JavaScript runs on one main thread, but the browser has other threads for network, timers and more. When they finish, they put a callback in a queue, and the event loop runs it when the stack is empty.',
+          long: `The JS engine has one call stack, so only one piece of your code runs at a time.
+Web APIs like fetch, setTimeout and DOM events are handled by the browser outside the engine.
+When the work is done, the callback goes into a task queue or, for promises, the microtask queue.
+The event loop moves callbacks to the stack only when it is empty.
+So long-running JS blocks everything, even finished downloads, until it ends.
+Web Workers give you real extra threads for your own code.
+Strong answer: separates the engine from browser APIs. Weak answer: says JavaScript is multi-threaded.`,
           exercises: [
             {
-              task: 'Predict the order of the logs.',
-              description: 'Checks sync vs task ordering. Run in a browser or Node.',
-              code: `console.log('A');
-setTimeout(() => console.log('B'), 0);
-console.log('C');`,
-              answer: 'Prints A, C, B. The timer callback waits until the script ends. Some candidates say A, B, C. Strong answers name the task queue.',
+              task: 'A fetch finishes after 50 ms, but a loop runs for 2 seconds. When does the then callback run?',
+              description: 'Checks blocking.',
+              answer: 'After the loop ends, at about 2 seconds. The response is ready, but the callback waits until the call stack is empty.',
             },
             {
-              task: 'Does setTimeout(fn, 1000) run exactly after one second?',
-              description: 'Checks delay semantics. Block the thread for 3 seconds after scheduling and observe.',
-              answer: 'No, it runs after at least one second, and later if the thread is busy. With a 3-second busy loop, it runs after about 3 seconds. Strong answers mention tab throttling too.',
+              task: 'Name two things the browser does outside the main JS thread.',
+              description: 'Checks knowledge of browser threads.',
+              answer: 'For example: network requests, timers, decoding images, and often scrolling and some animations on the compositor thread.',
             },
           ],
         },
@@ -1387,40 +1436,45 @@ Strong answer: measures serialization cost and picks transfer when data is big.`
           ],
         },
         {
-          q: 'Find and fix the bug. The UI shows results from an old request.',
-          code: `input.addEventListener('input', async (e) => {
-  const res = await fetch(\`/search?q=\${e.target.value}\`);
-  render(await res.json());
-});`,
-          short: 'Responses can come back in any order, so a slow old request can overwrite a newer one; abort previous requests (or ignore stale ones) and encode the query.',
-          long: `Each input event starts a request; network timing decides which resolves last.
-Fix: keep an AbortController and abort the previous request before a new one.
-Also ignore AbortError, and encode the value with encodeURIComponent.
-Add a debounce to reduce load.
-A request id check also works but does not save bandwidth.
-Strong answer: explains the race through the event loop and fixes both correctness and load.`,
-          fix: `let controller;
-input.addEventListener('input', async (e) => {
-  controller?.abort();
-  controller = new AbortController();
-  try {
-    const q = encodeURIComponent(e.target.value);
-    const res = await fetch(\`/search?q=\${q}\`, { signal: controller.signal });
-    render(await res.json());
-  } catch (err) {
-    if (err.name !== 'AbortError') throw err;
-  }
-});`,
+          q: 'Find and fix the bug. The countdown is wrong after the tab was in the background.',
+          code: `let left = 60;
+const id = setInterval(() => {
+  left--;
+  label.textContent = left + 's';
+  if (left === 0) clearInterval(id);
+}, 1000);`,
+          short: 'Timers are not exact. Browsers throttle them in background tabs and delay them when the main thread is busy, so counting ticks drifts. Compute the time left from a fixed deadline on each tick.',
+          long: `setInterval only promises "not earlier than"; a busy main thread delays callbacks.
+Background tabs throttle timers to once per second or less, and Chrome can throttle hidden tabs much more.
+Each tick here assumes exactly one second passed, so errors add up.
+Fix: store a deadline with Date.now() or performance.now() and compute the remaining time each tick.
+Also update when the tab becomes visible again (visibilitychange).
+For animation use requestAnimationFrame, which pauses in hidden tabs.
+Strong answer: explains throttling and uses a deadline. Weak answer: lowers the interval to 100 ms.`,
+          fix: `const deadline = Date.now() + 60_000;
+function tick() {
+  const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+  label.textContent = left + 's';
+  if (left === 0) clearInterval(id);
+}
+const id = setInterval(tick, 250);
+document.addEventListener('visibilitychange', tick);
+tick();`,
+          follow: 'Why might performance.now() be better than Date.now() here?',
           exercises: [
             {
-              task: 'Reproduce the race in a test.',
-              description: 'Checks testing async ordering. Use fake fetch with different delays (Vitest fake timers).',
-              answer: 'Mock fetch so the first query resolves after 300 ms and the second after 100 ms, then assert the final render uses the second query. Strong answers run it with and without the fix.',
+              code: `const t = performance.now();
+setTimeout(() => console.log(performance.now() - t), 100);
+const end = Date.now() + 300;
+while (Date.now() < end) {}`,
+              task: 'Why can this log more than 100 ms?',
+              description: 'Checks timer delay from a busy thread.',
+              answer: 'The busy loop blocks the main thread for 300 ms, and the timer callback can only run after it ends. So the log shows about 300 ms.',
             },
             {
-              task: 'Does abort stop the server work?',
-              description: 'Checks understanding of abort scope. Explain.',
-              answer: 'No, it only closes the client side and rejects the promise; the server may still finish the work. Strong answers mention server-side cancellation if needed.',
+              task: 'Compare Date.now and performance.now for measuring time.',
+              description: 'Checks clock knowledge.',
+              answer: 'Date.now is wall-clock time and can jump if the system clock changes. performance.now is monotonic and precise, so it is better for measuring durations.',
             },
           ],
         },
@@ -1829,25 +1883,29 @@ function Greeting({ name }) {
           ],
         },
         {
-          q: 'How do you stop performance from getting worse release after release?',
-          short: 'Make performance part of the delivery process: budgets in CI, real-user monitoring with alerts, owners for key metrics, and review rules for new dependencies.',
-          long: `Lab gates: bundle size limits, Lighthouse CI on key pages, interaction traces.
-Field: RUM dashboards for LCP/INP/CLS with alerts on regressions per release.
-Ownership: each key page or flow has a team and a target.
-Process: dependency review, performance section in PR template, regular review meeting.
-Celebrate wins and share results to keep attention.
-Strong answer: covers both prevention and detection, with clear owners.`,
-          follow: 'What if you have no budget for a paid monitoring tool?',
+          q: 'How do you prove that a performance fix helped real users and the business, not just a lab score?',
+          short: 'Measure real users (RUM) before and after, ideally with an A/B test or staged rollout. Look at percentiles like p75 by device and country, and link them to business metrics like conversion.',
+          long: `Lab tools (Lighthouse) are good for finding problems, but they are not real users.
+Collect field data with the web-vitals library or your monitoring tool: LCP, INP, CLS at p75, split by device class, network and page type.
+Roll out behind a feature flag or A/B test, so you compare groups at the same time and avoid seasonal noise.
+Define success first: for example, INP p75 under 200 ms on low-end Android, plus checkout conversion.
+Watch for side effects, like errors or lost analytics.
+Report results in plain terms: "checkout loads 1.2 seconds faster for 40 percent of users, conversion up 2 percent".
+Strong answer: uses field data, percentiles and controlled rollout. Weak answer: shows a better Lighthouse score.`,
           exercises: [
             {
-              task: 'Set up a bundle size budget.',
-              description: 'Checks tooling. Describe the config.',
-              answer: 'Use size-limit with a limit per entry (for example 170 KB gzipped for main) and run it in CI with a PR comment. Strong answers allow intentional increases with approval.',
+              task: 'Why report the 75th percentile and not the average?',
+              description: 'Checks understanding of distributions.',
+              answer: 'Averages hide slow users, because many fast loads pull the number down. p75 shows the experience of most users, including slower ones, and is what Core Web Vitals use.',
             },
             {
-              task: 'Build free RUM for web vitals.',
-              description: 'Checks low-cost monitoring. Outline the pipeline.',
-              answer: 'Use the web-vitals library, send metrics with sendBeacon to a small endpoint, store in a database or logs, and graph p75 by release. Strong answers include release version and device info in each event.',
+              task: 'Send LCP and INP to your analytics endpoint.',
+              description: 'Checks practical RUM setup.',
+              answer: 'Use the web-vitals library callbacks and send each metric with navigator.sendBeacon, so it is not lost when the page closes.',
+              solution: `import { onLCP, onINP } from 'web-vitals';
+const send = (m) => navigator.sendBeacon('/rum', JSON.stringify({ name: m.name, value: m.value, id: m.id }));
+onLCP(send);
+onINP(send);`,
             },
           ],
         },
@@ -1856,29 +1914,24 @@ Strong answer: covers both prevention and detection, with clear owners.`,
     'Advanced Strategies and Integration': {
       junior: [
         {
-          q: 'What is the fetch API? How do you check if a request failed?',
-          short: 'fetch makes HTTP requests and returns a promise of a Response; it rejects only on network errors, so you must check response.ok for HTTP errors like 404 or 500.',
-          long: `await fetch(url) resolves even for 404 or 500 responses.
-Check res.ok (status 200–299) or res.status, then read the body with res.json().
-Network failures, CORS blocks and aborts make the promise reject.
-Send JSON with method, headers { 'Content-Type': 'application/json' } and body: JSON.stringify(data).
-Strong answer: knows the ok check and error cases.
-Weak answer: thinks catch handles 404.`,
+          q: 'What is the difference between localStorage, sessionStorage and cookies? When do you use each?',
+          short: 'localStorage keeps data until it is cleared. sessionStorage keeps it only for one tab session. Cookies are small, are sent to the server with requests, and can be HttpOnly so JS cannot read them.',
+          long: `localStorage: about 5 MB per origin, strings only, shared by all tabs of the site, stays after the browser closes.
+sessionStorage: same API, but only for one tab, and cleared when the tab closes.
+Cookies: about 4 KB, sent with every matching request, have expiry, Secure, SameSite and HttpOnly options.
+Web storage is synchronous, so large reads can block the main thread; IndexedDB is better for big data.
+Never store auth tokens in localStorage if you can avoid it; any XSS can read it. HttpOnly cookies are safer.
+Strong answer: mentions sending to the server, tab scope, and security. Weak answer: "they are all the same storage".`,
           exercises: [
             {
-              task: 'Write getJSON(url) that throws on HTTP errors.',
-              description: 'Checks the ok check. Test with a URL that returns 404.',
-              answer: 'Await fetch, if !res.ok throw new Error with the status, else return res.json(). Strong answers include the status in the error.',
-              solution: `async function getJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
-  return res.json();
-}`,
+              task: 'Where would you keep a theme setting, a multi-step form draft, and a login session?',
+              description: 'Checks choosing the right storage.',
+              answer: 'Theme: localStorage, so it stays. Form draft: sessionStorage, so it is per tab and cleared later. Login session: an HttpOnly, Secure, SameSite cookie set by the server.',
             },
             {
-              task: 'What happens if you call res.json() twice?',
-              description: 'Checks body streams. Try it.',
-              answer: 'The second call rejects with "body used already" because the body is a stream read once. Use res.clone() if you need it twice. Strong answers know why.',
+              task: 'Why does a value change in one tab not show in sessionStorage of another tab?',
+              description: 'Checks tab scope.',
+              answer: 'sessionStorage is per tab. Use localStorage and listen to the storage event, or BroadcastChannel, to share between tabs.',
             },
           ],
         },
@@ -1939,44 +1992,51 @@ Strong answer: knows it is a browser rule and the fix is server-side.`,
       ],
       middle: [
         {
-          q: 'Find and fix the bug. The retry logic hammers the server when it is down.',
-          code: `async function fetchWithRetry(url) {
-  while (true) {
-    try { return await getJSON(url); }
-    catch { /* try again */ }
+          q: 'Find and fix the bug. After a new deploy, clicking "Edit" does nothing for some users.',
+          code: `editButton.addEventListener('click', async () => {
+  const { openEditor } = await import('./editor.js');
+  openEditor();
+});`,
+          short: 'Users with the old page still ask for old chunk files, which the deploy removed. The dynamic import rejects and nothing handles it. Catch the error, tell the user, and reload or retry.',
+          long: `Bundlers give chunks hashed names; a new deploy creates new names.
+A tab opened before the deploy still points to old names, and if old files are deleted, import() fails with a chunk load error.
+The rejection in an event handler is unhandled, so the user just sees nothing.
+Fixes: catch the error and show a message with a reload button; or reload once automatically; keep old chunks on the CDN for some time after a deploy.
+Vite fires a vite:preloadError event you can listen to.
+Strong answer: names the deploy cause and both client and deploy fixes. Weak answer: adds a console.log.`,
+          fix: `editButton.addEventListener('click', async () => {
+  try {
+    const { openEditor } = await import('./editor.js');
+    openEditor();
+  } catch (err) {
+    showToast('A new version is available. Please reload the page.');
+    reportError(err);
   }
-}`,
-          short: 'It retries forever with no delay; add a retry limit, exponential backoff with jitter, and retry only errors that can succeed later.',
-          long: `Endless instant retries create a retry storm and can take down a recovering server.
-Use exponential backoff (for example 200 ms, 400 ms, 800 ms) plus random jitter.
-Retry only network errors, 429 and 5xx; do not retry 400 or 401.
-Respect the Retry-After header for 429/503.
-Support AbortSignal so the user can cancel.
-Strong answer: covers limits, jitter, status filtering and idempotency.`,
-          fix: `async function fetchWithRetry(url, { retries = 3, signal } = {}) {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      const res = await fetch(url, { signal });
-      if (res.ok) return res.json();
-      if (res.status < 500 && res.status !== 429) throw new Error(\`HTTP \${res.status}\`);
-      if (attempt >= retries) throw new Error(\`HTTP \${res.status}\`);
-    } catch (e) {
-      if (signal?.aborted || attempt >= retries) throw e;
-    }
-    const delay = 200 * 2 ** attempt * (0.5 + Math.random());
-    await new Promise(r => setTimeout(r, delay));
-  }
-}`,
+});`,
+          follow: 'How would you avoid this on the server side during deploys?',
           exercises: [
             {
-              task: 'Why add jitter to the backoff?',
-              description: 'Checks distributed systems basics. Explain.',
-              answer: 'Without jitter, many clients retry at the same moments and create spikes. Random jitter spreads the load. Strong answers name the thundering herd problem.',
+              task: 'Write a helper that retries a dynamic import once, then reloads the page.',
+              description: 'Checks a reusable recovery pattern.',
+              answer: 'Try the import, retry once on failure, and if it fails again reload, using sessionStorage to avoid a reload loop.',
+              solution: `async function loadChunk(load) {
+  try { return await load(); }
+  catch {
+    try { return await load(); }
+    catch (e) {
+      if (!sessionStorage.getItem('reloaded')) {
+        sessionStorage.setItem('reloaded', '1');
+        location.reload();
+      }
+      throw e;
+    }
+  }
+}`,
             },
             {
-              task: 'Is it safe to retry a POST that creates an order?',
-              description: 'Checks idempotency. Explain and fix.',
-              answer: 'Not by default; it can create duplicate orders. Send an Idempotency-Key header that the server uses to dedupe. Strong answers know GET/PUT/DELETE are idempotent by design.',
+              task: 'What deploy practice prevents most chunk load errors?',
+              description: 'Checks the infrastructure side.',
+              answer: 'Keep old hashed assets on the CDN for a while (for example, a few days) instead of deleting them on each deploy. Also cache index.html for a short time only.',
             },
           ],
         },
@@ -2003,32 +2063,30 @@ Strong answer: matches strategy to resource and plans updates (Workbox helps).`,
           ],
         },
         {
-          q: 'What is the difference between ES modules and CommonJS at runtime?',
-          short: 'ESM has static imports, live bindings and async loading with top-level await; CommonJS uses require at runtime, copies exports values, and loads synchronously.',
-          long: `ESM imports are resolved before code runs, which allows tree-shaking.
-ESM exports are live: if the module changes a let export, importers see the new value.
-CommonJS module.exports is a plain object returned by require.
-Node 22+ can require() synchronous ESM, easing interop; ESM with top-level await cannot be required.
-In ESM, __dirname is replaced by import.meta.dirname (Node 20.11+).
-Strong answer: explains live bindings and interop limits.`,
-          follow: 'What changes when you publish a library that must support both?',
+          q: 'What are import maps? What problem do they solve?',
+          short: 'An import map is a JSON block in the page that tells the browser where bare imports, like import "react", should load from. It lets you use bare module names without a bundler.',
+          long: `Browsers only understand URLs in imports, like "./a.js" or "https://...". A bare name like "lodash" fails without help.
+<script type="importmap"> maps names to URLs: { "imports": { "lodash": "/vendor/lodash.js" } }.
+"scopes" lets different parts of the app use different versions.
+Useful for no-build setups, micro-frontends sharing one copy of a library, and cache busting with hashed file names.
+The map must load before the module scripts that use it; modern browsers support multiple import maps merged together.
+Strong answer: explains bare specifiers and a real use case. Weak answer: confuses import maps with source maps.`,
           exercises: [
             {
-              task: 'Predict the output.',
-              description: 'Checks live bindings. Run as two ES module files in Node.',
-              code: `// counter.mjs
-export let count = 0;
-export const inc = () => { count++; };
-// main.mjs
-import { count, inc } from './counter.mjs';
-inc();
-console.log(count);`,
-              answer: 'Prints 1 because ESM bindings are live. With CommonJS destructuring, it would print 0. Strong answers note importers cannot assign to count.',
+              task: 'Write an import map so import "dayjs" loads from a CDN.',
+              description: 'Checks the syntax.',
+              answer: 'Add a script tag with type importmap and an imports object mapping the name to the URL.',
+              solution: `<script type="importmap">
+{ "imports": { "dayjs": "https://cdn.jsdelivr.net/npm/dayjs@1.11.10/+esm" } }
+</script>
+<script type="module">
+import dayjs from 'dayjs';
+</script>`,
             },
             {
-              task: 'Configure package.json to ship ESM and CJS builds.',
-              description: 'Checks the exports field. Write the config.',
-              answer: 'Use "exports": { ".": { "import": "./dist/index.js", "require": "./dist/index.cjs" } } and "type": "module". Strong answers add "types" first and warn about the dual-package hazard.',
+              task: 'How can import maps help two micro-frontends share one copy of React?',
+              description: 'Checks a real integration use.',
+              answer: 'Both apps import "react" by name and do not bundle it. The host page import map points "react" to one URL, so the browser loads and runs it once.',
             },
           ],
         },
@@ -2149,38 +2207,39 @@ Strong answer: chooses based on team size, risk and user impact, with a clear en
           ],
         },
         {
-          q: 'Code review. A team adds a global event bus for all cross-module communication. What is your feedback?',
-          code: `window.bus = new EventTarget();
-// module A
-bus.dispatchEvent(new CustomEvent('user', { detail: user }));
-// module B
-bus.addEventListener('user', (e) => render(e.detail));`,
-          short: 'A global untyped bus hides dependencies and makes debugging hard; limit it to real cross-app events with typed, versioned contracts, and use explicit imports or state stores inside one app.',
-          long: `Any code can send or listen, so data flow is invisible in code search.
-Event names and payloads are untyped and can change silently.
-Late listeners miss earlier events; this causes race bugs on startup.
-Fine use: loose coupling between micro-frontends, with a documented contract.
-Provide a typed wrapper with an event catalog and cleanup via AbortSignal.
-Strong answer: accepts the need but adds structure and ownership.`,
-          fix: `// events.ts — one typed catalog, owned by the platform team
-type Events = { 'user:changed': { id: string; name: string } };
-const target = new EventTarget();
-export function emit<K extends keyof Events>(type: K, detail: Events[K]) {
-  target.dispatchEvent(new CustomEvent(type, { detail }));
+          q: 'Code review: the app picks its API URL from the hostname in many files. What problems do you see? How should configuration work?',
+          code: `const API = location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : location.hostname.includes('staging')
+    ? 'https://api.staging.example.com'
+    : 'https://api.example.com';`,
+          short: 'Logic copied across files breaks when a new environment appears, and it is easy to call the wrong API. Put config in one module, and load it at runtime, so one build works in every environment.',
+          long: `Duplicated hostname checks drift apart; a new preview environment silently calls production.
+Build-time variables (like import.meta.env) bake values into the bundle, so you need one build per environment.
+"Build once, deploy many": serve a small config.json or inject window.__CONFIG__ from the server, and read it in one config module.
+Validate config at startup and fail loudly if it is missing.
+Never put secrets in frontend config; everything there is public.
+Strong answer: centralizes config, explains build-time versus runtime, and keeps secrets out. Weak answer: adds another else-if branch.`,
+          fix: `// config.js
+let config;
+export async function loadConfig() {
+  const res = await fetch('/config.json', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Config missing');
+  config = await res.json();
+  if (!config.apiUrl) throw new Error('apiUrl not set');
 }
-export function on<K extends keyof Events>(type: K, fn: (d: Events[K]) => void, signal?: AbortSignal) {
-  target.addEventListener(type, (e) => fn((e as CustomEvent<Events[K]>).detail), { signal });
-}`,
+export const getConfig = () => config;`,
+          follow: 'What is the trade-off of loading config at runtime instead of at build time?',
           exercises: [
             {
-              task: 'How do you handle a listener that starts after the event fired?',
-              description: 'Checks late-subscriber problems. Propose a fix.',
-              answer: 'Keep the last value per event and send it to new listeners (replay), or expose current state from a store. Strong answers pick replay only for state-like events.',
+              task: 'Why is "build once, deploy many" useful?',
+              description: 'Checks release engineering thinking.',
+              answer: 'The exact bundle you tested in staging is the one that goes to production. Only config changes, so there are no surprises from a different build.',
             },
             {
-              task: 'How do you change an event payload without breaking other teams?',
-              description: 'Checks contract versioning. Explain.',
-              answer: 'Add fields only, or add a new event name like user:changed.v2, and keep the old one until all consumers move. Strong answers track consumers and set a removal date.',
+              task: 'A teammate wants to put a payment API secret in the frontend config. What do you say?',
+              description: 'Checks security awareness.',
+              answer: 'No. Anything sent to the browser is public. Keep the secret on the server and call it through a backend endpoint.',
             },
           ],
         },

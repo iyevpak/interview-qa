@@ -736,39 +736,12 @@ Strong answer mentions portals and mixing native listeners safely in effects.`,
     ],
     senior: [
       {
-        q: "Error Boundaries do not catch errors in async event handlers. Design one consistent way to handle them.",
-        short: "Catch in handlers/mutations and show UI feedback (inline or toast), log centrally, and when the error should take over the UI, push it into a boundary via showBoundary or by rethrowing during render.",
-        long: `Error boundaries only catch errors thrown during render, lifecycle methods and constructors of their subtree.
-For handlers: try/catch, set error state, show inline message; for mutations use TanStack Query onError / mutation.error.
-To escalate to a boundary: react-error-boundary's useErrorBoundary().showBoundary(err), or store the error in state and throw it during render.
-React 19: errors thrown inside form actions / startTransition propagate to the nearest boundary.
-Centralize logging (Sentry) with window.onerror/unhandledrejection and createRoot onUncaughtError/onCaughtError (React 19).
-Strong answer distinguishes expected (validation, 4xx) from unexpected errors and has a taxonomy.`,
+        q: `When do you need addEventListener in an effect instead of a JSX event prop? What are passive listeners?`,
+        short: `Use addEventListener for targets React does not render (window, document, third-party nodes) and when you need options like passive: false. Passive listeners promise not to call preventDefault, so the browser can scroll without waiting.`,
+        long: `JSX props only attach to elements React renders. For window resize, keydown on document, or visibilitychange, add listeners in an effect and remove them in cleanup.\nReact attaches onWheel, onTouchStart and onTouchMove as passive, so e.preventDefault() inside them is ignored with a warning.\nTo block scroll or zoom (custom wheel zoom on a map), add a native listener with { passive: false } on a ref.\nKeep handlers fresh with a ref or useEffectEvent, so you do not re-subscribe every render.\nAlways clean up, or StrictMode will show double listeners.\nUse AbortController signal option to remove many listeners at once.`,
         exercises: [
-          {
-            task: "Fix the bug: the boundary never shows its fallback when the save fails.",
-            description: "Checks error boundary limits with async handlers. Ask why the fallback never appears and how to surface the error.",
-            code: `function Save() {
-  return <button onClick={async () => { await api.save(); }}>Save</button>;
-}
-<ErrorBoundary fallback={<p>Failed</p>}><Save /></ErrorBoundary>`,
-            answer: "Rejections in event handlers happen outside rendering, so boundaries never see them (it becomes an unhandled rejection). Catch and either show inline feedback or call showBoundary from react-error-boundary. Many think boundaries catch everything inside them. A strong answer separates expected errors (inline UI) from unexpected ones (escalate) and mentions unhandled rejection logging.",
-            solution: `function Save() {
-  const { showBoundary } = useErrorBoundary();
-  return <button onClick={() => api.save().catch(showBoundary)}>Save</button>;
-}`,
-          },
-          {
-            task: "Build a React 19 form action. If it throws, the nearest error boundary should handle it. Explain why this works.",
-            description: "Checks React 19 actions and transition error semantics. Ask the candidate to implement and explain the error path.",
-            answer: "Actions run inside a transition; errors thrown from a transition are rethrown during render, so the nearest boundary catches them. Expected errors (validation) should still be returned as state via useActionState. Weak answers say boundaries never catch async errors, which is outdated for actions. A strong answer distinguishes thrown errors (boundary) from returned validation state (useActionState).",
-            solution: `function Publish({ id }) {
-  async function action() {
-    await api.publish(id); // throws on 500 -> nearest ErrorBoundary
-  }
-  return <form action={action}><button>Publish</button></form>;
-}`,
-          },
+          { task: `Ctrl plus wheel should zoom a canvas, not the page. preventDefault does not work in onWheel. Fix it.`, description: `Checks passive listeners. Try it in a sandbox with a canvas.`, code: `<canvas onWheel={e => { if (e.ctrlKey) { e.preventDefault(); zoom(e.deltaY); } }} />`, answer: `React wheel listeners are passive, so preventDefault is ignored. Add a native listener in an effect with { passive: false }, and remove it in cleanup.`, solution: `useEffect(() => {\n  const el = canvasRef.current;\n  const onWheel = e => {\n    if (e.ctrlKey) { e.preventDefault(); zoomRef.current(e.deltaY); }\n  };\n  el.addEventListener("wheel", onWheel, { passive: false });\n  return () => el.removeEventListener("wheel", onWheel);\n}, []);` },
+          { task: `Close a popup when the user presses Escape anywhere on the page.`, description: `Checks document listeners with cleanup. Write the effect.`, answer: `In an effect that runs while the popup is open, add a keydown listener on document that calls onClose when e.key is "Escape". Return a cleanup that removes it. Use useEffectEvent or a ref for onClose so the effect does not re-run when the parent passes a new function.` },
         ],
       },
       {
@@ -1072,85 +1045,23 @@ const [state, dispatch] = useReducer(reducer, { status: "idle" });`,
     ],
     senior: [
       {
-        q: "Child is memoized but still re-renders. Why? When are useMemo and useCallback really worth it?",
-        code: `const Child = React.memo(({ onClick, style }) => <button style={style} onClick={onClick}>Hi</button>);
-function Parent() {
-  const [n, setN] = useState(0);
-  return <Child style={{ color: 'red' }} onClick={() => setN(n + 1)} />;
-}`,
-        short: "style and onClick are new references every render, so memo's shallow comparison fails. Hoist constants and use useCallback with a functional update; memoize only when it prevents real work.",
-        long: `React.memo compares props with Object.is; inline objects and arrows are always new.
-Fix: hoist the style constant, useCallback(() => setN(x => x + 1), []).
-useMemo/useCallback are worth it when: passing to memoized children, using values as effect/hook dependencies, or caching genuinely expensive computations.
-They have a cost (memory, comparisons, readability) — don't wrap everything.
-Often better: move state down, or pass children as props so they aren't re-rendered.
-React Compiler (stable in 2025) auto-memoizes and makes most manual memo unnecessary.
-Strong answer profiles with React DevTools before optimizing.`,
-        fix: `const redStyle = { color: 'red' };
-function Parent() {
-  const [n, setN] = useState(0);
-  const handleClick = useCallback(() => setN(x => x + 1), []);
-  return <Child style={redStyle} onClick={handleClick} />;
-}`,
+        q: `This component reads a ref during render to show a count. The screen does not update. Why? Fix it.`,
+        code: `function ClickCounter() {\n  const clicks = useRef(0);\n  return (\n    <button onClick={() => { clicks.current += 1; }}>\n      Clicked {clicks.current} times\n    </button>\n  );\n}`,
+        short: `Changing ref.current does not trigger a render, and reading refs during render is not allowed. Values shown on screen must live in state.`,
+        long: `A ref is a mutable box that React does not track.\nUpdating clicks.current changes the value, but React does not know, so the UI stays old.\nReading or writing ref.current during render makes the component impure; the React Compiler and its lint rules flag it.\nRule: if the value affects what you render, use state. If it is only used in handlers or effects (timer id, previous value, DOM node), use a ref.\nA common senior mistake is to mix both: keep state for display and a ref only to read the latest value inside async callbacks.`,
+        fix: `function ClickCounter() {\n  const [clicks, setClicks] = useState(0);\n  return (\n    <button onClick={() => setClicks(c => c + 1)}>\n      Clicked {clicks} times\n    </button>\n  );\n}`,
         exercises: [
-          {
-            task: "Fix the infinite effect loop.",
-            description: "Checks referential dependencies. Ask why the network tab shows endless requests.",
-            code: `function Search({ term }) {
-  const options = { term, limit: 10 };
-  const [res, setRes] = useState([]);
-  useEffect(() => { api.search(options).then(setRes); }, [options]);
-}`,
-            answer: "options is a new object each render, so the effect re-runs after every setRes. Depend on primitives (or useMemo the object). Weak answers remove the dependency and silence the lint rule. A strong answer depends on primitives, adds race protection and suggests a data library.",
-            solution: `useEffect(() => {
-  let ignore = false;
-  api.search({ term, limit: 10 }).then(r => { if (!ignore) setRes(r); });
-  return () => { ignore = true; };
-}, [term]);`,
-          },
-          {
-            task: "Build a connection effect with useEffectEvent. It should use the latest theme in notifications. It must not reconnect when the theme changes.",
-            description: "Checks useEffectEvent (React 19.2). Ask how to read the latest theme without reconnecting.",
-            answer: "useEffectEvent (stable in React 19.2) creates a non-reactive function that always sees the latest props, so theme can stay out of the effect deps. Common wrong answers add theme to deps (reconnects) or disable the lint rule (stale theme). A strong answer explains effect events are non-reactive and must only be called from effects.",
-            solution: `function Room({ roomId, theme }) {
-  const onConnected = useEffectEvent(() => notify("Connected", theme));
-  useEffect(() => {
-    const c = connect(roomId);
-    c.on("connected", onConnected);
-    return () => c.disconnect();
-  }, [roomId]);
-}`,
-          },
+          { task: `Store a timer id so a Stop button can clear it. Should it be state or a ref?`, description: `Checks the ref versus state choice. Build start and stop buttons.`, answer: `A ref. The timer id is not shown on screen, and changing it should not re-render. Save it in idRef.current when starting, and call clearInterval(idRef.current) when stopping and in cleanup.` },
+          { task: `Show the previous value of a prop next to the current one, without reading a ref in render.`, description: `Checks the recommended pattern. Write it with state.`, answer: `Store the previous value in state and update it during render when the prop changes, as the React docs show. Reading a ref written in an effect would show values one render late and breaks purity rules.`, solution: `function Price({ value }) {\n  const [prev, setPrev] = useState(value);\n  const [last, setLast] = useState(value);\n  if (value !== last) {\n    setPrev(last);\n    setLast(value);\n  }\n  return <p>{value} (was {prev})</p>;\n}` },
         ],
       },
       {
-        q: "What is the difference between useEffect, useLayoutEffect, and useInsertionEffect? When does effect cleanup run?",
-        short: "useEffect runs after paint (non-blocking), useLayoutEffect runs after DOM mutation but before paint (blocking, for measurement), useInsertionEffect runs before layout effects for CSS-in-JS style injection. Cleanups run before the next effect with changed deps and on unmount.",
-        long: `Order on commit: DOM mutations → useInsertionEffect → refs attached → useLayoutEffect → browser paint → useEffect.
-Effects triggered by a discrete user event (click) may flush synchronously before paint in React 18+.
-Cleanup runs with the previous render's values before re-running the effect, and on unmount.
-StrictMode runs setup → cleanup → setup once on mount in dev.
-useLayoutEffect on the server does nothing (React 19 no longer warns), so measurement-driven UI should handle the first client render.
-Strong answer explains why the cleanup sees old props (closure) and when blocking paint is justified.`,
+        q: `How does React batch state updates in React 18 and 19? What is flushSync, and when do you need it?`,
+        short: `Since React 18, all updates in the same tick are batched into one render, also inside promises and timeouts. flushSync forces React to render and update the DOM right away, for rare cases where you must read the DOM after a state change.`,
+        long: `Before React 18, only updates inside React event handlers were batched.\nWith createRoot, automatic batching covers setTimeout, promises, and native listeners too.\nSeveral setState calls in one handler cause one render and one commit.\nflushSync(() => setItems(next)) renders synchronously, so the next line can read the new DOM.\nTypical use: scroll to a newly added item, or keep focus correct with a third-party widget.\nflushSync is expensive and can hurt performance; do not use it as a general fix.\nState inside the current handler is still the old value; use the updater form for chained updates.`,
         exercises: [
-          {
-            task: "The id changes from 1 to 2. In what order are the logs printed?",
-            description: "Checks cleanup timing and closures. Ask for exact logs.",
-            code: `useEffect(() => {
-  console.log("effect", id);
-  return () => console.log("cleanup", id);
-}, [id]);`,
-            answer: "\"cleanup 1\" then \"effect 2\": the cleanup from the previous render runs first and sees its own closure (id 1). Weak answers think cleanup sees the new id. A strong answer explains each render's effect has its own snapshot.",
-          },
-          {
-            task: "Scroll a chat to the bottom on its own, with no visible jump.",
-            description: "Checks choosing layout effects. Ask which hook and why.",
-            answer: "Scrolling after paint shows a frame at the old position; useLayoutEffect adjusts before paint. A strong answer keeps the layout effect cheap and scoped to message changes.",
-            solution: `useLayoutEffect(() => {
-  const el = listRef.current;
-  el.scrollTop = el.scrollHeight;
-}, [messages.length]);`,
-          },
+          { task: `After adding a message, scroll to the last item. The scroll goes to the old last item. Fix it.`, description: `Checks flushSync. Build a list with a ref on the container.`, code: `function add(text) {\n  setMessages(m => [...m, text]);\n  listRef.current.lastChild.scrollIntoView();\n}`, answer: `The DOM is not updated yet when scrollIntoView runs. Wrap the update in flushSync, so React commits the new item before the next line. Another option is to scroll in an effect that depends on messages.`, solution: `import { flushSync } from "react-dom";\nfunction add(text) {\n  flushSync(() => setMessages(m => [...m, text]));\n  listRef.current.lastChild.scrollIntoView();\n}` },
+          { task: `How many renders happen here in React 19: two setState calls inside a fetch then callback?`, description: `Checks automatic batching. Log renders in a sandbox.`, answer: `One render. With createRoot, updates in promises are batched just like updates in event handlers. In React 17 with ReactDOM.render there would be two renders.` },
         ],
       },
     ],
@@ -2413,34 +2324,12 @@ function Widget({ title, children }) {
   "Advanced Hooks (e.g useLayoutEffect, useImperativeHandle)": {
     junior: [
       {
-        q: "What is useRef used for?",
-        short: "useRef holds a mutable value that persists across renders without causing re-renders — commonly a DOM node reference or an instance variable like a timer id.",
-        long: `useRef returns { current } that is the same object for the component's lifetime.
-Changing ref.current does not trigger a render, so don't use it for values shown in UI.
-DOM refs: <input ref={inputRef} /> then inputRef.current.focus() in an effect or handler.
-Don't read/write ref.current during render (except lazy init) — it breaks purity.
-React 19: ref is a normal prop for function components (no forwardRef needed) and ref callbacks can return a cleanup.
-Strong answer contrasts ref vs state vs a module variable.`,
+        q: `What does useImperativeHandle do? When should you use it?`,
+        short: `It lets a component choose what a parent sees through its ref, for example only focus() and clear() instead of the whole DOM node. Use it rarely, for imperative actions like focus, scroll or play.`,
+        long: `By default a ref on a DOM element gives the parent the full DOM node.\nuseImperativeHandle(ref, () => ({ focus, clear }), [deps]) replaces that with a small custom object.\nIn React 19, ref is a normal prop on function components, so you read it from props; forwardRef is no longer needed.\nUse it for actions that do not fit props: focus, scrollIntoView, play, pause, open a native dialog.\nAvoid it for data flow. If something can be expressed as a prop (isOpen, value), use a prop.\nKeep the exposed API small so you can change the internals later.`,
         exercises: [
-          {
-            task: "You click the button three times. What does the UI show?",
-            description: "Checks ref vs state. Ask what label shows after clicks.",
-            code: `function Clicks() {
-  const count = useRef(0);
-  return <button onClick={() => { count.current++; }}>Clicked {count.current}</button>;
-}`,
-            answer: "It still shows \"Clicked 0\": mutating a ref does not trigger a re-render. Use state for values displayed in the UI. Some say 3. A strong answer explains refs do not trigger renders and should hold non-visual values.",
-          },
-          {
-            task: "Focus the input when the component mounts.",
-            description: "Checks DOM refs. Ask for mount-time focus.",
-            answer: "Attach a ref and focus it in an effect (or use the autoFocus attribute). Weak answers call focus during render. A strong answer uses an effect or autoFocus and considers a11y of stealing focus.",
-            solution: `function Search() {
-  const ref = useRef(null);
-  useEffect(() => { ref.current?.focus(); }, []);
-  return <input ref={ref} />;
-}`,
-          },
+          { task: `Expose only a focus method from a TextField component.`, description: `Checks the basic API. Build it in a sandbox and call ref.current.focus() from a parent button.`, code: `function TextField({ ref, ...props }) {\n  const inputRef = useRef(null);\n  // expose only focus\n  return <input ref={inputRef} {...props} />;\n}`, answer: `Call useImperativeHandle(ref, () => ({ focus: () => inputRef.current.focus() }), []). The parent can call focus, but cannot read or change other DOM properties. In React 19 ref comes in as a prop.`, solution: `function TextField({ ref, ...props }) {\n  const inputRef = useRef(null);\n  useImperativeHandle(ref, () => ({\n    focus: () => inputRef.current.focus(),\n  }), []);\n  return <input ref={inputRef} {...props} />;\n}` },
+          { task: `A teammate exposes open() and close() on a Modal with useImperativeHandle. Is this a good idea?`, description: `Checks when not to use it. Discuss props versus imperative API.`, answer: `Usually not. Open state is data, so it should be a prop like isOpen with an onClose callback. That keeps the parent in control and works with state, URL and tests. Imperative open and close methods hide state and are harder to sync.` },
         ],
       },
       {
@@ -2638,34 +2527,12 @@ Strong answer contrasts with debounce and explains why the deferred consumer mus
     ],
     techlead: [
       {
-        q: "From React 19 and React Compiler, what would you use now? How would you upgrade a large app?",
-        ai: true,
-        short: "Upgrade to 18.3 first to surface deprecation warnings, run codemods, fix StrictMode issues, then roll out React 19 and the Compiler incrementally per directory with tests and performance monitoring.",
-        long: `React 18.3 logs warnings for APIs removed in 19 (string refs, propTypes/defaultProps on function components, legacy context, ReactDOM.render).
-Run the official react-codemod / types-react-codemod; check third-party library compatibility.
-Adopt valuable features: actions/useActionState, useOptimistic, ref as prop, use(), document metadata.
-React Compiler: enable via babel plugin with eslint rules first, opt-in by directory ("use memo"/sources config), compare perf and correctness.
-Code that breaks Rules of React (mutating props, reading refs in render) must be fixed first.
-Strong answer has a phased plan, rollback strategy and real experience of what broke.`,
+        q: `In a design system, when is useImperativeHandle a good API, and when is it a warning sign?`,
+        short: `It is good for small, real imperative actions like focus, scroll, or select text. It is a warning sign when it exposes state or data, like open, setValue, or getItems, because that hides state from React and from the parent.`,
+        long: `Design system inputs often need focus() for form errors and accessibility; a tiny handle is fine.\nMedia and canvas components may expose play, pause, or toDataURL.\nWarning signs: methods that change visible state (open, setTab, setValue), getters for internal data, or large handles that copy the whole DOM API.\nThose make components hard to control, test, and server render, and they break when internals change.\nRule: prefer props and callbacks; allow a handle only for actions that cannot be data.\nDocument the handle as public API, type it, and version it like props.\nIn React 19 ref is a prop, so the handle shape is part of the props type.`,
         exercises: [
-          {
-            task: "Which code patterns stop React Compiler from optimizing a component? How do you find them in a large codebase?",
-            description: "Checks Compiler readiness at scale. Ask which patterns block it and how to find them.",
-            answer: "Mutating props/state, reading or writing refs during render, side effects in render and conditional hooks. Run eslint-plugin-react-hooks compiler rules across the repo to get a list, fix or annotate with \"use no memo\", then enable directory by directory. Weak answers say the compiler fixes everything. A strong answer uses lint diagnostics and incremental opt-in.",
-          },
-          {
-            task: "Fix this component so it works safely with React Compiler.",
-            description: "Checks render purity. Ask what is wrong and fix it.",
-            code: `function Total({ items }) {
-  items.sort((a, b) => a.price - b.price);
-  return <p>{items[0]?.price}</p>;
-}`,
-            answer: "It mutates a prop during render, breaking purity (and the compiler's memoization assumptions). Copy before sorting. Many miss that sort mutates in place. A strong answer uses toSorted or a copy and explains purity enables memoization.",
-            solution: `function Total({ items }) {
-  const sorted = items.toSorted((a, b) => a.price - b.price);
-  return <p>{sorted[0]?.price}</p>;
-}`,
-          },
+          { task: `Write a review rule for when a design system component may expose a ref handle.`, description: `Checks governance. Write the rule in two or three sentences.`, answer: `A handle is allowed only for actions with no matching state, like focus, scroll, select, play, or measure. Anything visible on screen must be controlled by props with callbacks. Every handle is typed, documented, and covered by a test.` },
+          { task: `A Tabs component exposes setActiveTab through a ref. Teams use it to sync with the URL. How do you redesign it?`, description: `Checks moving from imperative to controlled. Sketch the new props.`, answer: `Make Tabs controlled with value and onValueChange, and keep an uncontrolled mode with defaultValue. Teams then pass the tab from the URL as value. Deprecate setActiveTab with a console warning and a codemod.` },
         ],
       },
       {
@@ -3212,39 +3079,14 @@ const u = uniqBy(list, "id");`,
         ],
       },
       {
-        q: "In this dashboard, context causes too many re-renders. Fix it.",
-        code: `const DashCtx = createContext();
-function DashProvider({ children }) {
-  const [filters, setFilters] = useState({ region: "all", period: "30d" });
-  const [hovered, setHovered] = useState(null); // updates on every mouse move
-  return <DashCtx.Provider value={{ filters, setFilters, hovered, setHovered }}>{children}</DashCtx.Provider>;
-}`,
-        short: "High-frequency hover state shares one context with filters, so every consumer re-renders on each mouse move. Move hover state local or to a separate store with selectors, and split/memoize the rest.",
-        long: `Any change to the context value re-renders all consumers; hovered changes dozens of times per second.
-Keep transient UI state local to the chart, or in a store where only interested components subscribe.
-Split filters and actions into separate contexts and memoize the value.
-Verify with the Profiler and INP measurements.
-Strong answer classifies state by update frequency and audience.`,
-        fix: `const FiltersCtx = createContext();
-function DashProvider({ children }) {
-  const [filters, setFilters] = useState({ region: "all", period: "30d" });
-  const value = useMemo(() => ({ filters, setFilters }), [filters]);
-  return <FiltersCtx.Provider value={value}>{children}</FiltersCtx.Provider>;
-}
-// hovered: local state inside the chart, or a Zustand store with selectors`,
+        q: `This gallery page is slow to load on mobile. Fix the image loading.`,
+        code: `function Gallery({ photos }) {\n  return (\n    <div className="grid">\n      {photos.map(p => (\n        <img key={p.id} src={p.originalUrl} alt="" />\n      ))}\n    </div>\n  );\n}`,
+        short: `All 200 full-size images download at once, with no sizes, so layout jumps and the main image competes with off-screen ones. Use responsive srcset and sizes, lazy loading, width and height, and real alt text.`,
+        long: `originalUrl may be several megabytes; phones download it even for a small thumbnail.\nsrcset with sizes lets the browser pick the right file for the screen.\nloading="lazy" delays off-screen images; keep the first visible image eager, and give it fetchPriority="high" if it is the LCP image.\nwidth and height (or aspect-ratio in CSS) reserve space and stop layout shift (CLS).\ndecoding="async" keeps decoding off the critical path.\nalt="" hides images from screen readers; photos with meaning need real text.\nFor very long galleries, add virtualization too.`,
+        fix: `function Gallery({ photos }) {\n  return (\n    <div className="grid">\n      {photos.map((p, i) => (\n        <img\n          key={p.id}\n          src={p.url400}\n          srcSet={\`\${p.url400} 400w, \${p.url800} 800w\`}\n          sizes="(max-width: 600px) 50vw, 25vw"\n          width={400}\n          height={300}\n          loading={i < 4 ? "eager" : "lazy"}\n          fetchPriority={i === 0 ? "high" : "auto"}\n          decoding="async"\n          alt={p.title}\n        />\n      ))}\n    </div>\n  );\n}`,
         exercises: [
-          {
-            task: "Build a hover store with Zustand. Only the tooltip should re-render.",
-            description: "Checks fine-grained subscriptions. Ask for store + consumer.",
-            answer: "Components subscribe via selectors; only the tooltip selects hovered. A strong answer uses transient updates (subscribe without render) for very frequent events.",
-            solution: `const useHover = create(set => ({ hovered: null, setHovered: h => set({ hovered: h }) }));
-function Tooltip() { const hovered = useHover(s => s.hovered); return hovered ? <Tip item={hovered} /> : null; }`,
-          },
-          {
-            task: "In the original code, the mouse moves. Which components re-render?",
-            description: "Checks context propagation. Ask about memoized consumers.",
-            answer: "Every component calling useContext(DashCtx) re-renders, even if memoized and even if it only reads filters. A strong answer explains memo does not block context.",
-          },
+          { task: `How do you check that the fix improved the page?`, description: `Checks measurement. Name tools and metrics.`, answer: `Run Lighthouse or WebPageTest with mobile throttling and compare LCP, CLS and total image bytes. In DevTools Network, filter by images and confirm that off-screen images load only on scroll.` },
+          { task: `Why should the first image not be lazy?`, description: `Checks LCP knowledge. Explain.`, answer: `The first visible image is often the Largest Contentful Paint element. Lazy loading waits until layout to start the download, which delays LCP. Load it eagerly with high fetch priority.` },
         ],
       },
     ],

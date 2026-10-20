@@ -40,20 +40,25 @@ const TOPICS = {
   'Soft Skills': softSkills,
 };
 
-// Extra files add more alternatives: { [category]: { [topic]: { [level]: [question, ...] } } }
+// Extra files add more alternatives: { [category]: { [topic]: { [level]: [question, ...] } } }.
+// Builds a new merged object — never mutate the imported modules (HMR re-runs this file
+// while the data modules stay cached, so mutation would append extras on every reload).
+const asList = (x) => (Array.isArray(x) ? x : [x]);
+const MERGED = Object.fromEntries(Object.entries(TOPICS).map(([cat, topics]) => [cat,
+  Object.fromEntries(Object.entries(topics).map(([topic, levels]) => [topic,
+    Object.fromEntries(Object.entries(levels).map(([level, x]) => [level, asList(x)]))]))]));
 for (const extra of [x1, x2, x3, x4, x5, x6, x7, x8, x9]) {
   for (const [cat, topics] of Object.entries(extra)) {
     for (const [topic, levels] of Object.entries(topics)) {
       for (const [level, qs] of Object.entries(levels)) {
-        const base = TOPICS[cat]?.[topic]?.[level];
-        if (!base) { console.warn('Unknown extra target', cat, topic, level); continue; }
-        TOPICS[cat][topic][level] = [...(Array.isArray(base) ? base : [base]), ...qs];
+        if (!MERGED[cat]?.[topic]?.[level]) { console.warn('Unknown extra target', cat, topic, level); continue; }
+        MERGED[cat][topic][level] = [...MERGED[cat][topic][level], ...qs];
       }
     }
   }
 }
 
-export const CATEGORIES = Object.keys(TOPICS);
+export const CATEGORIES = Object.keys(MERGED);
 
 const toQuestion = (x) => ({
   type: x.code ? 'code' : 'theory',
@@ -68,14 +73,14 @@ const toQuestion = (x) => ({
 });
 
 // One entry per topic+level; `options` holds alternative questions (a level may be an object or an array).
-export const QUESTIONS = Object.entries(TOPICS).flatMap(([category, topics]) =>
+export const QUESTIONS = Object.entries(MERGED).flatMap(([category, topics]) =>
   Object.entries(topics).flatMap(([topic, levels]) =>
     Object.entries(levels).map(([level, x]) => ({
       id: `${category}|${topic}|${level}`,
       category,
       level,
       topic,
-      options: (Array.isArray(x) ? x : [x]).map(toQuestion),
+      options: x.map(toQuestion),
     })),
   ),
 );

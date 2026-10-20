@@ -699,43 +699,36 @@ console.log(acc.balance(), acc.bal); // 5 undefined`,
         ],
       },
       {
-        q: 'Find and fix the bug: every button alerts the last label.',
-        code: `var labels = ['Save', 'Edit', 'Delete'];
-for (var i = 0; i < labels.length; i++) {
-  var label = labels[i];
-  buttons[i].onclick = function () { alert(label); };
-}`,
-        short: 'var label is function-scoped, so all handlers share one variable that ends as "Delete". Use let/const (block scope per iteration) or forEach, which creates a new scope per call.',
-        fix: `const labels = ['Save', 'Edit', 'Delete'];
-labels.forEach((label, i) => {
-  buttons[i].onclick = () => alert(label);
+        q: 'Find and fix the bug. The search still runs on every key press, even with debounce.',
+        code: `input.addEventListener('input', (e) => {
+  const run = debounce(search, 300);
+  run(e.target.value);
 });`,
-        long: `Unlike the classic i bug, here the shared variable is label — changing only i to let does not fix it.
-const label inside the loop body, or forEach with a callback parameter, gives each handler its own binding.
-Handlers run later, after the loop has finished.
-Strong candidate notices that label (not i) is the problem; weak candidate changes var i to let i and stops.`,
+        short: 'A new debounced function, with a new closure and timer, is created on every event. Each one fires once. Create the debounced function once, outside the handler.',
+        long: `debounce keeps its timer in a closure. The timer is shared only between calls to the same returned function.
+Creating it inside the handler makes a fresh closure each time, so there is nothing to cancel.
+Create the wrapper once at module or component setup and reuse it.
+In React, keep it in useMemo or useRef, or it is recreated on every render.
+Strong answer: explains the closure lifetime and gives the framework version. Weak answer: increases the delay.`,
+        fix: `const run = debounce(search, 300);
+input.addEventListener('input', (e) => run(e.target.value));`,
+        follow: 'How would you keep the same debounced function in a React component?',
         exercises: [
           {
-            task: 'Predict the output.',
-            description: 'Checks block scope with let inside if. Ask before running.',
-            code: `let x = 'outer';
-if (true) { let x = 'inner'; }
-var y = 'outer';
-if (true) { var y = 'inner'; }
-console.log(x, y);`,
-            answer: '"outer inner". let is block-scoped, so the inner x is a separate variable; var ignores blocks, so the second declaration reassigns the same y.',
+            code: `function makeCounter() { let count = 0; return () => console.log(++count); }
+const a = makeCounter();
+const b = makeCounter();
+a(); a(); b();`,
+            task: 'How many times does log run? Explain.',
+            description: 'Checks understanding of separate closures.',
+            answer: 'Three times. Each makeCounter call creates its own count variable, so a and b do not share state: a logs 1 and 2, b logs 1.',
           },
           {
-            task: 'Fix the bug: the timeout logs the wrong user after the variable is reassigned.',
-            description: 'Checks capturing a value at call time. Discuss when you want a snapshot vs live value.',
-            code: `let user = 'Ann';
-setTimeout(() => console.log(user), 10);
-user = 'Bob';`,
-            answer: 'The closure reads the variable when it runs, so it logs "Bob". If you need the value at scheduling time, capture a const copy or pass it as an argument.',
-            solution: `let user = 'Ann';
-const snapshot = user;
-setTimeout(() => console.log(snapshot), 10); // Ann
-user = 'Bob';`,
+            task: 'Fix the React version so the debounce works.',
+            description: 'The debounced function is created in the component body.',
+            answer: 'Keep it stable across renders with useMemo (or useRef) and cancel it on unmount. Use a ref to read the latest callback if it changes.',
+            solution: `const run = useMemo(() => debounce((q) => search(q), 300), []);
+useEffect(() => () => run.cancel?.(), [run]);`,
           },
         ],
       },
@@ -1249,36 +1242,49 @@ try { load(); } catch (e) { console.log('caught'); }`,
         ],
       },
       {
-        q: 'Find and fix the bug: "done" is logged before the data.',
-        code: `function loadData(cb) {
-  setTimeout(() => cb('data'), 100);
-}
-let result;
-loadData((d) => { result = d; });
-console.log(result, 'done');`,
-        short: 'The callback runs 100ms later, but console.log runs immediately, so result is undefined. Do the work inside the callback, or return a promise and continue in then/await.',
-        fix: `function loadData() {
-  return new Promise((resolve) => setTimeout(() => resolve('data'), 100));
-}
-loadData().then((d) => console.log(d, 'done'));`,
-        long: `A callback is only called when the async work completes; the code after the call does not wait.
-Returning a Promise makes the flow composable and lets errors propagate.
-Nesting more callbacks for more steps leads to "callback hell"; promises and async/await flatten it.
-Strong candidate converts to a promise and explains the timing; weak candidate adds a bigger setTimeout around the log.`,
+        q: 'Find and fix the bug. JSON.parse crashes, but the file is fine.',
+        code: `const fs = require('fs');
+fs.readFile('config.json', 'utf8', (data) => {
+  console.log(JSON.parse(data));
+});`,
+        short: 'Node callbacks are error-first: the first argument is the error (null on success), the second is the data. Here data is actually the error value.',
+        long: `The Node convention is callback(err, result).
+On success err is null, so JSON.parse(null) gives null, and on failure you try to parse an Error.
+Always check err first and return early.
+JSON.parse can also throw, so wrap it in try and catch.
+Modern code can use fs.promises.readFile with await instead.
+Strong answer: names the error-first convention and handles parse errors. Weak answer: adds try and catch around everything without fixing the arguments.`,
+        fix: `fs.readFile('config.json', 'utf8', (err, data) => {
+  if (err) return console.error('Cannot read config', err);
+  try {
+    console.log(JSON.parse(data));
+  } catch (e) {
+    console.error('Bad JSON', e);
+  }
+});`,
+        follow: 'How would you write the same code with fs.promises and await?',
         exercises: [
           {
-            task: 'Predict the output.',
-            description: 'Checks that then callbacks are always asynchronous. Ask before running.',
-            code: `Promise.resolve('p').then(console.log);
-console.log('sync');`,
-            answer: '"sync" then "p". Even an already-resolved promise runs its then callback as a microtask, after the current synchronous code.',
+            task: 'Rewrite it with fs.promises and async and await.',
+            description: 'Checks moving from callbacks to promises.',
+            answer: 'Await readFile inside try and catch. Read errors and parse errors both go to the same catch.',
+            solution: `const { readFile } = require('fs/promises');
+async function loadConfig() {
+  try {
+    return JSON.parse(await readFile('config.json', 'utf8'));
+  } catch (e) {
+    console.error('Cannot load config', e);
+  }
+}`,
           },
           {
-            task: 'Implement a function that returns a promise resolving after the given ms with the given value.',
-            description: 'Checks creating promises. Quick warm-up.',
-            answer: 'Create a new Promise and call resolve from the timer callback.',
-            solution: `const delay = (ms, value) => new Promise((resolve) => setTimeout(() => resolve(value), ms));
-delay(20, 'hi').then(console.log);`,
+            task: 'Write your own function in error-first callback style.',
+            description: 'Checks that the candidate can follow the convention.',
+            answer: 'Call cb(error) on failure and cb(null, value) on success, and call it only once.',
+            solution: `function divide(a, b, cb) {
+  if (b === 0) return cb(new Error('Division by zero'));
+  cb(null, a / b);
+}`,
           },
         ],
       },
@@ -2116,45 +2122,48 @@ new Dog('Rex');`,
         ],
       },
       {
-        q: 'Find and fix the bug: calling the method throws "Cannot read properties of undefined".',
-        code: `class Counter {
-  constructor() { this.count = 0; }
-  increment() { this.count++; }
+        q: 'Find and fix the bug. Adding an item throws "items is not defined".',
+        code: `class Cart {
+  constructor() {
+    this.items = [];
+  }
+  add(item) {
+    items.push(item);
+  }
 }
-const c = new Counter();
-const inc = c.increment;
-inc();`,
-        short: 'Extracting the method loses the instance, and class code is strict mode, so this is undefined. Call it as c.increment(), bind it, or define it as an arrow class field.',
-        fix: `class Counter {
-  count = 0;
-  increment = () => { this.count++; };
-}
-const c = new Counter();
-const inc = c.increment;
-inc();
-console.log(c.count); // 1`,
-        long: `Class methods live on the prototype and get this from the call site.
-const inc = c.increment detaches the method; inc() is a plain call.
-Fixes: c.increment.bind(c), an arrow wrapper, or an arrow class field (bound per instance, costs memory per instance).
-Strong candidate explains strict mode in classes and the trade-off of arrow fields; weak candidate says classes are broken.`,
+new Cart().add('apple');`,
+        short: 'Instance properties are not variables in scope. Inside a method you must read them through this, so write this.items.push(item).',
+        long: `In Java or C#, fields can be used without this. In JavaScript you cannot.
+items without this looks for a variable in the scope chain and finds none, so a ReferenceError is thrown.
+If a global named items exists, the bug is worse: the code changes the wrong array silently.
+Class bodies run in strict mode, so there is no accidental global creation.
+Strong answer: explains scope lookup versus property lookup. Weak answer: declares a global items array.`,
+        fix: `class Cart {
+  constructor() {
+    this.items = [];
+  }
+  add(item) {
+    this.items.push(item);
+  }
+}`,
+        follow: 'How could you write the items field without a constructor?',
         exercises: [
           {
-            task: 'Predict the output.',
-            description: 'Checks where class members live. Ask before running.',
-            code: `class A { static s = 1; m() {} f = 2; }
-const a = new A();
-console.log(Object.hasOwn(a, 'f'), Object.hasOwn(a, 'm'), A.s, a.s);`,
-            answer: 'true false 1 undefined. Fields are own properties of each instance, methods are on the prototype, and statics live on the class itself.',
+            task: 'Rewrite the class using a class field instead of the constructor.',
+            description: 'Checks modern field syntax.',
+            answer: 'Declare items = [] in the class body. Each instance gets its own array.',
+            solution: `class Cart {
+  items = [];
+  add(item) { this.items.push(item); }
+}`,
           },
           {
-            task: 'Implement a Rectangle class with width, height and an area getter.',
-            description: 'Checks basic class syntax. Quick warm-up.',
-            answer: 'A constructor stores the data, and a getter computes area on access, without parentheses.',
-            solution: `class Rectangle {
-  constructor(w, h) { this.w = w; this.h = h; }
-  get area() { return this.w * this.h; }
-}
-console.log(new Rectangle(2, 3).area); // 6`,
+            task: 'Add a total getter that sums item prices.',
+            description: 'Checks this inside a getter.',
+            answer: 'Use get total() and read this.items inside it. It is used like a property: cart.total.',
+            solution: `get total() {
+  return this.items.reduce((sum, i) => sum + i.price, 0);
+}`,
           },
         ],
       },
