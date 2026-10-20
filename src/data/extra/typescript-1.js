@@ -10,20 +10,18 @@ export default {
         follow: 'Is readonly checked at runtime?',
         exercises: [
           {
-            task: 'Make the id read-only and the email optional.',
-            description: 'Checks basic modifiers. Give the interface and ask for edits in the TS Playground.',
-            code: `interface User { id: string; email: string; name: string }`,
-            answer: 'Use readonly before id and a question mark after email. A common wrong answer is using `email: string | undefined`, which still forces the key to exist. A strong answer explains the difference between a missing key and an undefined value.',
-            solution: `interface User { readonly id: string; email?: string; name: string }`,
+            task: 'Make phone optional and id read-only.',
+            description: 'Checks ? and readonly modifiers.',
+            code: 'interface User { id: string; phone: string }',
+            answer: 'Add readonly to id and ? to phone.',
+            solution: 'interface User { readonly id: string; phone?: string }',
           },
           {
-            task: 'Does this code compile? Explain why.',
-            description: 'Checks that readonly is shallow. Run it in the Playground.',
-            code: `interface Cfg { readonly tags: string[] }
-const c: Cfg = { tags: [] };
-c.tags.push('a');
-c.tags = [];`,
-            answer: 'The push compiles because readonly only protects the property binding, not the array. The reassignment fails. Use `readonly string[]` to block push. Weak answers say both lines fail.',
+            task: 'Predict whether this compiles with exactOptionalPropertyTypes.',
+            description: 'Checks optional vs undefined values.',
+            code: `interface O { tag?: string }
+const o: O = { tag: undefined };`,
+            answer: 'It fails: with that flag, optional means "may be missing", not "may be undefined". Use tag?: string | undefined.',
           },
         ],
       },
@@ -45,19 +43,19 @@ Weak answer: adds a runtime length check but keeps number[].`,
         follow: 'How do you make a tuple read-only?',
         exercises: [
           {
-            task: 'Type the return value of this hook as a tuple.',
-            description: 'Checks tuple return types like useState. Ask for code in the Playground.',
-            code: 'function useToggle(init: string) { const reset = () => {}; return [init, reset]; }',
-            answer: 'Without a tuple type, TS infers (string | (() => void))[] and destructuring loses types. Use `as const` or an explicit `[string, () => void]` return type.',
-            solution: 'function useToggle(init: string): [string, () => void] { const reset = () => {}; return [init, reset]; }',
+            task: 'Fix the type so the point needs exactly two numbers.',
+            description: 'Checks tuple types.',
+            code: `type Point = number[];
+dist([3]);`,
+            answer: 'Use a tuple; then [3] is a compile error.',
+            solution: 'type Point = [x: number, y: number];',
           },
           {
-            task: 'What is the type of the last item here?',
-            description: 'Checks optional and rest elements in tuples.',
-            code: `type Row = [id: number, name: string, note?: string];
-declare const r: Row;
-const n = r[2];`,
-            answer: 'It is `string | undefined` because the tuple ends with an optional element. Rest elements like `...number[]` can also appear. Weak answers say tuples cannot have optional parts.',
+            task: 'Predict the type of p[2].',
+            description: 'Checks out-of-range tuple access.',
+            code: `const p: [number, number] = [1, 2];
+const z = p[2];`,
+            answer: 'It is an error: tuple of length 2 has no element at index 2.',
           },
         ],
       },
@@ -67,18 +65,18 @@ const n = r[2];`,
         long: 'A type alias with arrow syntax is the most common form.\nAn interface with a call signature can also add properties to the function.\nMethod syntax `m(): void` and property syntax `m: () => void` differ: method params are checked bivariantly.\nPitfall: using `Function` as a type loses all parameter checks.\nStrong answer: knows both forms and the bivariance difference under strictFunctionTypes.\nWeak answer: uses Function or any.',
         exercises: [
           {
-            task: 'Write a type for a comparator of two numbers that returns a number.',
-            description: 'Checks function type syntax. Ask for both the alias and the interface form.',
-            answer: '`type Cmp = (a: number, b: number) => number` or `interface Cmp { (a: number, b: number): number }`. A wrong answer is `Function`. A strong answer shows it used with Array.prototype.sort.',
-            solution: `type Cmp = (a: number, b: number) => number;
-const asc: Cmp = (a, b) => a - b;`,
+            task: 'Write a function type for a click handler.',
+            description: 'Checks function type aliases.',
+            answer: 'A type alias with an arrow signature.',
+            solution: `type OnClick = (id: string) => void;
+const h: OnClick = id => console.log(id);`,
           },
           {
-            task: 'Why is the parameter type inferred here?',
-            description: 'Checks contextual typing. Show the code and ask where the type of a comes from.',
-            code: `type Handler = (e: MouseEvent) => void;
-const h: Handler = (e) => console.log(e.clientX);`,
-            answer: 'The annotation on h gives a contextual type, so e is MouseEvent without its own annotation. Weak answers say e is any. A strong answer names contextual typing.',
+            task: 'Rewrite the type as an interface call signature.',
+            description: 'Checks call signatures in interfaces.',
+            code: 'type Fmt = (n: number) => string;',
+            answer: 'Interfaces use a call signature without =>.',
+            solution: 'interface Fmt { (n: number): string }',
           },
         ],
       },
@@ -96,22 +94,19 @@ Weak answer: says it is impossible without a class.`,
         follow: 'Can you add a construct signature too?',
         exercises: [
           {
-            task: 'Write a type for a counter function that also has a reset method.',
-            description: 'Checks call signatures with members.',
-            answer: 'Put `(): number` and `reset(): void` in one interface. Then create a function and attach reset. A strong answer shows that TS accepts `counter.reset = ...` on a function declaration.',
-            solution: `interface Counter { (): number; reset(): void }
-let n = 0;
-function counter() { return ++n; }
-counter.reset = () => { n = 0; };
-const c: Counter = counter;`,
+            task: 'Write a type for a function with a version property.',
+            description: 'Checks hybrid callable types.',
+            answer: 'Combine a call signature and a property.',
+            solution: `type Fn = { (x: number): number; version: string };
+const f = ((x: number) => x * 2) as Fn;
+f.version = '1';`,
           },
           {
-            task: 'Why does this fail and how do you fix it?',
-            description: 'Checks building a hybrid value.',
-            code: `interface Lib { (s: string): void; version: string }
-const lib: Lib = (s: string) => console.log(s);`,
-            answer: 'An arrow function on its own has no version property. Add it with Object.assign so the result type has both parts.',
-            solution: 'const lib: Lib = Object.assign((s: string) => console.log(s), { version: \'1.0\' });',
+            task: 'Predict whether this compiles.',
+            description: 'Checks property assignment on function declarations.',
+            code: `function log(msg: string) {}
+log.level = 'info';`,
+            answer: 'It compiles: TS lets you add properties to function declarations in the same scope.',
           },
         ],
       },
@@ -125,17 +120,18 @@ type Colored = Shape & { color: string };`,
         long: 'Interfaces need a single object type to extend, not a union.\n`Shape & { color: string }` distributes: each member of the union gets color.\nThis keeps the discriminant, so narrowing on kind still works.\nPitfall: flattening the union into one object with optional fields loses safety.\nStrong answer: explains distribution of & over |.\nWeak answer: makes all fields optional.',
         exercises: [
           {
-            task: 'Narrow a Colored value and read r only for circles.',
-            description: 'Checks that the intersection keeps discriminated union narrowing. Ask for a function.',
-            answer: 'Switch on `c.kind`; in the circle branch `c.r` is available and `c.color` is always available. A wrong answer uses a cast. A strong answer notes the intersection distributes over the union.',
-            solution: `function area(c: Colored) {
-  return c.kind === 'circle' ? Math.PI * c.r ** 2 : c.s ** 2;
-}`,
+            task: 'Fix the code by using an intersection.',
+            description: 'Checks extending union types.',
+            code: `type Shape = { kind: 'c'; r: number } | { kind: 's'; s: number };
+interface Colored extends Shape { color: string }`,
+            answer: 'An interface cannot extend a union; use a type with &.',
+            solution: 'type Colored = Shape & { color: string };',
           },
           {
-            task: 'Can an interface extend a mapped type alias? Try it.',
-            description: 'Checks the rule "statically known members". Test `interface X extends Partial<User> {}`.',
-            answer: 'Yes, Partial<User> resolves to an object type with known keys, so extending works. It fails only for unions or types with unknown keys, like generic T. Weak answers say interfaces can never extend type aliases.',
+            task: 'Predict what Colored contains.',
+            description: 'Checks intersection distributing over unions.',
+            code: 'type Colored = ({ kind: \'c\' } | { kind: \'s\' }) & { color: string };',
+            answer: 'It is a union of two shapes, each with color. Narrowing on kind still works.',
           },
         ],
       },
@@ -145,17 +141,17 @@ type Colored = Shape & { color: string };`,
         long: '`{ [key: string]: number }` accepts any string key.\n`Record<"a" | "b", number>` requires exactly those keys.\nPitfall: with an index signature, `obj.foo` is typed as number even when missing; enable noUncheckedIndexedAccess.\nNamed properties must be compatible with the index signature type.\nFor dynamic keys, Map may be better.\nStrong answer: mentions noUncheckedIndexedAccess and key unions.\nWeak answer: treats them as identical.',
         exercises: [
           {
-            task: 'Why does this fail? Fix it.',
-            description: 'Checks named property compatibility with index signatures. Run in the Playground.',
-            code: `interface Dict { [k: string]: number; name: string }`,
-            answer: 'The name property must match the index type number. Change the index to `number | string`, or move name out of the dictionary. A strong answer suggests separating metadata from the map.',
-            solution: `interface Dict { name: string; values: Record<string, number> }`,
+            task: 'Rewrite the index signature with Record.',
+            description: 'Checks Record for known key unions.',
+            code: 'type Prices = { [key: string]: number };',
+            answer: 'Record is shorter; with a key union it also requires every key.',
+            solution: 'type Prices = Record<\'small\' | \'large\', number>;',
           },
           {
-            task: 'Type a map from status to label, where every status must have a label.',
-            description: 'Checks Record with a union key for completeness. Remove one key to see the error.',
-            code: `type Status = 'new' | 'done';`,
-            answer: '`const labels: Record<Status, string> = { new: "New", done: "Done" }`. Adding a status forces a new label. A weak answer uses an index signature, which does not enforce completeness.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks index signature consistency.',
+            code: 'interface Dict { [k: string]: number; name: string }',
+            answer: 'It fails: name (string) must match the index signature type number.',
           },
         ],
       },
@@ -168,19 +164,21 @@ type Colored = Shape & { color: string };`,
         ai: true,
         exercises: [
           {
-            task: 'Make this helper accept both interfaces and type aliases.',
-            description: 'Checks the implicit index signature rule. Run in the Playground with an interface argument.',
-            code: `function keys<T extends Record<string, unknown>>(o: T) { return Object.keys(o) as (keyof T)[] }
-interface U { id: string }
-declare const u: U;
-keys(u);`,
-            answer: 'Change the constraint to `T extends object`. Record<string, unknown> needs an index signature, which interfaces lack. A wrong fix casts at the call site. A strong answer explains why `any` works but `unknown` does not.',
-            solution: `function keys<T extends object>(o: T) { return Object.keys(o) as (keyof T)[] }`,
+            task: 'Predict which assignment fails.',
+            description: 'Checks implicit index signatures.',
+            code: `interface I { a: string }
+type T = { a: string };
+declare const i: I, t: T;
+const r1: Record<string, unknown> = i;
+const r2: Record<string, unknown> = t;`,
+            answer: 'r1 fails: interfaces can be merged, so they get no implicit index signature. Type aliases do.',
           },
           {
-            task: 'Explain why Object.keys returns string[] and not keyof T.',
-            description: 'Checks understanding of structural typing. Ask for reasoning, not code.',
-            answer: 'Because of structural typing, an object can have more keys than its type shows. So keyof T would lie. The cast is a deliberate unsafe choice. Weak answers call it a TS limitation that should be fixed.',
+            task: 'Fix the assignment for the interface.',
+            description: 'Checks working around index signatures.',
+            code: 'const r: Record<string, unknown> = i;',
+            answer: 'Spread into a new object, or use a type alias.',
+            solution: 'const r: Record<string, unknown> = { ...i };',
           },
         ],
       },
@@ -196,18 +194,18 @@ const s: Store = { on(cb) { cb('x') } };`,
         ai: true,
         exercises: [
           {
-            task: 'Which assignment fails under strict mode? Explain.',
-            description: 'Checks variance of method versus property signatures. Run both lines in the Playground.',
-            code: `interface A { m(x: string | number): void }
-interface B { m: (x: string | number) => void }
-const a: A = { m: (x: string) => {} };
-const b: B = { m: (x: string) => {} };`,
-            answer: 'Only b fails. Methods are bivariant in their parameters; property functions are contravariant. Weak answers say both fail. A strong answer suggests the lint rule that enforces property style.',
+            task: 'Predict whether this compiles with strictFunctionTypes.',
+            description: 'Checks method vs property bivariance.',
+            code: `interface S { on: (cb: (v: string | number) => void) => void }
+const s: S = { on(cb: (v: string) => void) {} };`,
+            answer: 'It fails: property syntax is checked strictly. Method syntax on(cb) would be bivariant and pass.',
           },
           {
-            task: 'Explain why method bivariance exists at all.',
-            description: 'Checks the design trade-off. Discuss with Array<Dog> versus Array<Animal>.',
-            answer: 'Without it, Array<Dog> would not be assignable to Array<Animal> because of methods like push. TS chose usability over full soundness. A strong answer mentions it was kept when strictFunctionTypes was added in 2.6.',
+            task: 'Fix the interface so it is checked strictly.',
+            description: 'Checks method shorthand bivariance.',
+            code: 'interface Store { on(cb: (v: string) => void): void }',
+            answer: 'Use property syntax; method shorthand parameters are checked bivariantly.',
+            solution: 'interface Store { on: (cb: (v: string) => void) => void }',
           },
         ],
       },
@@ -217,16 +215,17 @@ const b: B = { m: (x: string) => {} };`,
         long: 'The TS performance wiki suggests preferring interface extends over intersections.\nIntersections are flattened and checked member by member each time.\nNamed interfaces show shorter names in errors and .d.ts files.\nHuge unions (thousands of members) cause quadratic checks.\nTools: `tsc --extendedDiagnostics`, `--generateTrace`, and @typescript/analyze-trace.\nStrong answer: measures before changing and names the tools.\nWeak answer: says types have no cost because they are erased.',
         exercises: [
           {
-            task: 'Rewrite this intersection chain for better checker performance.',
-            description: 'Checks the interface-over-intersection guidance. Compare with extendedDiagnostics on a large file.',
-            code: `type Full = Base & Audit & Owner & { extra: string };`,
-            answer: 'Use `interface Full extends Base, Audit, Owner { extra: string }`. It is cached and conflicts are reported early. A weak answer says the two forms are identical. A strong answer also notes extends reports conflicts instead of producing never.',
-            solution: `interface Full extends Base, Audit, Owner { extra: string }`,
+            task: 'Spot the performance problem.',
+            description: 'Checks intersections vs interface extends.',
+            code: 'type Props = A & B & C & D & E & F;',
+            answer: 'Large intersections are re-computed and cached poorly. interface X extends A, B {} is cached and faster.',
           },
           {
-            task: 'How would you find which type makes tsc slow?',
-            description: 'Checks tooling knowledge. Ask for concrete steps.',
-            answer: 'Run `tsc --extendedDiagnostics` for totals, then `--generateTrace out` and open it in Perfetto or analyze-trace to find hot types. Weak answers only guess. A strong answer then simplifies the hot type and re-measures.',
+            task: 'Rewrite the intersection with extends.',
+            description: 'Checks faster interface composition.',
+            code: 'type User = Base & Timestamps & { name: string };',
+            answer: 'Interfaces are cached by name and give clearer errors.',
+            solution: 'interface User extends Base, Timestamps { name: string }',
           },
         ],
       },
@@ -244,17 +243,17 @@ Weak answer: makes every field optional in one shared type.`,
         follow: 'Where do you put the mapping functions?',
         exercises: [
           {
-            task: 'Write a form type from this API type, where dates are Date objects and id is not editable.',
-            description: 'Checks Omit and mapped changes.',
+            task: 'Write a form type from the API type.',
+            description: 'Checks deriving types with utility types.',
             code: 'type UserDto = { id: string; name: string; createdAt: string };',
-            answer: 'Omit id, and replace createdAt with Date. A strong answer writes a toForm function too.',
-            solution: `type UserForm = Omit<UserDto, 'id' | 'createdAt'> & { createdAt: Date };
-const toForm = (d: UserDto): UserForm => ({ name: d.name, createdAt: new Date(d.createdAt) });`,
+            answer: 'The form omits server fields; derive it so changes flow through.',
+            solution: 'type UserForm = Omit<UserDto, \'id\' | \'createdAt\'>;',
           },
           {
-            task: 'A team made every API field optional so forms can use it. What problems does this cause?',
-            description: 'Checks judgment about shared types.',
-            answer: 'Every read now needs undefined checks, real missing fields are hidden, and the server contract is lost. Separate types with a mapper fix this.',
+            task: 'Spot the problem with sharing one type.',
+            description: 'Checks separating API and UI models.',
+            code: 'type User = { createdAt: string }; // used in form state and API',
+            answer: 'Forms often need a Date or empty values; API sends strings. Map between them at the boundary.',
           },
         ],
       },
@@ -269,14 +268,16 @@ export interface UserSettings { theme: 'light' | 'dark' }`,
         long: 'The index signature with any turns off checks for every property.\nConsumers start to depend on fields that do not exist.\nSmaller contracts (UserSummary) let apps depend only on what they use.\nreadonly and literal unions make the contract explicit.\nRoll out with deprecation and a semver major, not a silent change.\nStrong answer: talks about blast radius and versioning.\nWeak answer: only removes any.',
         exercises: [
           {
-            task: 'Plan how to remove the index signature without breaking all consumers at once.',
-            description: 'Checks migration strategy. Ask for steps.',
-            answer: 'Add the new strict type next to the old one, mark the old one @deprecated, migrate apps one by one, then remove it in a major version. A weak answer changes it in place. A strong answer measures usage with tsc errors first.',
+            task: 'Fix the shared type to remove the escape hatches.',
+            description: 'Checks avoiding any and loose index signatures.',
+            code: 'export interface User { id: string; settings: any; [k: string]: any }',
+            answer: 'any and the index signature allow any field and hide breaking changes.',
+            solution: 'export interface User { id: string; settings: UserSettings }',
           },
           {
-            task: 'Why is `settings: any` worse than `settings: unknown`?',
-            description: 'Checks any versus unknown at a contract level. Discuss.',
-            answer: 'any spreads and disables checks in consumer code. unknown forces narrowing before use. Weak answers say they are the same. A strong answer adds that the real fix is a proper type.',
+            task: 'Name two rules for safe changes to a shared type.',
+            description: 'Checks type versioning discipline.',
+            answer: 'Add fields as optional first, and never rename or remove without a deprecation period and semver major.',
           },
         ],
       },
@@ -292,21 +293,20 @@ Weak answer: keeps docs in a wiki that nobody opens.`,
         follow: 'How do you remove a deprecated field later?',
         exercises: [
           {
-            task: 'Add docs so users know price is in cents and oldPrice should not be used.',
-            description: 'Checks TSDoc tags.',
-            code: 'interface Product { price: number; oldPrice?: number }',
-            answer: 'Add a comment about cents and a @deprecated tag pointing to the new field.',
-            solution: `interface Product {
-  /** Price in cents, for example 1999 for $19.99. */
-  price: number;
-  /** @deprecated Use price instead. Removed in v3. */
-  oldPrice?: number;
+            task: 'Add a deprecation note to a field.',
+            description: 'Checks TSDoc tags in shared types.',
+            code: 'interface User { name: string; fullName: string }',
+            answer: 'Use @deprecated; editors strike it through.',
+            solution: `interface User {
+  /** @deprecated Use fullName. */
+  name: string;
+  fullName: string;
 }`,
           },
           {
-            task: 'Which things should a type comment explain, and which should it skip?',
-            description: 'Checks taste in documentation.',
-            answer: 'Explain units, formats, allowed ranges and side effects. Skip things the type already says, like "this is a string".',
+            task: 'Name two ways to document shared types.',
+            description: 'Checks type documentation practices.',
+            answer: 'TSDoc comments with examples on each export, and generated docs like TypeDoc or API Extractor.',
           },
         ],
       },
@@ -320,24 +320,20 @@ Weak answer: keeps docs in a wiki that nobody opens.`,
         long: '`constructor(private name: string) {}` creates a field name and assigns it.\nIt saves boilerplate in services and DTO classes.\nIt is TS-only syntax; erasableSyntaxOnly and Node type stripping reject it.\nPitfall: forgetting the modifier, so the value is just a local parameter.\nStrong answer: knows it emits real assignment code and is not just a type.\nWeak answer: thinks every parameter becomes a field.',
         exercises: [
           {
-            task: 'Rewrite this class with parameter properties.',
-            description: 'Checks the shorthand. Ask for a live rewrite in the Playground.',
+            task: 'Rewrite the class with parameter properties.',
+            description: 'Checks constructor shorthand.',
             code: `class User {
-  readonly id: string;
-  private name: string;
-  constructor(id: string, name: string) { this.id = id; this.name = name; }
+  name: string;
+  constructor(name: string) { this.name = name; }
 }`,
-            answer: 'Move the modifiers into the constructor parameters and remove the body. A common mistake is leaving the field declarations too, which causes duplicate identifier errors. A strong answer mentions erasableSyntaxOnly.',
-            solution: `class User {
-  constructor(readonly id: string, private name: string) {}
-}`,
+            answer: 'A modifier on the parameter declares and assigns the field.',
+            solution: 'class User { constructor(public name: string) {} }',
           },
           {
-            task: 'Does this class have a field called name? Explain.',
-            description: 'Checks that a parameter without a modifier is not a field. Show the code.',
-            code: `class A { constructor(name: string) {} }
-new A('x').name;`,
-            answer: 'No. Without a modifier, name is just a parameter, so `.name` is an error. Weak answers say TS adds it automatically. Add public, private, or readonly to make it a field.',
+            task: 'Predict whether this works with erasableSyntaxOnly.',
+            description: 'Checks that parameter properties emit code.',
+            code: 'class A { constructor(private x: number) {} }',
+            answer: 'It fails: parameter properties emit runtime code, so they are not erasable.',
           },
         ],
       },
@@ -355,16 +351,17 @@ new A('x').name;`,
         long: 'strict mode turns on strictPropertyInitialization.\nA field without an initializer would be undefined at runtime, so count++ gives NaN.\nFix by giving a default or assigning in the constructor.\nThe `!` definite assignment operator silences the error but does not fix it.\nStrong answer: uses `!` only when a framework sets the field (for example DI).\nWeak answer: turns off strict mode.',
         exercises: [
           {
-            task: 'When is `name!: string` acceptable?',
-            description: 'Checks the definite assignment assertion. Discuss with an example.',
-            answer: 'When something outside the constructor surely sets it, like a framework lifecycle or an init method called right after. It is a promise to the compiler, not a check. Weak answers use it everywhere to remove errors.',
+            task: 'Fix the field so it has a value.',
+            description: 'Checks strictPropertyInitialization.',
+            code: 'class Counter { count: number; inc() { this.count++; } }',
+            answer: 'Give it an initializer.',
+            solution: 'class Counter { count = 0; inc() { this.count++; } }',
           },
           {
-            task: 'Fix the error without using `!`.',
-            description: 'Checks constructor assignment. Run in the Playground with strict on.',
-            code: `class Timer { id: number; start() { this.id = setTimeout(() => {}, 100) as unknown as number } }`,
-            answer: 'Make it optional (`id?: number`) or `number | undefined`, because it really is undefined before start. That is honest typing. A strong answer also prefers `ReturnType<typeof setTimeout>` over the double cast.',
-            solution: `class Timer { id?: ReturnType<typeof setTimeout>; start() { this.id = setTimeout(() => {}, 100) } }`,
+            task: 'Spot the risk of the ! fix.',
+            description: 'Checks definite assignment assertions.',
+            code: 'class A { name!: string; }',
+            answer: '! silences the check; name is still undefined at runtime until set.',
           },
         ],
       },
@@ -374,17 +371,21 @@ new A('x').name;`,
         long: 'In a subclass constructor, you must call super() before using this.\nsuper.method() lets you extend parent behavior instead of replacing it.\nTS reports an error if this is used before super().\nPitfall: forgetting to pass required arguments to super.\nStrong answer: explains both uses and the order rule.\nWeak answer: only knows super() in constructors.',
         exercises: [
           {
-            task: 'Override greet so it adds an exclamation mark to the parent result.',
-            description: 'Checks super.method(). Ask for code.',
-            code: `class A { greet() { return 'hi' } }`,
-            answer: 'In class B extends A, write `override greet() { return super.greet() + "!" }`. A strong answer adds the override keyword. A wrong answer copies the parent logic.',
-            solution: `class B extends A { override greet() { return super.greet() + '!' } }`,
+            task: 'Fix the method so it calls the parent version.',
+            description: 'Checks super.method calls.',
+            code: `class A { greet() { return 'hi'; } }
+class B extends A { override greet() { return greet() + '!'; } }`,
+            answer: 'Use super.greet() to call the parent method.',
+            solution: 'class B extends A { override greet() { return super.greet() + \'!\'; } }',
           },
           {
-            task: 'Find the error in this constructor.',
-            description: 'Checks the super order rule. Run in the Playground.',
-            code: `class B extends A { x: number; constructor() { this.x = 1; super(); } }`,
-            answer: 'this is used before super(), which is an error in TS and a ReferenceError at runtime. Move super() first. Weak answers think order does not matter.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks this before super.',
+            code: `class B extends A {
+  x = 1;
+  constructor() { console.log(this.x); super(); }
+}`,
+            answer: 'It fails: this cannot be used before super() in a derived class.',
           },
         ],
       },
@@ -396,18 +397,19 @@ new A('x').name;`,
         long: 'Without override, renaming a parent method leaves a child method that silently no longer overrides.\nWith override, TS errors if the parent has no such member.\nnoImplicitOverride forces the keyword on every real override.\nIt also works on properties.\nStrong answer: gives the rename scenario.\nWeak answer: thinks override changes runtime behavior.',
         exercises: [
           {
-            task: 'What error does this give with noImplicitOverride on?',
-            description: 'Checks the flag. Enable it in Playground settings.',
-            code: `class A { save() {} }
-class B extends A { save() {} }`,
-            answer: 'B.save needs the override modifier because it overrides a member in A. Adding override fixes it. A strong answer explains the safety gain.',
+            task: 'Predict the error with noImplicitOverride.',
+            description: 'Checks override typo detection.',
+            code: `class A { render() {} }
+class B extends A { override rendr() {} }`,
+            answer: 'Error: rendr is not in base class A. override catches typos.',
           },
           {
-            task: 'Parent renamed save to persist. What does override catch?',
-            description: 'Checks refactor safety. Show the code.',
-            code: `class A { persist() {} }
-class B extends A { override save() {} }`,
-            answer: 'TS errors: save is not declared in A. Without override, B would just have a new unused method. Weak answers do not see the risk.',
+            task: 'Fix the code for noImplicitOverride.',
+            description: 'Checks marking overrides.',
+            code: `class A { run() {} }
+class B extends A { run() {} }`,
+            answer: 'Add override to members that replace base members.',
+            solution: 'class B extends A { override run() {} }',
           },
         ],
       },
@@ -425,15 +427,21 @@ const r = new UserRepo();`,
         long: 'An abstract class is a partial template.\nnew on it is a compile error.\nA non-abstract subclass must implement all abstract members, or be abstract too.\nUnlike interfaces, abstract classes can hold shared code and exist at runtime.\nStrong answer: compares with interfaces and composition.\nWeak answer: thinks abstract is only a comment.',
         exercises: [
           {
-            task: 'Type a factory that takes any concrete subclass of Repo.',
-            description: 'Checks abstract construct signatures. Ask for the parameter type.',
-            answer: 'Use `new () => Repo<T>` for concrete classes. `abstract new () => Repo<T>` accepts abstract classes too, but you cannot call new on it. A strong answer knows the abstract construct signature syntax added in TS 4.2.',
-            solution: `function make<T>(C: new () => Repo<T>) { return new C() }`,
+            task: 'Fix the code so it compiles.',
+            description: 'Checks abstract class usage rules.',
+            code: `abstract class Repo<T> { abstract get(id: string): Promise<T> }
+class UserRepo extends Repo<User> {}`,
+            answer: 'UserRepo must implement get.',
+            solution: `class UserRepo extends Repo<User> {
+  get(id: string) { return fetchUser(id); }
+}`,
           },
           {
-            task: 'Abstract class or interface for a payment provider? Explain.',
-            description: 'Checks design judgment. Discuss.',
-            answer: 'Interface if you only need a contract; abstract class if providers share real code like retries. Weak answers pick one with no reason. A strong answer prefers interface plus composed helpers.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks instantiating abstract classes.',
+            code: `abstract class A {}
+const a = new A();`,
+            answer: 'It fails: cannot create an instance of an abstract class.',
           },
         ],
       },
@@ -443,18 +451,21 @@ const r = new UserRepo();`,
         long: 'If a method returns the class name, a subclass chain loses its own methods.\nReturning `this` makes the type follow the actual instance.\nWorks for builders and fluent APIs.\nPitfall: returning `new Base()` breaks it at runtime.\nStrong answer: names polymorphic this.\nWeak answer: overrides every method in the subclass.',
         exercises: [
           {
-            task: 'Fix the chain so it compiles.',
-            description: 'Checks polymorphic this. Run in the Playground.',
-            code: `class Q { where(): Q { return this } }
-class UQ extends Q { active(): UQ { return this } }
-new UQ().where().active();`,
-            answer: 'Change `where(): Q` to `where(): this`. Then `where()` returns UQ in the subclass. Weak answers cast. A strong answer explains the type follows the receiver.',
-            solution: `class Q { where(): this { return this } }`,
+            task: 'Fix the builder so chaining keeps the subclass type.',
+            description: 'Checks polymorphic this types.',
+            code: `class Base { set(k: string): Base { return this; } }
+class Q extends Base { where() { return this; } }
+new Q().set('a').where();`,
+            answer: 'Return type this keeps the subclass type.',
+            solution: 'class Base { set(k: string): this { return this; } }',
           },
           {
-            task: 'What does `this is Admin` mean as a return type?',
-            description: 'Checks this-based type guards. Show a method example.',
-            answer: 'It is a type guard on the instance: after `if (u.isAdmin())`, u is narrowed to Admin. Weak answers say it returns this. It must return boolean.',
+            task: 'Predict the type of r.',
+            description: 'Checks this return type inference.',
+            code: `class A { me() { return this; } }
+class B extends A { b = 1; }
+const r = new B().me();`,
+            answer: 'r is B: returning this infers the polymorphic this type.',
           },
         ],
       },
@@ -467,19 +478,20 @@ new UQ().where().active();`,
         ai: true,
         exercises: [
           {
-            task: 'Why does this compile but print false?',
-            description: 'Checks structural typing versus prototype. Run it in Node.',
-            code: `class P { x = 1 }
-const p: P = { x: 1 };
-console.log(p instanceof P);`,
-            answer: 'The literal matches the shape, so TS accepts it. At runtime it has no P prototype. Add a private field to make P nominal-like. Weak answers say TS creates a P.',
+            task: 'Predict the output.',
+            description: 'Checks instanceof vs structure.',
+            code: `class P { x = 1; }
+const o = Object.create(P.prototype);
+console.log(o instanceof P, 'x' in o);`,
+            answer: 'true false: instanceof checks the prototype, not the fields.',
           },
           {
-            task: 'Why does adding `private brand` stop the assignment?',
-            description: 'Checks private member nominality. Add it and re-run.',
-            code: `class P { private brand = 0; x = 1 }
-const p: P = { x: 1 };`,
-            answer: 'Types with private members are only compatible with types from the same class declaration. The literal cannot have the private member. Strong answers mention #private too.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks structural compatibility of classes.',
+            code: `class A { x = 1; }
+class B { x = 2; }
+const a: A = new B();`,
+            answer: 'It compiles: both have the same shape.',
           },
         ],
       },
@@ -494,17 +506,21 @@ class Child extends Base { override handle() { return 'child' } }
         long: 'TS reports: class Base defines handle as a property, Child defines it as a method.\nEven if forced, the instance field shadows the prototype method at runtime.\nArrow fields also cannot use super.handle().\nThey cost one function per instance.\nFix: use methods and bind where you pass them.\nStrong answer: explains field versus prototype placement.\nWeak answer: converts both to arrows without thinking.',
         exercises: [
           {
-            task: 'Explain the order of field initialization in a subclass.',
-            description: 'Checks constructor and field order. Predict output, then run.',
-            code: `class A { name = 'A'; constructor() { console.log(this.name) } }
-class B extends A { name = 'B' }
-new B();`,
-            answer: 'Prints A. Base fields and constructor run before the subclass fields. Weak answers say B. A strong answer warns against calling overridable methods in constructors.',
+            task: 'Fix the base class so subclasses can override.',
+            description: 'Checks arrow fields vs methods.',
+            code: `class Base { handle = () => 'base'; }
+class Child extends Base { override handle() { return 'child'; } }`,
+            answer: 'Arrow fields are set on the instance and hide prototype methods. Use a method in the base.',
+            solution: 'class Base { handle() { return \'base\'; } }',
           },
           {
-            task: 'When are arrow function fields a good choice?',
-            description: 'Checks trade-off judgment. Discuss.',
-            answer: 'For leaf classes where the method is passed as a callback and never overridden. Cost: memory per instance and no super. Strong answers mention the field approach in old React class components.',
+            task: 'Predict the output.',
+            description: 'Checks instance field shadowing prototype methods.',
+            code: `class A { f = () => 'A'; }
+class B extends A { f2() {} }
+B.prototype.f = () => 'B';
+console.log(new B().f());`,
+            answer: 'It logs "A": the instance field wins over the prototype.',
           },
         ],
       },
@@ -515,18 +531,20 @@ new B();`,
         ai: true,
         exercises: [
           {
-            task: 'Write an accessor decorator that logs each set.',
-            description: 'Checks ClassAccessorDecoratorContext. Use TS 5 without experimentalDecorators.',
-            answer: 'Return an object with set that logs then calls target.set.call(this, v). A wrong answer uses the legacy descriptor signature. A strong answer types the target and context.',
-            solution: `function logSet<T, V>(t: ClassAccessorDecoratorTarget<T, V>, ctx: ClassAccessorDecoratorContext<T, V>) {
-  return { set(this: T, v: V) { console.log(String(ctx.name), v); t.set.call(this, v) } };
-}
-class S { @logSet accessor count = 0 }`,
+            task: 'Rewrite the field with the accessor keyword.',
+            description: 'Checks auto-accessors.',
+            code: `class Store {
+  #v = 0;
+  get v() { return this.#v; }
+  set v(x) { this.#v = x; }
+}`,
+            answer: 'accessor creates the private storage and get/set for you.',
+            solution: 'class Store { accessor v = 0; }',
           },
           {
-            task: 'Does Object.keys(new S()) include count? Why?',
-            description: 'Checks runtime shape of auto-accessors. Run with tsc target ES2022.',
-            answer: 'No. count is a getter and setter on the prototype; the storage is a private field. This matters for serialization. Weak answers say yes.',
+            task: 'Name one use of accessor fields.',
+            description: 'Checks auto-accessors with decorators.',
+            answer: 'Decorators on accessor fields can intercept get and set, for example for reactive or validated fields.',
           },
         ],
       },
@@ -538,14 +556,19 @@ class S { @logSet accessor count = 0 }`,
         long: 'Deep hierarchies create fragile base class problems.\nRule of thumb: at most one level of your own base classes.\nShare behavior with functions, hooks, or injected services.\nAllow framework requirements like Error subclasses or web components.\nStrong answer: gives a clear rule plus exceptions and how to enforce it in review.\nWeak answer: "inheritance is bad" with no nuance.',
         exercises: [
           {
-            task: 'Refactor a BaseApiService with ten protected helpers into composition.',
-            description: 'Checks refactoring plan. Ask for the target shape.',
-            answer: 'Create an HttpClient and small helpers, inject them into each service. Services implement an interface. Migrate one service at a time. Weak answers rewrite everything at once.',
+            task: 'Refactor the subclass into composition.',
+            description: 'Checks composition over inheritance.',
+            code: 'class CachedApi extends Api {}',
+            answer: 'Wrap the API instead of extending it.',
+            solution: `function withCache(api: Api): Api {
+  const cache = new Map<string, unknown>();
+  return { get: url => cache.get(url) ?? api.get(url) };
+}`,
           },
           {
-            task: 'Name a valid reason to extend a class in frontend code.',
-            description: 'Checks nuance. Discuss.',
-            answer: 'Custom errors (class ApiError extends Error) for instanceof checks, or custom elements extending HTMLElement. A strong answer mentions setting name and cause on errors.',
+            task: 'Name one case where inheritance is fine.',
+            description: 'Checks judgement on inheritance.',
+            answer: 'Shallow hierarchies with a real is-a relation, like custom Error classes or framework base classes.',
           },
         ],
       },
@@ -566,14 +589,20 @@ class S { @logSet accessor count = 0 }`,
         long: 'ES5 down-leveling calls Error as a function, which returns a new object.\nThe subclass prototype is lost, so instanceof and methods fail.\nBest fix: target ES2015 or later in tsconfig.\nOtherwise call Object.setPrototypeOf(this, new.target.prototype).\nAlso set name and pass cause for better logs.\nStrong answer: knows the root cause and prefers fixing the target.\nWeak answer: replaces instanceof with string checks.',
         exercises: [
           {
-            task: 'What tsconfig setting removes this problem?',
-            description: 'Checks build config knowledge. Discuss.',
-            answer: 'Set target to ES2015 or newer, so native class syntax is emitted. Modern browsers support it. Weak answers do not connect target to runtime behavior.',
+            task: 'Fix the custom error for ES5 output.',
+            description: 'Checks setPrototypeOf with Error subclasses.',
+            code: `class ApiError extends Error {
+  constructor(msg: string) { super(msg); }
+}`,
+            answer: 'Restore the prototype so instanceof works.',
+            solution: `class ApiError extends Error {
+  constructor(msg: string) { super(msg); Object.setPrototypeOf(this, new.target.prototype); }
+}`,
           },
           {
-            task: 'How do you make errors safe across package boundaries?',
-            description: 'Checks duplicate package issue. Discuss.',
-            answer: 'instanceof fails if two copies of the package exist. Add a discriminant like `code` or a static isApiError guard. A strong answer also dedupes dependencies.',
+            task: 'Name the simpler fix for this problem.',
+            description: 'Checks modern build targets.',
+            answer: 'Target ES2015 or later; native classes keep the prototype correct.',
           },
         ],
       },
@@ -583,14 +612,20 @@ class S { @logSet accessor count = 0 }`,
         long: 'React state needs plain serializable data.\nClasses in state break structural cloning and devtools.\nServices like API clients or a WebSocket manager fit classes well.\nDocument the rule and enforce with lint where possible.\nStrong answer: gives clear boundaries and reasons.\nWeak answer: bans or allows classes everywhere.',
         exercises: [
           {
-            task: 'Explain why a class instance in Redux state is a problem.',
-            description: 'Checks serialization knowledge. Discuss.',
-            answer: 'Redux expects serializable values; class instances lose methods after persist or devtools replay and break equality. Weak answers say it is fine. A strong answer mentions the serializability middleware warning.',
+            task: 'Rewrite the class component as a function.',
+            description: 'Checks modern React style.',
+            code: `class Hello extends React.Component<{ name: string }> {
+  render() { return <p>{this.props.name}</p>; }
+}`,
+            answer: 'Function components are the default in React 19.',
+            solution: `function Hello({ name }: { name: string }) {
+  return <p>{name}</p>;
+}`,
           },
           {
-            task: 'Write a lint rule plan to limit class usage.',
-            description: 'Checks enforcement. Ask for tools.',
-            answer: 'Use no-restricted-syntax for ClassDeclaration in component folders, with overrides for services. Weak answers rely on memory. A strong answer explains exceptions in the config.',
+            task: 'Name one place where classes still fit in React apps.',
+            description: 'Checks pragmatic class rules.',
+            answer: 'Error boundaries still need a class. Also custom Error types and framework-independent domain logic.',
           },
         ],
       },
@@ -604,19 +639,18 @@ class S { @logSet accessor count = 0 }`,
         long: 'Members without a modifier are public.\nWriting public explicitly is optional but some teams require it for clarity.\nprivate and protected are compile-time only.\nPitfall: thinking default is private like in some other languages.\nStrong answer: says public and mentions the lint rule explicit-member-accessibility.\nWeak answer: says private.',
         exercises: [
           {
-            task: 'Which lines compile?',
-            description: 'Checks default access. Run in the Playground.',
-            code: `class A { x = 1; private y = 2 }
-const a = new A();
-a.x; a.y;`,
-            answer: 'a.x compiles because x is public by default. a.y fails because y is private. Weak answers say both fail.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks default public access.',
+            code: `class A { x = 1; }
+new A().x = 2;`,
+            answer: 'It compiles: members are public by default.',
           },
           {
-            task: 'Make the field visible only inside the class.',
-            description: 'Checks the private keyword. Ask for code.',
-            code: `class Wallet { balance = 0 }`,
-            answer: 'Add private: `private balance = 0`, or use `#balance` for runtime privacy. A strong answer mentions both and the difference.',
-            solution: `class Wallet { private balance = 0 }`,
+            task: 'Make x readable but not writable outside.',
+            description: 'Checks readonly modifier.',
+            code: 'class A { x = 1; }',
+            answer: 'Mark x readonly.',
+            solution: 'class A { readonly x = 1; }',
           },
         ],
       },
@@ -630,15 +664,19 @@ class Dog extends Animal { bark() { return this.name + ' barks' } }`,
         long: 'private: only inside the same class.\nprotected: inside the class and its subclasses.\npublic: everywhere.\nPitfall: making it public just to fix the error exposes it to everyone.\nStrong answer: picks the narrowest modifier that works.\nWeak answer: makes everything public.',
         exercises: [
           {
-            task: 'Can outside code read a protected field? Test it.',
-            description: 'Checks protected scope. Run `new Dog().name`.',
-            answer: 'No. protected is only visible inside the class hierarchy. Weak answers confuse it with public. A strong answer adds a public getter if outside access is needed.',
+            task: 'Fix the access error in the subclass.',
+            description: 'Checks protected for subclasses.',
+            code: `class Animal { private name = 'x'; }
+class Dog extends Animal { bark() { return this.name; } }`,
+            answer: 'Use protected so subclasses can read it.',
+            solution: 'class Animal { protected name = \'x\'; }',
           },
           {
-            task: 'Add a read-only public view of the protected name.',
-            description: 'Checks getters. Ask for code.',
-            answer: 'Add `get displayName() { return this.name }` with no setter. Outside code can read it but not change it. A strong answer mentions readonly as an alternative.',
-            solution: `class Animal { protected name = 'x'; get displayName() { return this.name } }`,
+            task: 'Predict whether this compiles.',
+            description: 'Checks protected access from outside.',
+            code: `class A { protected n = 1; }
+new A().n;`,
+            answer: 'It fails: protected members are not visible outside the class family.',
           },
         ],
       },
@@ -648,16 +686,19 @@ class Dog extends Animal { bark() { return this.name + ' barks' } }`,
         long: 'private hides the member from code outside the class.\nreadonly lets everyone read it, but nobody can reassign it after the constructor.\nYou can combine them: `private readonly`.\nBoth are compile-time only.\nStrong answer: says they solve different problems and can combine.\nWeak answer: thinks they are the same.',
         exercises: [
           {
-            task: 'Which line fails? Explain.',
-            description: 'Checks readonly. Run in the Playground.',
-            code: `class C { readonly id = 1; constructor() { this.id = 2 } set() { this.id = 3 } }`,
-            answer: 'The assignment in set() fails. Assigning in the constructor is allowed. Weak answers think both fail.',
+            task: 'Predict which line errors.',
+            description: 'Checks private vs readonly.',
+            code: `class A { private a = 1; readonly b = 2; }
+const x = new A();
+x.a; x.b = 3;`,
+            answer: 'Both: a is private (no read outside); b can be read but not written.',
           },
           {
-            task: 'Make a config value that only the class can read, and nobody can change.',
-            description: 'Checks combining modifiers. Ask for code.',
-            answer: 'Use `private readonly apiUrl: string` set in the constructor. A strong answer uses a parameter property.',
-            solution: `class Api { constructor(private readonly apiUrl: string) {} }`,
+            task: 'Make the field readable outside but fixed after construction.',
+            description: 'Checks readonly fields.',
+            code: 'class Order { id: string; constructor(id: string) { this.id = id; } }',
+            answer: 'readonly allows assignment only in the constructor.',
+            solution: 'class Order { constructor(readonly id: string) {} }',
           },
         ],
       },
@@ -669,18 +710,21 @@ class Dog extends Animal { bark() { return this.name + ' barks' } }`,
         long: 'A private constructor allows only static factories inside the class (for example singleton or validated create).\nA protected constructor also lets subclasses call super().\nOutside code must use the factory.\nThis enforces validation in one place.\nStrong answer: gives the factory pattern with validation.\nWeak answer: says constructors must be public.',
         exercises: [
           {
-            task: 'Write an Email class that can only be created by Email.parse.',
-            description: 'Checks private constructors. Ask for code and test `new Email("x")`.',
-            answer: 'Make the constructor private and add a static parse that validates and returns Email or null. new Email outside fails. A strong answer returns a Result type.',
-            solution: `class Email {
-  private constructor(readonly value: string) {}
-  static parse(s: string): Email | null { return s.includes('@') ? new Email(s) : null }
+            task: 'Write a class that can only be created via a static method.',
+            description: 'Checks private or protected constructors.',
+            answer: 'A private constructor forces callers to use the factory.',
+            solution: `class Id {
+  private constructor(readonly v: string) {}
+  static create() { return new Id(crypto.randomUUID()); }
 }`,
           },
           {
-            task: 'Can a subclass extend a class with a private constructor?',
-            description: 'Checks rules. Try it in the Playground.',
-            answer: 'No. TS reports that the class is not extendable because its constructor is private. With protected it works. Weak answers say yes.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks protected constructors.',
+            code: `class Base { protected constructor() {} }
+class Sub extends Base {}
+new Base(); new Sub();`,
+            answer: 'new Base() fails; new Sub() works. Protected constructors allow subclassing only.',
           },
         ],
       },
@@ -699,15 +743,18 @@ class A extends Base {
         ai: true,
         exercises: [
           {
-            task: 'Does this compile? Explain.',
-            description: 'Checks cross-instance private access. Run in the Playground.',
-            code: `class P { private v = 1; same(o: P) { return o.v === this.v } }`,
-            answer: 'Yes. private is per class, not per instance, so methods can read other instances of the same class. Weak answers say no. This is common for equals methods.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks protected access through base type.',
+            code: `class Base { protected s = 1; }
+class A extends Base { peek(o: Base) { return o.s; } }`,
+            answer: 'It fails: protected access must go through A or a subclass of A, not Base.',
           },
           {
-            task: 'Why does TypeScript block the sibling access?',
-            description: 'Checks reasoning. Discuss.',
-            answer: 'other may be a B that extends Base; A should not see B internals. Weak answers call it a bug. A strong answer compares it with C# and Java rules.',
+            task: 'Fix the code so peek compiles.',
+            description: 'Checks protected access through own class.',
+            code: 'peek(o: Base) { return o.s; }',
+            answer: 'Accept the same class type.',
+            solution: 'peek(o: A) { return o.s; }',
           },
         ],
       },
@@ -723,18 +770,19 @@ Weak answer: writes \`private\` in an interface.`,
         follow: 'What happens when an interface extends a class with private fields?',
         exercises: [
           {
-            task: 'Fix this code.',
-            description: 'Checks that interfaces have no private.',
-            code: 'interface Client { private token: string; get(url: string): Promise<unknown> }',
-            answer: 'Remove private from the interface and keep the token in the class.',
-            solution: `interface Client { get(url: string): Promise<unknown> }
-class HttpClient implements Client { private token = ''; async get(url: string) { return fetch(url); } }`,
+            task: 'Fix the interface with a private member.',
+            description: 'Checks interfaces describe public shape.',
+            code: 'interface Repo { private cache: Map<string, User>; get(id: string): User }',
+            answer: 'Interfaces have no access modifiers; keep private state in the class.',
+            solution: `interface Repo { get(id: string): User }
+class UserRepo implements Repo { #cache = new Map<string, User>(); get(id: string) { return this.#cache.get(id)!; } }`,
           },
           {
-            task: 'Export a counter whose count cannot be changed from outside, without a class.',
-            description: 'Checks closures as privacy.',
-            answer: 'Return an object with methods that close over a local variable.',
-            solution: 'export function createCounter() { let n = 0; return { inc: () => ++n, get: () => n }; }',
+            task: 'Predict whether this compiles.',
+            description: 'Checks implements with private members.',
+            code: `interface I { x: number }
+class A implements I { private x = 1; }`,
+            answer: 'It fails: I requires a public x.',
           },
         ],
       },
@@ -747,17 +795,19 @@ class HttpClient implements Client { private token = ''; async get(url: string) 
         ai: true,
         exercises: [
           {
-            task: 'Why does this assignment fail?',
-            description: 'Checks nominal private rule. Run in the Playground.',
-            code: `class A { private x = 1 }
-class B { private x = 1 }
+            task: 'Predict whether this compiles.',
+            description: 'Checks nominal behavior of private members.',
+            code: `class A { private x = 1; }
+class B { private x = 1; }
 const a: A = new B();`,
-            answer: 'Types have separate declarations of a private property x. Weak answers expect them to match. Without private, it would compile.',
+            answer: 'It fails: private members make classes nominal; they must come from the same declaration.',
           },
           {
-            task: 'An app has a type error between two copies of a library class. How do you fix it?',
-            description: 'Checks dependency debugging. Discuss steps.',
-            answer: 'Run npm ls to find duplicates, dedupe or use overrides/resolutions, and make the library a peerDependency. Weak answers cast to any. A strong answer explains the private nominal rule as root cause.',
+            task: 'Write a branded type without a class.',
+            description: 'Checks brand types.',
+            answer: 'Intersect with a unique marker property.',
+            solution: `type UserId = string & { readonly __brand: 'UserId' };
+const toUserId = (s: string) => s as UserId;`,
           },
         ],
       },
@@ -778,18 +828,20 @@ new Money(1).equals({} as Money);`,
         long: 'Hard private fields are checked at runtime.\nA fake or plain object makes `o.#cents` throw.\n`#cents in o` safely checks the brand and narrows o to Money.\nThis is stronger than instanceof across realms.\nStrong answer: knows ergonomic brand checks.\nWeak answer: wraps in try/catch.',
         exercises: [
           {
-            task: 'Write a static isMoney guard using a brand check.',
-            description: 'Checks `#x in obj` narrowing. Test with a plain object.',
-            answer: 'Inside the class: `static isMoney(o: unknown): o is Money { return typeof o === "object" && o !== null && #cents in o }`. Weak answers use instanceof only. A strong answer explains it works even with prototype tricks.',
-            solution: `class Money {
-  #cents = 0;
-  static isMoney(o: unknown): o is Money { return typeof o === 'object' && o !== null && #cents in o }
+            task: 'Fix equals so it does not throw on plain objects.',
+            description: 'Checks #field in obj checks.',
+            code: 'equals(o: Money) { return this.#cents === o.#cents; }',
+            answer: 'Use #cents in o to check it is a real instance first.',
+            solution: `equals(o: unknown) {
+  return typeof o === 'object' && o !== null && #cents in o && this.#cents === o.#cents;
 }`,
           },
           {
-            task: 'Do #private fields work with Proxy? Explain.',
-            description: 'Checks a known pitfall. Discuss, then try in Node.',
-            answer: 'No. A Proxy has no private slots, so methods that read #field on this (the proxy) throw. This breaks some reactive libraries like Vue reactive. Strong answers mention binding to the raw target.',
+            task: 'Predict the output.',
+            description: 'Checks private brand checks.',
+            code: `class A { #x = 1; static is(o: object) { return #x in o; } }
+console.log(A.is(new A()), A.is({}));`,
+            answer: 'true false: #x in o checks whether o was created by A.',
           },
         ],
       },
@@ -799,15 +851,16 @@ new Money(1).equals({} as Money);`,
         long: 'Declaration emit keeps `private x;` without its type to keep nominal behavior.\nFor hard private fields it emits `#private;` to mark the class as branded.\nConsumers cannot see the types of internal members.\nRenaming a TS private field changes the public .d.ts, which can break consumers.\nStrong answer: knows emit shapes and why the names stay.\nWeak answer: thinks private members are removed.',
         exercises: [
           {
-            task: 'Predict the .d.ts output.',
-            description: 'Checks declaration emit. Run `tsc --declaration` on it.',
-            code: `export class A { private a: number = 1; #b = 2; protected c = 3 }`,
-            answer: 'Output: `private a; #private; protected c: number;`. Private types are hidden, the hard private is one marker. Weak answers say they vanish.',
+            task: 'Predict the generated .d.ts.',
+            description: 'Checks private in declaration files.',
+            code: 'export class A { private secret: string = \'\'; }',
+            answer: 'It emits private secret; with no type. The name is visible, the type is hidden.',
           },
           {
-            task: 'Why keep private names in .d.ts at all?',
-            description: 'Checks reasoning. Discuss.',
-            answer: 'To keep the nominal compatibility rule and to stop subclasses from adding a member with the same name. Weak answers have no reason.',
+            task: 'Predict the generated .d.ts.',
+            description: 'Checks #private in declaration files.',
+            code: 'export class A { #secret = \'\'; }',
+            answer: 'It emits #private; only, so the field name and type are hidden.',
           },
         ],
       },
@@ -825,20 +878,19 @@ Weak answer: relies on naming members with an underscore.`,
         follow: 'How does an API report in CI help reviews?',
         exercises: [
           {
-            task: 'Mark the helper so it does not appear in the published types.',
-            description: 'Checks stripInternal usage.',
-            code: 'export class Sdk { resetCacheForTests() {} }',
-            answer: 'Add the @internal comment and enable stripInternal in tsconfig.',
-            solution: `export class Sdk {
+            task: 'Hide this member from published types.',
+            description: 'Checks @internal with stripInternal.',
+            code: 'export class Client { helper() {} }',
+            answer: 'Mark it /** @internal */ and enable stripInternal.',
+            solution: `export class Client {
   /** @internal */
-  resetCacheForTests() {}
-}
-// tsconfig: "stripInternal": true`,
+  helper() {}
+}`,
           },
           {
-            task: 'Why can stripInternal break users\' builds?',
-            description: 'Checks the risk.',
-            answer: 'If a public type refers to an internal type, the .d.ts points to a missing name. Check the output in CI.',
+            task: 'Name a tool that checks a library public API.',
+            description: 'Checks API reporting tools.',
+            answer: 'API Extractor produces an API report and can trim .d.ts files by release tags.',
           },
         ],
       },
@@ -860,14 +912,20 @@ export const createAuthService = (): AuthService => new AuthServiceImpl();`,
         long: 'Public by default leaks internals into other teams code.\nRemoving them later is a breaking change.\nPlan: add the new interface, deprecate old members, then remove in a major release.\nUse lint to flag explicit public members without a reason.\nStrong answer: includes the migration path.\nWeak answer: just adds private and breaks everyone.',
         exercises: [
           {
-            task: 'Plan the deprecation of refreshInternal.',
-            description: 'Checks migration process. Ask for steps.',
-            answer: 'Add @deprecated JSDoc, find usages with search, offer the replacement, then remove in the next major. Weak answers delete it at once.',
+            task: 'Fix the service so helpers are hidden.',
+            description: 'Checks encapsulation of internals.',
+            code: 'export class AuthService { token = \'\'; refreshInternal() {} }',
+            answer: 'Make internals #private so other teams cannot use them.',
+            solution: `export class AuthService {
+  #token = '';
+  #refresh() {}
+  login(u: string, p: string) {}
+}`,
           },
           {
-            task: 'Which lint rule helps here?',
-            description: 'Checks tooling. Discuss.',
-            answer: '@typescript-eslint/explicit-member-accessibility forces a conscious choice per member. Strong answers also mention member-ordering.',
+            task: 'Name a non-breaking way to remove a used public method.',
+            description: 'Checks deprecation strategy.',
+            answer: 'Mark it @deprecated, add a lint warning, provide the new API, and remove it in the next major version.',
           },
         ],
       },
@@ -877,14 +935,16 @@ export const createAuthService = (): AuthService => new AuthServiceImpl();`,
         long: 'TS private disappears after compile.\n#private hides from other code but not from devtools or a memory snapshot.\nSecrets like API keys must never be in the frontend.\nUse modifiers for maintainability, not for protection.\nStrong answer: separates encapsulation from security.\nWeak answer: stores tokens in private fields and calls it safe.',
         exercises: [
           {
-            task: 'Where should an access token live in a SPA?',
-            description: 'Checks security thinking. Discuss options.',
-            answer: 'Prefer an httpOnly secure cookie; otherwise keep it in memory, not localStorage. Modifiers do not change risk. Weak answers say a private field is secure.',
+            task: 'Spot the security problem.',
+            description: 'Checks that client code is visible.',
+            code: 'class Api { #apiSecret = \'sk_live_123\'; }',
+            answer: 'Anything in the bundle can be read by users. Secrets must stay on the server.',
           },
           {
-            task: 'Explain to a junior why #private is not a security feature.',
-            description: 'Checks communication. Ask for a short explanation.',
-            answer: 'Anyone with devtools can pause code and read the value in the debugger. #private stops other code from using it, not people. A strong answer stays simple.',
+            task: 'Predict whether users can read this value.',
+            description: 'Checks runtime visibility of TS private.',
+            code: 'class Cfg { private key = \'abc\'; }',
+            answer: 'Yes: it is a normal property at runtime, visible in DevTools.',
           },
         ],
       },
@@ -898,18 +958,18 @@ export const createAuthService = (): AuthService => new AuthServiceImpl();`,
         long: '`function first(a: any[]): any` returns any, so mistakes are not caught.\n`function first<T>(a: T[]): T | undefined` returns the real element type.\nTS usually infers T from the arguments.\nPitfall: adding a type parameter that is used only once adds nothing.\nStrong answer: says a generic links two or more positions.\nWeak answer: thinks generics are just a fancy any.',
         exercises: [
           {
-            task: 'Make this function generic so the return type is correct.',
-            description: 'Checks basic generics. Use the Playground and hover over the result.',
-            code: `function last(arr: any[]) { return arr[arr.length - 1] }`,
-            answer: 'Write `function last<T>(arr: T[]): T | undefined`. The undefined covers empty arrays. Weak answers keep any or forget undefined.',
-            solution: `function last<T>(arr: T[]): T | undefined { return arr[arr.length - 1] }`,
+            task: 'Fix the function to keep the type.',
+            description: 'Checks generics vs any.',
+            code: 'function clone(x: any) { return structuredClone(x); }',
+            answer: 'A generic T flows the input type to the output.',
+            solution: 'function clone<T>(x: T): T { return structuredClone(x); }',
           },
           {
-            task: 'What is the type of x here?',
-            description: 'Checks inference. Hover in the Playground.',
-            code: `function wrap<T>(v: T) { return { v } }
-const x = wrap('hi');`,
-            answer: '`{ v: string }`. T is inferred as string from the argument. Weak answers say any or "hi".',
+            task: 'Predict whether TS reports the error.',
+            description: 'Checks any spreading.',
+            code: `function f(x: any) { return x; }
+f(1).toUpperCase();`,
+            answer: 'No: any turns off checks, so it crashes at runtime instead.',
           },
         ],
       },
@@ -921,16 +981,18 @@ const x = wrap('hi');`,
         long: 'Inside the function, TS only knows what the constraint promises.\n`T extends { length: number }` allows strings, arrays, and any object with length.\nPitfall: constraining to `string | any[]` is less flexible.\nStrong answer: explains that constraints describe what you need, not what you expect.\nWeak answer: uses any.',
         exercises: [
           {
-            task: 'Which calls compile with the fixed function?',
-            description: 'Checks constraints. Run in the Playground.',
-            code: `getLength('abc'); getLength([1]); getLength(5); getLength({ length: 2 });`,
-            answer: 'All except getLength(5): number has no length. Weak answers think only arrays work. Strong answers mention structural matching.',
+            task: 'Fix the generic so length is allowed.',
+            description: 'Checks generic constraints.',
+            code: 'function getLength<T>(x: T) { return x.length; }',
+            answer: 'Constrain T to types with length.',
+            solution: 'function getLength<T extends { length: number }>(x: T) { return x.length; }',
           },
           {
-            task: 'Write a generic function that returns the id of any object with an id.',
-            description: 'Checks constraints plus indexed type. Ask for code.',
-            answer: '`function getId<T extends { id: unknown }>(o: T): T["id"] { return o.id }`. It keeps the exact id type. Weak answers return any.',
-            solution: `function getId<T extends { id: unknown }>(o: T): T['id'] { return o.id }`,
+            task: 'Predict which call fails.',
+            description: 'Checks constraint enforcement.',
+            code: `declare function len<T extends { length: number }>(x: T): number;
+len('ab'); len([1]); len(5);`,
+            answer: 'len(5) fails: number has no length.',
           },
         ],
       },
@@ -940,15 +1002,18 @@ const x = wrap('hi');`,
         long: 'Generic interfaces let one shape wrap many data types.\nYou pass the type when using it: ApiResponse<User>.\nYou can give a default: `<T = unknown>`.\nPitfall: making data optional everywhere instead of modeling success and failure.\nStrong answer: may suggest a discriminated union for success and error.\nWeak answer: uses any for data.',
         exercises: [
           {
-            task: 'Write ApiResponse<T> with a default of unknown.',
-            description: 'Checks generic defaults. Ask for code.',
-            answer: '`interface ApiResponse<T = unknown> { data: T; status: number }`. Then ApiResponse alone means unknown data. A weak answer uses any default.',
-            solution: `interface ApiResponse<T = unknown> { data: T; status: number }`,
+            task: 'Write a generic API response type.',
+            description: 'Checks generic interfaces.',
+            answer: 'Put the data type as a parameter.',
+            solution: `interface ApiResponse<T> { data: T; error?: string }
+type UsersRes = ApiResponse<User[]>;`,
           },
           {
-            task: 'Type a fetch helper that returns Promise<ApiResponse<T>>.',
-            description: 'Checks using generics in async functions. Ask for the signature.',
-            answer: '`async function get<T>(url: string): Promise<ApiResponse<T>>`. A strong answer notes the T is not checked at runtime; it is a trust boundary.',
+            task: 'Add a default type parameter.',
+            description: 'Checks generic defaults.',
+            code: 'interface ApiResponse<T> { data: T }',
+            answer: 'Default T to unknown so it can be used without an argument.',
+            solution: 'interface ApiResponse<T = unknown> { data: T }',
           },
         ],
       },
@@ -965,22 +1030,21 @@ Weak answer: uses any inside the class.`,
         follow: 'Why can a static method not use T?',
         exercises: [
           {
-            task: 'Write a Stack class with push, pop and peek.',
-            description: 'Checks a basic generic class.',
-            answer: 'pop and peek return T | undefined because the stack can be empty.',
+            task: 'Write a typed Stack class.',
+            description: 'Checks generic classes.',
+            answer: 'Use T for the items.',
             solution: `class Stack<T> {
-  private items: T[] = [];
-  push(x: T) { this.items.push(x); }
-  pop(): T | undefined { return this.items.pop(); }
-  peek(): T | undefined { return this.items[this.items.length - 1]; }
+  #items: T[] = [];
+  push(x: T) { this.#items.push(x); }
+  pop(): T | undefined { return this.#items.pop(); }
 }`,
           },
           {
-            task: 'What is the type of s here, and how do you fix it?',
-            description: 'Checks inference of class type parameters.',
-            code: `const s = new Stack();
-s.push(1); s.push('a');`,
-            answer: 'It is Stack<unknown>, so push accepts anything. Write `new Stack<string>()`.',
+            task: 'Predict the error.',
+            description: 'Checks generic class instance typing.',
+            code: `const s = new Stack<number>();
+s.push('a');`,
+            answer: 'Error: "a" is not assignable to number.',
           },
         ],
       },
@@ -995,14 +1059,18 @@ const r = makeRoute(['home', 'about']); // readonly ['home', 'about']`,
         ai: true,
         exercises: [
           {
-            task: 'What happens if the constraint is not readonly?',
-            description: 'Checks a known pitfall. Try `<const T extends string[]>` in the Playground.',
-            answer: 'A mutable array constraint rejects the readonly tuple, so TS falls back to string[]. Weak answers think it still works. Use readonly.',
+            task: 'Fix the function to keep literal types.',
+            description: 'Checks const type parameters.',
+            code: `function routes<T extends string[]>(p: T) { return p; }
+const r = routes(['home', 'about']); // string[]`,
+            answer: 'A const type parameter infers a readonly tuple of literals (TS 5.0+).',
+            solution: 'function routes<const T extends readonly string[]>(p: T) { return p; }',
           },
           {
-            task: 'Get the union of route names from the result.',
-            description: 'Checks indexed access on tuples. Ask for a type.',
-            answer: '`type Route = (typeof r)[number]` gives "home" | "about". Weak answers write keyof. A strong answer uses this for typed navigation.',
+            task: 'Predict the type of r.',
+            description: 'Checks as const inference.',
+            code: 'const r = [\'a\', \'b\'] as const;',
+            answer: 'r is readonly ["a", "b"].',
           },
         ],
       },
@@ -1012,18 +1080,16 @@ const r = makeRoute(['home', 'about']); // readonly ['home', 'about']`,
         long: '`<T extends object = {}>` means: must be object, and {} if not given.\nDefaults must come after required parameters.\nInference wins over the default when it is possible.\nPitfall: a default that does not meet the constraint is an error.\nStrong answer: knows inference beats defaults.\nWeak answer: thinks the default always applies.',
         exercises: [
           {
-            task: 'Fix this declaration.',
-            description: 'Checks order rules. Run in the Playground.',
-            code: `interface Box<T = string, U> { a: T; b: U }`,
-            answer: 'Required type parameters cannot follow optional ones. Put U first or give it a default. Weak answers do not see the problem.',
-            solution: `interface Box<U, T = string> { a: T; b: U }`,
+            task: 'Predict whether this compiles.',
+            description: 'Checks defaults must satisfy constraints.',
+            code: 'type Box<T extends string = number> = { v: T };',
+            answer: 'It fails: the default number does not satisfy the constraint string.',
           },
           {
-            task: 'What is T here and why?',
-            description: 'Checks inference over default. Hover in the Playground.',
-            code: `function f<T = string>(x: T) { return x }
-const v = f(42);`,
-            answer: 'T is 42 (literal number), inferred from the argument. The default is not used. Weak answers say string.',
+            task: 'Write a type with a default and a constraint.',
+            description: 'Checks combining defaults and constraints.',
+            answer: 'The default must meet the constraint.',
+            solution: 'type Res<T extends object = Record<string, unknown>> = { data: T };',
           },
         ],
       },
@@ -1036,17 +1102,17 @@ const v = f(42);`,
         ai: true,
         exercises: [
           {
-            task: 'Which annotation fits, and why?',
-            description: 'Checks variance reasoning. Ask the candidate to annotate each.',
-            code: `interface Getter<T> { get(): T }
-interface Setter<T> { set(v: T): void }
-interface State<T> { get(): T; set(v: T): void }`,
-            answer: 'Getter: out. Setter: in. State: in out (invariant). Weak answers use out for all. A strong answer explains assignability for Animal and Dog.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks out variance.',
+            code: `interface Box<out T> { get(): T }
+const b: Box<string | number> = {} as Box<string>;`,
+            answer: 'It compiles: out T is covariant, so Box<string> fits Box<string | number>.',
           },
           {
-            task: 'Is Setter<Animal> assignable to Setter<Dog>? Explain.',
-            description: 'Checks contravariance. Discuss, then test.',
-            answer: 'Yes. Something that accepts any Animal can accept a Dog. The reverse is unsafe. Weak answers flip it.',
+            task: 'Spot the error in the annotation.',
+            description: 'Checks variance annotation correctness.',
+            code: 'interface Sink<out T> { put(x: T): void }',
+            answer: 'T is used as an input, so it must be in T, not out T. TS reports the mismatch.',
           },
         ],
       },
@@ -1063,15 +1129,22 @@ interface State<T> { get(): T; set(v: T): void }`,
         ai: true,
         exercises: [
           {
-            task: 'Explain the "could be instantiated with a different subtype" error.',
-            description: 'Checks understanding of generic soundness. Ask for an example T.',
-            answer: 'If T is `{ id: string; name: string }`, returning `{ id }` misses name. The function does not choose T; the caller does. Weak answers say TS is too strict.',
+            task: 'Fix the return type error.',
+            description: 'Checks generic return assignability.',
+            code: `function create<T extends { id: string }>(): T {
+  return { id: crypto.randomUUID() };
+}`,
+            answer: 'T may have more fields, so { id } is not a T. Return the base type.',
+            solution: `function create(): { id: string } {
+  return { id: crypto.randomUUID() };
+}`,
           },
           {
-            task: 'Spot the "return-only generic" smell.',
-            description: 'Checks API design. Show the signature.',
-            code: `function parse<T>(json: string): T { return JSON.parse(json) }`,
-            answer: 'T appears only in the return type, so it is a hidden cast. Prefer returning unknown and validating, or taking a schema. Strong answers name the lint rule no-unnecessary-type-parameters.',
+            task: 'Predict the problem.',
+            description: 'Checks that T can be a subtype.',
+            code: `function make<T extends { id: string }>(): T { return { id: '1' } as T; }
+const u = make<{ id: string; name: string }>();`,
+            answer: 'u.name is typed string but undefined at runtime. The cast hides it.',
           },
         ],
       },
@@ -1081,17 +1154,19 @@ interface State<T> { get(): T; set(v: T): void }`,
         long: 'Example: `function choose<T extends string>(opts: T[], def: NoInfer<T>)`.\nWithout it, a typo in def widens T and is accepted.\nWith it, def must be one of opts.\nBefore 5.4 people used `T & {}` or a second type parameter trick.\nStrong answer: gives the default-value example.\nWeak answer: does not know it.',
         exercises: [
           {
-            task: 'Make the bad call fail.',
-            description: 'Checks NoInfer. Run in the Playground with TS 5.4+.',
-            code: `function pick<T extends string>(opts: T[], def: T) { return def }
-pick(['a', 'b'], 'c');`,
-            answer: 'Change def to NoInfer<T>. Then T is "a" | "b" and "c" errors. Weak answers add a cast. Strong answers explain the widening.',
-            solution: `function pick<T extends string>(opts: T[], def: NoInfer<T>) { return def }`,
+            task: 'Fix the call so the default is checked against items.',
+            description: 'Checks NoInfer.',
+            code: `function pick<T>(items: T[], def: T) {}
+pick(['a', 'b'], 'c'); // T becomes string`,
+            answer: 'NoInfer stops def from widening T (TS 5.4+).',
+            solution: 'function pick<T extends string>(items: T[], def: NoInfer<T>) {}',
           },
           {
-            task: 'How did people do this before TS 5.4?',
-            description: 'Checks history. Discuss.',
-            answer: 'Common tricks: `def: T & {}` lowered inference priority, or `<T, D extends T>`. Both were hacks. Strong answers know NoInfer is the clean way.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks NoInfer behavior.',
+            code: `declare function f<T extends string>(a: T[], b: NoInfer<T>): void;
+f(['x', 'y'], 'z');`,
+            answer: 'It fails: T is "x" | "y", and "z" is not one of them.',
           },
         ],
       },
@@ -1110,19 +1185,19 @@ Weak answer: "the compiler checks it already".`,
         follow: 'Why is @ts-ignore a bad choice in type tests?',
         exercises: [
           {
-            task: 'Write type tests for pick(obj, key).',
-            description: 'Checks positive and negative type tests.',
-            answer: 'Check the return type for a valid key and expect an error for an unknown key.',
-            solution: `expectTypeOf(pick({ a: 1 }, 'a')).toEqualTypeOf<number>();
-// @ts-expect-error unknown key
-pick({ a: 1 }, 'b');`,
+            task: 'Write a type test with expect-type style.',
+            description: 'Checks compile-time type assertions.',
+            code: 'declare function first<T>(a: T[]): T | undefined;',
+            answer: 'Assert the inferred type; vitest has expectTypeOf.',
+            solution: 'expectTypeOf(first([1])).toEqualTypeOf<number | undefined>();',
           },
           {
-            task: 'Why does this type test always pass?',
-            description: 'Checks the any trap.',
-            code: `const data: any = load();
-expectTypeOf(data).toMatchTypeOf<User>();`,
-            answer: 'data is any, and any matches every type, so the test checks nothing.',
+            task: 'Write a test that a bad call fails to compile.',
+            description: 'Checks @ts-expect-error.',
+            code: 'declare function len(x: string): number;',
+            answer: '@ts-expect-error fails the build if the line has no error.',
+            solution: `// @ts-expect-error numbers are not allowed
+len(5);`,
           },
         ],
       },
@@ -1148,15 +1223,18 @@ Weak answer: adds a generic T and calls it type-safe.`,
         follow: 'Why is `parseJson<T>(text): T` still unsafe?',
         exercises: [
           {
-            task: 'Find where any leaks in this code.',
-            description: 'Checks tracing any.',
-            code: 'async function load() { const res = await fetch(\'/items\'); const items = await res.json(); return items.map((i) => i.id); }',
-            answer: 'res.json() returns any in many lib versions, so items and every map result are any. Annotate as unknown and validate.',
+            task: 'Fix the helper to return unknown.',
+            description: 'Checks unknown over any.',
+            code: 'export function parseJson(t: string) { return JSON.parse(t); }',
+            answer: 'unknown forces callers to check the data before use.',
+            solution: 'export function parseJson(t: string): unknown { return JSON.parse(t); }',
           },
           {
-            task: 'Which typescript-eslint rules stop any from spreading?',
-            description: 'Checks tooling.',
-            answer: 'no-explicit-any, no-unsafe-assignment, no-unsafe-member-access, no-unsafe-call and no-unsafe-return.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks unknown requires narrowing.',
+            code: `const v: unknown = JSON.parse('{}');
+v.name;`,
+            answer: 'It fails: you must narrow unknown before reading properties.',
           },
         ],
       },
@@ -1166,15 +1244,15 @@ Weak answer: adds a generic T and calls it type-safe.`,
         long: 'Built-ins: Partial, Pick, Omit, Record, ReturnType, Awaited.\ntype-fest covers common needs and is tested.\nCustom types should live in one folder with type tests.\nAvoid copying snippets from the internet without tests.\nStrong answer: has a clear order and ownership.\nWeak answer: every developer writes their own DeepPartial.',
         exercises: [
           {
-            task: 'Name five built-in utility types and one use each.',
-            description: 'Checks basic knowledge at lead level. Quick fire.',
-            answer: 'Partial for patch payloads, Pick for view models, Omit for create DTOs, Record for maps, Awaited<ReturnType<typeof f>> for async results. Weak answers know only Partial.',
+            task: 'Name a library with common utility types.',
+            description: 'Checks utility library awareness.',
+            answer: 'type-fest (or ts-essentials). Use it instead of maintaining tricky types yourself.',
           },
           {
-            task: 'Review this custom type. What is wrong?',
-            description: 'Checks edge cases. Show the type.',
-            code: `type DeepPartial<T> = { [K in keyof T]?: DeepPartial<T[K]> };`,
-            answer: 'It also maps functions and Date into objects, and arrays become odd. Handle primitives and functions first. Strong answers suggest type-fest PartialDeep.',
+            task: 'Spot the problem with this custom type.',
+            description: 'Checks reinventing built-in types.',
+            code: 'type MyPartial<T> = { [K in keyof T]?: T[K] };',
+            answer: 'It copies the built-in Partial. Prefer built-ins; write custom ones only for real needs.',
           },
         ],
       },
@@ -1188,22 +1266,20 @@ Weak answer: adds a generic T and calls it type-safe.`,
         long: 'Plain decorator: `@sealed` — the function itself is the decorator.\nFactory: `@Component({ selector: "x" })` — the call returns the decorator.\nFactories let you pass configuration.\nPitfall: writing `@log` when log is a factory, or `@log()` when it is not.\nStrong answer: explains the call order: the factory runs first, then the decorator.\nWeak answer: thinks parentheses are optional style.',
         exercises: [
           {
-            task: 'Turn this decorator into a factory with a prefix option.',
-            description: 'Checks factory shape with TS 5 standard decorators. Test in the Playground.',
-            code: `function log(fn: Function, ctx: ClassMethodDecoratorContext) {
-  return function (this: unknown, ...args: unknown[]) { console.log('call'); return fn.apply(this, args) };
-}`,
-            answer: 'Wrap it: `function log(prefix: string) { return function (fn, ctx) { ... } }` and use `@log("api")`. Weak answers add a third parameter. A strong answer types fn properly.',
+            task: 'Write a decorator factory that takes a prefix.',
+            description: 'Checks factories return decorators.',
+            answer: 'A factory is a function that returns the decorator.',
             solution: `function log(prefix: string) {
-  return function <A extends unknown[], R>(fn: (...a: A) => R, ctx: ClassMethodDecoratorContext) {
-    return function (this: unknown, ...args: A): R { console.log(prefix, String(ctx.name)); return fn.apply(this, args) };
+  return (fn: Function, ctx: ClassMethodDecoratorContext) => {
+    console.log(prefix, String(ctx.name));
   };
 }`,
           },
           {
-            task: 'What goes wrong when you write @log without parentheses for a factory?',
-            description: 'Checks a common mistake. Discuss or try it.',
-            answer: 'The factory gets called as a decorator with the method as its "prefix". TS reports a type error since the signature does not match. Weak answers expect it to work.',
+            task: 'Spot the bug.',
+            description: 'Checks factory call syntax.',
+            code: 'class A { @log run() {} } // log(prefix) is a factory',
+            answer: 'The factory is not called; it receives the method as prefix. Use @log("x").',
           },
         ],
       },
@@ -1219,17 +1295,18 @@ function save() {}`,
         long: 'Allowed targets: class, method, getter, setter, field, and auto-accessor.\nStandard decorators in TS 5 do not support parameter decorators.\nFor plain functions use a higher-order function: `const save = logged(rawSave)`.\nStrong answer: lists targets and the HOF alternative.\nWeak answer: thinks decorators work anywhere.',
         exercises: [
           {
-            task: 'Rewrite the decorator as a higher-order function for a plain function.',
-            description: 'Checks the alternative. Ask for code.',
-            answer: 'Write `function logged<A extends unknown[], R>(fn: (...a: A) => R) { return (...a: A) => { console.log(a); return fn(...a) } }`. Weak answers keep @. A strong answer keeps types.',
-            solution: `function logged<A extends unknown[], R>(fn: (...a: A) => R) {
-  return (...a: A): R => { console.log(a); return fn(...a) };
-}`,
+            task: 'Fix the code so the logging works.',
+            description: 'Checks where decorators are allowed.',
+            code: `@logged
+function save() {}`,
+            answer: 'Decorators work only on classes and class members. Wrap the function instead.',
+            solution: 'const save = logged(function save() {});',
           },
           {
-            task: 'Name the targets that standard decorators support.',
-            description: 'Checks knowledge. Quick question.',
-            answer: 'Classes, methods, getters, setters, fields, and accessor fields. Not parameters, in the current standard. Weak answers include parameters.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks decorators on class members.',
+            code: 'class A { @logged static save() {} }',
+            answer: 'It compiles: static methods can be decorated.',
           },
         ],
       },
@@ -1239,15 +1316,15 @@ function save() {}`,
         long: 'TS 5.0 added TC39 standard decorators, enabled by default.\nexperimentalDecorators: true switches to the legacy implementation used by Angular and NestJS.\nemitDecoratorMetadata adds reflect-metadata type info, legacy only.\nThe two styles have different signatures.\nStrong answer: knows which style the project uses and why.\nWeak answer: turns on all flags.',
         exercises: [
           {
-            task: 'A NestJS project. Which flags do you need?',
-            description: 'Checks practical config. Discuss.',
-            answer: 'experimentalDecorators and emitDecoratorMetadata, because Nest relies on legacy decorators and metadata for DI. Weak answers say none.',
+            task: 'Name the tsconfig flags for standard decorators.',
+            description: 'Checks decorator config in TS 5.',
+            answer: 'None needed: remove experimentalDecorators. Set target ES2022+ or include esnext.decorators lib for metadata.',
           },
           {
-            task: 'Why does this decorator not work after removing experimentalDecorators?',
-            description: 'Checks signature difference. Show the code.',
-            code: `function d(target: any, key: string, desc: PropertyDescriptor) {}`,
-            answer: 'This is the legacy (target, key, descriptor) shape. Standard decorators get (value, context). Weak answers think it is a bug.',
+            task: 'Spot the problem with this config.',
+            description: 'Checks legacy metadata config.',
+            code: '{ "experimentalDecorators": false, "emitDecoratorMetadata": true }',
+            answer: 'emitDecoratorMetadata works only with experimentalDecorators; here it does nothing.',
           },
         ],
       },
@@ -1259,18 +1336,20 @@ function save() {}`,
         long: 'For method decorators, initializers run at instance construction, before fields are set.\nFor class decorators, they run after the class is defined.\nCommon use: @bound to auto-bind methods.\nAlso useful for registering classes in a registry.\nStrong answer: writes @bound with addInitializer.\nWeak answer: uses the old descriptor approach.',
         exercises: [
           {
-            task: 'Write a @bound decorator with addInitializer.',
-            description: 'Checks the standard API. Test by passing the method as a callback.',
-            answer: 'In the decorator, call `ctx.addInitializer(function () { this[name] = this[name].bind(this) })`. Weak answers use descriptor.value. A strong answer checks ctx.private.',
-            solution: `function bound<T extends object>(fn: Function, ctx: ClassMethodDecoratorContext<T>) {
-  const name = ctx.name as keyof T;
-  ctx.addInitializer(function (this: T) { (this as any)[name] = (this as any)[name].bind(this) });
+            task: 'Write a decorator that binds a method.',
+            description: 'Checks addInitializer.',
+            answer: 'addInitializer runs per instance, so you can bind there.',
+            solution: `function bound(_fn: Function, ctx: ClassMethodDecoratorContext) {
+  ctx.addInitializer(function (this: any) { this[ctx.name] = this[ctx.name].bind(this); });
 }`,
           },
           {
-            task: 'Write a class decorator that registers the class in a map by name.',
-            description: 'Checks class decorators. Ask for code.',
-            answer: 'Use `function register(cls: new (...a: any[]) => object, ctx: ClassDecoratorContext) { ctx.addInitializer(() => registry.set(String(ctx.name), cls)) }`. Weak answers return a new class without need.',
+            task: 'Predict when the initializer runs.',
+            description: 'Checks addInitializer timing.',
+            code: `function d(_: Function, ctx: ClassMethodDecoratorContext) { ctx.addInitializer(() => console.log('init')); }
+class A { @d m() {} }
+new A(); new A();`,
+            answer: 'It logs "init" twice: method initializers run once per instance.',
           },
         ],
       },
@@ -1296,14 +1375,19 @@ function save() {}`,
         long: 'The replacement method is called on the instance.\nAn arrow function captures the outer this (undefined), so fn runs without the instance.\nUse function and apply or call.\nType This, args, and return generically to keep types.\nPitfall: async methods need await to time correctly.\nStrong answer: fixes this and types.\nWeak answer: only renames variables.',
         exercises: [
           {
-            task: 'Make @timed correct for async methods.',
-            description: 'Checks async handling. Ask for code.',
-            answer: 'Check if the result is a Promise and log in finally. Weak answers measure only the sync part. A strong answer keeps return type R.',
+            task: 'Fix the decorator so it keeps this.',
+            description: 'Checks function vs arrow in wrappers.',
+            code: 'return (...args: any[]) => fn(...args);',
+            answer: 'Use a regular function and call fn with this.',
+            solution: 'return function (this: unknown, ...args: any[]) { return fn.apply(this, args); };',
           },
           {
-            task: 'What does ctx.name contain for a #private method?',
-            description: 'Checks context details. Try it.',
-            answer: 'The string "#name" and ctx.private is true. You use ctx.access to read it. Weak answers think private methods cannot be decorated.',
+            task: 'Predict the output.',
+            description: 'Checks this inside an arrow wrapper.',
+            code: `const obj = { n: 1, get() { return this.n; } };
+const wrap = (f: Function) => (...a: any[]) => f(...a);
+console.log(wrap(obj.get)());`,
+            answer: 'It throws a TypeError: this is undefined in strict mode, so the call loses obj.',
           },
         ],
       },
@@ -1313,17 +1397,20 @@ function save() {}`,
         long: 'Field decorators get undefined as the first argument and a context.\nThey can return `(initial) => newValue` to change the starting value.\nThey cannot intercept later reads and writes; use accessor for that.\nPitfall: expecting a property descriptor.\nStrong answer: knows the accessor alternative.\nWeak answer: uses Object.defineProperty in the decorator.',
         exercises: [
           {
-            task: 'Write a @trim field decorator that trims the initial string.',
-            description: 'Checks field initializer return. Test with a padded string.',
-            answer: 'Return `(v: string) => v.trim()`. It changes only the first value. Weak answers think later sets are trimmed too.',
-            solution: `function trim(_: undefined, ctx: ClassFieldDecoratorContext<unknown, string>) {
+            task: 'Write a field decorator that trims the initial value.',
+            description: 'Checks field initializer return.',
+            answer: 'Return a function that receives and returns the initial value.',
+            solution: `function trim(_: undefined, _c: ClassFieldDecoratorContext) {
   return (v: string) => v.trim();
 }`,
           },
           {
-            task: 'How do you trim on every set?',
-            description: 'Checks accessor decorators. Discuss.',
-            answer: 'Use `accessor` on the field and an accessor decorator that returns a set wrapper. Weak answers try field decorators.',
+            task: 'Predict the value of a.name.',
+            description: 'Checks field decorator initializer.',
+            code: `const up = (_: undefined, _c: ClassFieldDecoratorContext) => (v: string) => v.toUpperCase();
+class A { @up name = 'bo'; }
+console.log(new A().name);`,
+            answer: 'It logs "BO": the initializer changes the starting value.',
           },
         ],
       },
@@ -1336,18 +1423,19 @@ function save() {}`,
         ai: true,
         exercises: [
           {
-            task: 'Write a @required field decorator that collects names in metadata.',
-            description: 'Checks the metadata API. Run with a Symbol.metadata polyfill.',
-            answer: 'Push String(ctx.name) into `(ctx.metadata.required ??= [])`. Read later from `Cls[Symbol.metadata]`. Weak answers use a global map keyed by class.',
-            solution: `(Symbol as any).metadata ??= Symbol('Symbol.metadata');
-function required(_: undefined, ctx: ClassFieldDecoratorContext) {
-  ((ctx.metadata.required ??= []) as string[]).push(String(ctx.name));
+            task: 'Write a decorator that stores metadata.',
+            description: 'Checks context.metadata.',
+            answer: 'Write to context.metadata; it is attached to the class.',
+            solution: `function route(path: string) {
+  return (_: Function, ctx: ClassMethodDecoratorContext) => { ctx.metadata.path = path; };
 }`,
           },
           {
-            task: 'How is metadata inherited by subclasses?',
-            description: 'Checks prototype chaining of metadata. Discuss.',
-            answer: 'The subclass metadata object has the parent metadata as its prototype. So reads fall back to the parent. Writing an array in place may mutate the parent; copy first. Strong answers mention that pitfall.',
+            task: 'Read the metadata from the class.',
+            description: 'Checks Symbol.metadata.',
+            code: 'class C { @route(\'/x\') m() {} }',
+            answer: 'Metadata lives under Symbol.metadata (needs a polyfill in some runtimes).',
+            solution: 'console.log(C[Symbol.metadata]?.path); // \'/x\'',
           },
         ],
       },
@@ -1368,14 +1456,20 @@ new User().id;`,
         ai: true,
         exercises: [
           {
-            task: 'Use interface merging to expose id. What are the risks?',
-            description: 'Checks a workaround. Ask for code and risks.',
-            answer: 'Add `interface User { id: string }` next to the class. Risk: nothing checks the decorator really adds it. Weak answers see no risk.',
+            task: 'Fix the class decorator so the type is kept.',
+            description: 'Checks generic class decorators.',
+            code: 'function withId(cls: any, ctx: ClassDecoratorContext) { return class extends cls {}; }',
+            answer: 'Use a generic constructor type.',
+            solution: `function withId<C extends new (...a: any[]) => {}>(cls: C, _: ClassDecoratorContext) {
+  return class extends cls { id = crypto.randomUUID(); };
+}`,
           },
           {
-            task: 'Why did TS choose not to let decorators change types?',
-            description: 'Checks design reasoning. Discuss.',
-            answer: 'Decorators run at runtime and can be arbitrary; typing their effect would need a new type-level feature. Weak answers have no idea. A strong answer links to the open issue.',
+            task: 'Predict whether new User().id type-checks.',
+            description: 'Checks decorators do not change types.',
+            code: `@withId class User { name = ''; }
+new User().id;`,
+            answer: 'It errors: class decorators cannot change the declared type. Use a mixin function instead.',
           },
         ],
       },
@@ -1392,22 +1486,18 @@ Weak answer: tries to use a property descriptor.`,
         follow: 'Why can a plain field decorator not run code on every write?',
         exercises: [
           {
-            task: 'Write a decorator that logs every write to an accessor field.',
-            description: 'Checks the accessor decorator shape.',
-            answer: 'Return a set function that logs, then calls the original set.',
-            solution: `function logged<This, V>(t: ClassAccessorDecoratorTarget<This, V>, ctx: ClassAccessorDecoratorContext<This, V>) {
-  return { set(this: This, v: V) { console.log(String(ctx.name), v); t.set.call(this, v); } };
-}
-class User { @logged accessor name = ''; }`,
+            task: 'Write a decorator for an accessor that logs sets.',
+            description: 'Checks ClassAccessorDecoratorContext.',
+            answer: 'Return new get and set wrapping the target.',
+            solution: `function logSet<T>(t: ClassAccessorDecoratorTarget<any, T>, ctx: ClassAccessorDecoratorContext) {
+  return { set(this: any, v: T) { console.log(String(ctx.name), v); t.set.call(this, v); } };
+}`,
           },
           {
-            task: 'Write a decorator that clamps a number accessor between 0 and 100.',
-            description: 'Checks init and set.',
-            answer: 'Clamp in both init and set, so the starting value is also checked.',
-            solution: `function clamp(t: ClassAccessorDecoratorTarget<unknown, number>) {
-  const c = (v: number) => Math.min(100, Math.max(0, v));
-  return { init: c, set(this: unknown, v: number) { t.set.call(this, c(v)); } };
-}`,
+            task: 'Spot the error.',
+            description: 'Checks accessor decorators need accessor keyword.',
+            code: 'class A { @logSet count = 0; }',
+            answer: 'Without accessor it is a plain field, so the accessor decorator type does not match. Use accessor count = 0.',
           },
         ],
       },
@@ -1425,18 +1515,18 @@ Weak answer: only tests through the full app.`,
         follow: 'How do you reset a registry that decorators fill at import time?',
         exercises: [
           {
-            task: 'Write a test for a @retry(3) method decorator.',
-            description: 'Checks testing decorators directly.',
-            answer: 'Make a class with a method that fails twice, then succeeds. Assert it returns and was called three times.',
-            solution: `class T { calls = 0; @retry(3) async run() { if (++this.calls < 3) throw new Error(); return 'ok'; } }
-const t = new T();
-expect(await t.run()).toBe('ok');
-expect(t.calls).toBe(3);`,
+            task: 'Write a test for a log decorator.',
+            description: 'Checks testing decorators through classes.',
+            answer: 'Decorate a small test class and spy on the side effect.',
+            solution: `const spy = vi.spyOn(console, 'log');
+class T { @log add(a: number) { return a + 1; } }
+expect(new T().add(1)).toBe(2);
+expect(spy).toHaveBeenCalled();`,
           },
           {
-            task: 'Why do these tests fail only when run together?',
-            description: 'Checks global state from decorators.',
-            answer: 'A @register decorator adds classes to a shared map when the file loads. Tests see each other\'s classes. Export a reset function or create the registry per test.',
+            task: 'Name a way to test decorated logic without the decorator.',
+            description: 'Checks separating logic for tests.',
+            answer: 'Put the logic in a plain function the decorator calls, and test that function directly.',
           },
         ],
       },
@@ -1454,14 +1544,19 @@ expect(t.calls).toBe(3);`,
         long: 'A getter that triggers IO surprises readers and breaks caching rules.\nIts type says sync User, but the data comes later.\nExplicit methods returning Promise show cost and allow error handling.\nDecorators fit cross-cutting concerns like logging or validation, not data loading.\nStrong answer: sets a team rule on acceptable decorator uses.\nWeak answer: keeps the magic.',
         exercises: [
           {
-            task: 'Write a short team rule for when decorators are allowed.',
-            description: 'Checks guideline writing. Ask for 2-3 bullet points.',
-            answer: 'Allowed: framework decorators and pure cross-cutting concerns (log, metrics). Not allowed: hidden IO, changing types, or business logic. Weak answers ban or allow all.',
+            task: 'Spot the problem.',
+            description: 'Checks hidden side effects in getters.',
+            code: 'class Profile { @remote(\'/api/me\') get data(): User { return undefined!; } }',
+            answer: 'A getter looks cheap but does a network call, and cannot be awaited. Use an explicit async method.',
           },
           {
-            task: 'Why is the getter type a lie here?',
-            description: 'Checks type honesty. Discuss.',
-            answer: 'It says User but returns undefined until loaded, and errors are lost. The type should be Promise<User> or User | undefined. Strong answers mention the non-null assertion as a red flag.',
+            task: 'Fix the getter with an async method.',
+            description: 'Checks explicit async APIs.',
+            code: 'get data(): User',
+            answer: 'Make the call explicit and typed as a Promise.',
+            solution: `async loadData(): Promise<User> {
+  return (await fetch('/api/me')).json();
+}`,
           },
         ],
       },
@@ -1471,14 +1566,15 @@ expect(t.calls).toBe(3);`,
         long: 'Standard decorators emit __esDecorate and __runInitializers helpers.\nThe class definition becomes an expression with side effects.\nBundlers then keep the class even if it is unused, unless marked pure.\nUse importHelpers with tslib to avoid duplicated helpers.\nStrong answer: checks bundle output and uses sideEffects config.\nWeak answer: says types are erased so nothing changes.',
         exercises: [
           {
-            task: 'How do you check if decorators block tree shaking?',
-            description: 'Checks tooling. Discuss steps.',
-            answer: 'Build with a bundle analyzer, import one unused decorated class, and see if it stays. Weak answers guess. Strong answers mention importHelpers and /*#__PURE__*/.',
+            task: 'Spot why this class is not tree-shaken.',
+            description: 'Checks side effects in decorators.',
+            code: '@register class Widget {}',
+            answer: 'The decorator runs at module load and may register globally, so bundlers keep it.',
           },
           {
-            task: 'What does importHelpers do?',
-            description: 'Checks tsconfig knowledge. Quick question.',
-            answer: 'It imports helpers like __decorate from tslib instead of copying them into each file. That reduces size. Weak answers do not know.',
+            task: 'Name one way to reduce decorator bundle cost.',
+            description: 'Checks decorator output size.',
+            answer: 'Use native decorators with a modern target so no helper code is emitted.',
           },
         ],
       },
@@ -1492,17 +1588,19 @@ expect(t.calls).toBe(3);`,
         long: 'typeof works for primitives: string, number, boolean, and so on.\ninstanceof works for classes.\nThe in operator checks if a property exists.\nEquality checks on a literal discriminant like kind narrow object unions.\nPitfall: typeof null is "object".\nStrong answer: lists several and mentions the null pitfall.\nWeak answer: uses casts instead.',
         exercises: [
           {
-            task: 'Narrow this value and return its length or the number itself.',
-            description: 'Checks typeof narrowing. Ask for code.',
-            code: `function size(v: string | number) {}`,
-            answer: '`return typeof v === "string" ? v.length : v`. Weak answers cast with as. A strong answer notes TS narrows in each branch automatically.',
-            solution: `function size(v: string | number) { return typeof v === 'string' ? v.length : v }`,
+            task: 'Fix the code with an in check.',
+            description: 'Checks in operator narrowing.',
+            code: `type Cat = { meow(): void }; type Dog = { bark(): void };
+function speak(a: Cat | Dog) { a.meow(); }`,
+            answer: 'Use in to narrow to Cat.',
+            solution: `function speak(a: Cat | Dog) {
+  if ('meow' in a) a.meow(); else a.bark();
+}`,
           },
           {
-            task: 'Why is this check not enough?',
-            description: 'Checks the null pitfall. Run with strict on.',
-            code: `function f(v: object | null) { if (typeof v === 'object') v.toString() }`,
-            answer: 'typeof null is "object", so v may still be null and TS reports it. Add `v !== null`. Weak answers think typeof removes null.',
+            task: 'Name three ways to narrow a union.',
+            description: 'Checks narrowing techniques.',
+            answer: 'typeof, instanceof, in, equality checks on a tag, and user type predicates.',
           },
         ],
       },
@@ -1514,16 +1612,22 @@ expect(t.calls).toBe(3);`,
         long: 'join exists on arrays, not on strings.\nTS only allows what is safe for every member of the union.\nArray.isArray is a built-in type guard.\nAlternative: normalize: `const arr = typeof x === "string" ? [x] : x`.\nStrong answer: narrows or normalizes.\nWeak answer: casts to string[].',
         exercises: [
           {
-            task: 'Normalize the input to an array first.',
-            description: 'Checks the normalize pattern. Ask for code.',
-            answer: '`const list = Array.isArray(x) ? x : [x]; return list.join(", ")`. This keeps one code path. Weak answers duplicate logic.',
+            task: 'Fix the function with Array.isArray.',
+            description: 'Checks array narrowing.',
+            code: 'function print(x: string | string[]) { return x.join(\', \'); }',
+            answer: 'Narrow arrays with Array.isArray.',
+            solution: `function print(x: string | string[]) {
+  return Array.isArray(x) ? x.join(', ') : x;
+}`,
           },
           {
-            task: 'Which property can you read without narrowing?',
-            description: 'Checks common members. Show the code.',
-            code: `declare const v: string | string[];
-v.length; v.toUpperCase(); v.slice(0, 1);`,
-            answer: 'length and slice exist on both, so they compile. toUpperCase fails. Weak answers think none work. Strong answers note slice returns string | string[].',
+            task: 'Predict the type of x in the else branch.',
+            description: 'Checks narrowing in else.',
+            code: `function f(x: string | number) {
+  if (typeof x === 'string') return;
+  x;
+}`,
+            answer: 'x is number: the string case returned early.',
           },
         ],
       },
@@ -1533,23 +1637,18 @@ v.length; v.toUpperCase(); v.slice(0, 1);`,
         long: 'Literal types are single values: "sm", 42, true.\nA union of them works like a light enum.\nTS gives autocompletion and catches typos.\nPitfall: let variables widen to string; use const or annotate.\nStrong answer: knows widening and as const.\nWeak answer: uses string.',
         exercises: [
           {
-            task: 'Why does this fail? Fix it.',
-            description: 'Checks literal widening. Run in the Playground.',
-            code: `type Size = 'sm' | 'lg';
-let s = 'sm';
-function set(v: Size) {}
-set(s);`,
-            answer: 'let widens s to string. Use const, or annotate `let s: Size = "sm"`. Weak answers cast. A strong answer explains widening.',
-            solution: `const s = 'sm';
-set(s);`,
+            task: 'Write a type for button sizes.',
+            description: 'Checks literal union types.',
+            answer: 'List allowed strings as a union.',
+            solution: `type Size = 'sm' | 'md' | 'lg';
+const s: Size = 'md';`,
           },
           {
-            task: 'Get a union type from an array of values.',
-            description: 'Checks as const and indexed access. Ask for code.',
-            code: `const SIZES = ['sm', 'md', 'lg'];`,
-            answer: 'Add as const, then `type Size = (typeof SIZES)[number]`. Weak answers write the union again by hand. Strong answers keep one source.',
-            solution: `const SIZES = ['sm', 'md', 'lg'] as const;
-type Size = (typeof SIZES)[number];`,
+            task: 'Predict the type of a and b.',
+            description: 'Checks literal widening.',
+            code: `const a = 'sm';
+let b = 'sm';`,
+            answer: 'a is "sm"; b is string because let can change.',
           },
         ],
       },
@@ -1561,17 +1660,19 @@ type Size = (typeof SIZES)[number];`,
         long: 'In the default branch of a switch over a discriminant, the value is never if all cases are covered.\nA helper `assertNever(x: never)` makes a missed case a compile error.\nThe satisfies never form also works: `x satisfies never`.\nAlso throw at runtime for unexpected data.\nStrong answer: combines compile-time and runtime safety.\nWeak answer: relies on a default return.',
         exercises: [
           {
-            task: 'Add an exhaustive check to this switch.',
-            description: 'Checks assertNever. Add a new kind and see the error.',
-            code: `type S = { kind: 'a' } | { kind: 'b' };
-function f(s: S) { switch (s.kind) { case 'a': return 1; case 'b': return 2 } }`,
-            answer: 'Add `default: return assertNever(s)` with `function assertNever(x: never): never { throw new Error(String(x)) }`. Weak answers add default return 0, which hides new cases.',
-            solution: `function assertNever(x: never): never { throw new Error('Unexpected: ' + JSON.stringify(x)) }`,
+            task: 'Write an exhaustive check helper.',
+            description: 'Checks never for exhaustiveness.',
+            answer: 'A function that accepts never errors if a case is missed.',
+            solution: `function assertNever(x: never): never {
+  throw new Error('Unexpected: ' + x);
+}`,
           },
           {
-            task: 'What is the type of `string & number`?',
-            description: 'Checks empty intersections. Hover in the Playground.',
-            answer: 'never, because no value is both. Weak answers say an object with both. Strong answers mention that conflicting literal properties also reduce object types to never.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks missed cases.',
+            code: `type S = 'a' | 'b';
+function f(s: S) { if (s === 'a') return; assertNever(s); }`,
+            answer: 'It fails: s is "b", not never.',
           },
         ],
       },
@@ -1589,15 +1690,18 @@ const x: AB = { id: '1' };`,
         long: 'Intersections do not override; they combine.\nConflicting primitives reduce to never, making the type impossible.\nInterfaces with extends report the conflict right away instead.\nFix: Omit the conflicting key and redefine it.\nStrong answer: compares with extends errors.\nWeak answer: expects the second type to win.',
         exercises: [
           {
-            task: 'Write a Merge<A, B> type where B wins on conflicts.',
-            description: 'Checks Omit composition. Test with the types above.',
-            answer: '`type Merge<A, B> = Omit<A, keyof B> & B`. Weak answers use A & B. Strong answers mention flattening for readability with a mapped type.',
-            solution: `type Merge<A, B> = Omit<A, keyof B> & B;`,
+            task: 'Fix the type so id accepts both.',
+            description: 'Checks unions vs intersections.',
+            code: `type A = { id: string }; type B = { id: number };
+const x: A & B = { id: '1' };`,
+            answer: 'id is never in the intersection. Use a union if either is fine.',
+            solution: 'const x: A | B = { id: \'1\' };',
           },
           {
-            task: 'Why is extends safer here?',
-            description: 'Checks the difference. Try `interface AB extends A, B {}`.',
-            answer: 'extends reports "named property id of types A and B are not identical" immediately. The intersection silently becomes never. Weak answers see no difference.',
+            task: 'Predict the type of id.',
+            description: 'Checks compatible intersections.',
+            code: 'type T = { id: string | number } & { id: number };',
+            answer: 'id is number: the overlap of the two types.',
           },
         ],
       },
@@ -1607,18 +1711,21 @@ const x: AB = { id: '1' };`,
         long: 'Predicate: `function isUser(x: unknown): x is User`.\nAssertion: `function assertUser(x: unknown): asserts x is User`.\nBoth are trusted by TS without checking the body is correct.\nAssertion functions need an explicit type annotation at the call site when assigned to a variable.\nTS 5.5 infers predicates from simple filters like `x => x !== null`.\nStrong answer: mentions TS 5.5 inferred predicates.\nWeak answer: knows only casts.',
         exercises: [
           {
-            task: 'Write assertIsString and use it.',
-            description: 'Checks asserts syntax. Run in the Playground.',
-            answer: '`function assertIsString(v: unknown): asserts v is string { if (typeof v !== "string") throw new TypeError() }`. After the call, v is string. Weak answers return boolean.',
-            solution: `function assertIsString(v: unknown): asserts v is string {
-  if (typeof v !== 'string') throw new TypeError('Not a string');
+            task: 'Write an assertion function for non-null.',
+            description: 'Checks asserts return types.',
+            answer: 'asserts narrows after the call or throws.',
+            solution: `function assertDefined<T>(v: T): asserts v is NonNullable<T> {
+  if (v == null) throw new Error('Missing');
 }`,
           },
           {
-            task: 'What does TS 5.5 infer here?',
-            description: 'Checks inferred type predicates. Hover in TS 5.5+.',
-            code: `const xs = [1, null, 2].filter(x => x !== null);`,
-            answer: 'number[]. TS 5.5 infers `x is number` for the arrow. Before 5.5 it was (number | null)[]. Weak answers say it is still nullable.',
+            task: 'Predict the type after the call.',
+            description: 'Checks type predicate vs assertion.',
+            code: `declare function isStr(x: unknown): x is string;
+declare const v: unknown;
+isStr(v);
+v;`,
+            answer: 'v is still unknown: a predicate narrows only inside an if.',
           },
         ],
       },
@@ -1631,17 +1738,18 @@ const x: AB = { id: '1' };`,
         ai: true,
         exercises: [
           {
-            task: 'Why does this IsNever return never instead of true?',
-            description: 'Checks the never edge case. Run in the Playground.',
-            code: `type IsNever<T> = T extends never ? true : false;
-type R = IsNever<never>;`,
-            answer: 'never is an empty union, so distribution gives never. Use `[T] extends [never]`. Weak answers expect true.',
-            solution: `type IsNever<T> = [T] extends [never] ? true : false;`,
+            task: 'Predict the type of R.',
+            description: 'Checks distributive conditional types.',
+            code: `type ToArr<T> = T extends any ? T[] : never;
+type R = ToArr<string | number>;`,
+            answer: 'R is string[] | number[]: it distributes over the union.',
           },
           {
-            task: 'Implement Exclude yourself.',
-            description: 'Checks distribution use. Ask for one line.',
-            answer: '`type MyExclude<T, U> = T extends U ? never : T`. It relies on distribution over T. Weak answers write a mapped type.',
+            task: 'Fix the type so it does not distribute.',
+            description: 'Checks wrapping in a tuple.',
+            code: 'type ToArr<T> = T extends any ? T[] : never;',
+            answer: 'Wrap both sides in a tuple.',
+            solution: 'type ToArr<T> = [T] extends [any] ? T[] : never; // (string | number)[]',
           },
         ],
       },
@@ -1661,17 +1769,21 @@ function f(r: R) {
         ai: true,
         exercises: [
           {
-            task: 'Does this compile in TS 5? Explain.',
-            description: 'Checks destructured discriminant narrowing. Run in the Playground.',
-            code: `type A = { kind: 'n'; v: number } | { kind: 's'; v: string };
-function f({ kind, v }: A) { if (kind === 'n') return v.toFixed() }`,
-            answer: 'Yes since TS 4.6: destructured discriminant and payload from the same parameter narrow together, as long as they are const and not reassigned. Weak answers say no.',
+            task: 'Predict whether this compiles in TS 5.x.',
+            description: 'Checks destructured discriminant narrowing.',
+            code: `function f(r: { ok: true; data: string } | { ok: false; e: Error }) {
+  const { ok } = r;
+  if (ok) return r.data;
+}`,
+            answer: 'It compiles since TS 4.6+ for const destructuring; narrowing fails if ok is let or reassigned.',
           },
           {
-            task: 'Does narrowing survive an aliased condition?',
-            description: 'Checks TS 4.4 aliased conditions. Run it.',
-            code: `function f(x: string | number) { const isS = typeof x === 'string'; if (isS) x.toUpperCase() }`,
-            answer: 'Yes, for const aliases and a parameter that is not reassigned. If x is let and reassigned, it fails. Weak answers do not know this feature.',
+            task: 'Fix the code so data is narrowed.',
+            description: 'Checks destructuring the whole union.',
+            code: `let { ok } = r;
+if (ok) r.data;`,
+            answer: 'Check r.ok directly or use const.',
+            solution: 'if (r.ok) return r.data.toUpperCase();',
           },
         ],
       },
@@ -1682,19 +1794,20 @@ function f({ kind, v }: A) { if (kind === 'n') return v.toFixed() }`,
         ai: true,
         exercises: [
           {
-            task: 'Fix the handler call without any.',
-            description: 'Checks the correlated union pattern. Run in the Playground.',
-            code: `type Map = { a: string; b: number };
-const h: { [K in keyof Map]: (v: Map[K]) => void } = { a: s => {}, b: n => {} };
-function run(k: keyof Map, v: Map[keyof Map]) { h[k](v) }`,
-            answer: 'Make it generic: `function run<K extends keyof Map>(k: K, v: Map[K]) { h[k](v) }`. TS correlates K. Weak answers cast. Strong answers name the pattern from TS PR 47109.',
-            solution: `function run<K extends keyof Map>(k: K, v: Map[K]) { h[k](v) }`,
+            task: 'Predict the type of the parameter.',
+            description: 'Checks calling a union of functions.',
+            code: `declare const f: ((x: string) => void) | ((x: number) => void);
+f('a');`,
+            answer: 'It fails: the parameter is string & number, which is never.',
           },
           {
-            task: 'What is the parameter type when calling F?',
-            description: 'Checks contravariance. Hover in the Playground.',
-            code: `type F = ((a: { x: 1 }) => void) | ((a: { y: 2 }) => void);`,
-            answer: '{ x: 1 } & { y: 2 }. You must pass an object with both. Weak answers say a union.',
+            task: 'Fix the call by narrowing first.',
+            description: 'Checks narrowing function unions.',
+            code: 'type H = { kind: \'s\'; fn: (x: string) => void } | { kind: \'n\'; fn: (x: number) => void };',
+            answer: 'Narrow on the tag, then call with the right type.',
+            solution: `function run(h: H) {
+  if (h.kind === 's') h.fn('a'); else h.fn(1);
+}`,
           },
         ],
       },
@@ -1713,20 +1826,17 @@ Weak answer: uses plain strings with a wiki list.`,
         follow: 'How do you type flags that hold a string or number, not just a boolean?',
         exercises: [
           {
-            task: 'Type isOn so only known flags are allowed.',
-            description: 'Checks literal unions from a const array.',
-            code: `const FLAGS = ['newCheckout', 'darkMode'] as const;
-function isOn(name: string): boolean { return false; }`,
-            answer: 'Derive Flag from the array and use it as the parameter type.',
-            solution: `type Flag = typeof FLAGS[number];
-function isOn(name: Flag): boolean { return false; }`,
+            task: 'Write a typed flag check.',
+            description: 'Checks literal unions for flags.',
+            answer: 'Flags as a union; removing one breaks all uses.',
+            solution: `type Flag = 'newCheckout' | 'darkMode';
+function isOn(f: Flag): boolean { return flags.has(f); }`,
           },
           {
-            task: 'Type a getFlag function where each flag has its own value type.',
-            description: 'Checks key-to-type mapping.',
-            answer: 'Use an interface of flag names to types and a generic key.',
-            solution: `interface Flags { newCheckout: boolean; maxItems: number; theme: 'light' | 'dark' }
-declare function getFlag<K extends keyof Flags>(k: K): Flags[K];`,
+            task: 'Predict what happens when darkMode is removed from Flag.',
+            description: 'Checks compile-time flag cleanup.',
+            code: 'isOn(\'darkMode\');',
+            answer: 'Every isOn("darkMode") call becomes a compile error, so you find all usages.',
           },
         ],
       },
@@ -1753,23 +1863,19 @@ Weak answer: casts with \`as Error\`.`,
         follow: 'Why does TypeScript not let you write `catch (e: Error)`?',
         exercises: [
           {
-            task: 'Write a getErrorMessage helper.',
-            description: 'Checks narrowing unknown.',
-            answer: 'Handle Error, string and other values.',
-            solution: `export function getErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === 'string') return e;
-  return 'Unknown error';
+            task: 'Fix the catch to handle non-Error values.',
+            description: 'Checks unknown in catch.',
+            code: 'catch (e) { showToast(e.message); }',
+            answer: 'e is unknown; narrow it first.',
+            solution: `catch (e) {
+  showToast(e instanceof Error ? e.message : String(e));
 }`,
           },
           {
-            task: 'Narrow an API error with a status field.',
-            description: 'Checks custom type guards.',
-            code: 'type ApiError = { status: number; message: string };',
-            answer: 'Write a guard that checks the object has a numeric status.',
-            solution: `function isApiError(e: unknown): e is ApiError {
-  return typeof e === 'object' && e !== null && typeof (e as ApiError).status === 'number';
-}`,
+            task: 'Predict the output.',
+            description: 'Checks throwing non-Error values.',
+            code: 'try { throw \'oops\'; } catch (e) { console.log((e as Error).message); }',
+            answer: 'It logs undefined: a string has no message. Hence catch is unknown.',
           },
         ],
       },
@@ -1779,16 +1885,16 @@ Weak answer: casts with \`as Error\`.`,
         long: 'Unions over about 100,000 members fail with "Expression produces a union type that is too complex".\nTemplate literal types can multiply unions quickly.\nComparing big unions is costly.\nUse --generateTrace to find hot spots.\nReplace generated unions with string plus runtime checks where precision is not needed.\nStrong answer: measures first and trades precision for speed on purpose.\nWeak answer: buys a faster laptop.',
         exercises: [
           {
-            task: 'Why is this type a problem?',
-            description: 'Checks union explosion. Hover in the Playground.',
-            code: `type D = 0|1|2|3|4|5|6|7|8|9;
-type Code = \`\${D}\${D}\${D}\${D}\${D}\`;`,
-            answer: 'It creates 100,000 members, which hits the limit and slows the checker. Use string with a validator. Weak answers think it is fine.',
+            task: 'Spot why this union is slow.',
+            description: 'Checks huge template literal unions.',
+            code: `type Size = 1 | 2 | ... | 100;
+type Grid = \`\${Size}x\${Size}\`;`,
+            answer: 'It creates 10,000 members; checks against it are slow. Use a string or a branded type.',
           },
           {
-            task: 'What would you do first when tsc gets slow after a type change?',
-            description: 'Checks process. Discuss.',
-            answer: 'Run extendedDiagnostics and generateTrace, compare with the previous commit, and find the hot type. Weak answers revert at random.',
+            task: 'Name the flag to find slow types.',
+            description: 'Checks generateTrace.',
+            answer: 'tsc --generateTrace, then analyze it with @typescript/analyze-trace.',
           },
         ],
       },
@@ -1802,16 +1908,17 @@ type Code = \`\${D}\${D}\${D}\${D}\${D}\`;`,
         long: '`enum Dir { Up, Down }` gives Up = 0, Down = 1.\nIf you set `Up = 1`, Down becomes 2.\nAfter a string member, the next member must have an explicit value.\nPitfall: inserting a member in the middle changes the values of later members.\nStrong answer: warns about reordering when values are stored or sent to a server.\nWeak answer: does not know auto-increment.',
         exercises: [
           {
-            task: 'What are the values here?',
-            description: 'Checks auto-increment. Predict, then log Object.values(E).',
-            code: `enum E { A = 5, B, C = 10, D }`,
-            answer: 'A = 5, B = 6, C = 10, D = 11. Weak answers say B = 1. A strong answer adds that Object.values also includes the reverse-mapped names.',
+            task: 'Predict the values.',
+            description: 'Checks numeric enum defaults.',
+            code: `enum E { A, B, C }
+console.log(E.A, E.C);`,
+            answer: '0 2: members start at 0 and increase by 1.',
           },
           {
-            task: 'Why is adding a member at the top risky?',
-            description: 'Checks the stored value pitfall. Discuss.',
-            code: `enum Role { Admin, User } // saved in DB as 0 and 1`,
-            answer: 'Adding Guest first shifts Admin to 1, so old data means a different role. Set explicit values or use strings. Weak answers see no problem.',
+            task: 'Predict the value of B.',
+            description: 'Checks auto-increment after a set value.',
+            code: 'enum E { A = 10, B }',
+            answer: 'B is 11.',
           },
         ],
       },
@@ -1825,17 +1932,20 @@ const s: Status = Status.Active;`,
         long: 'Numeric enums accept any number (a known hole, tightened in TS 5.0 for literal values out of range).\nString enums only accept their own members.\nWhen data comes from an API, you must validate and map strings to members.\nPitfall: casting with as Status skips validation.\nStrong answer: writes a guard using Object.values.\nWeak answer: casts.',
         exercises: [
           {
-            task: 'Write a guard that checks if a string is a Status.',
-            description: 'Checks runtime validation for enums. Test with a bad value.',
-            answer: '`function isStatus(v: string): v is Status { return (Object.values(Status) as string[]).includes(v) }`. Weak answers cast. A strong answer notes this works for string enums but numeric ones need care.',
-            solution: `function isStatus(v: string): v is Status {
-  return (Object.values(Status) as string[]).includes(v);
-}`,
+            task: 'Fix the assignment.',
+            description: 'Checks string enums are nominal.',
+            code: `enum Status { Active = 'active' }
+const s: Status = 'active';`,
+            answer: 'Use the member.',
+            solution: 'const s: Status = Status.Active;',
           },
           {
-            task: 'Does `const n: Dir = 99` compile for a numeric enum Dir { A, B }?',
-            description: 'Checks TS 5.0 enum changes. Run in TS 5.x.',
-            answer: 'No in TS 5.0+: a literal out of the enum range is an error. A computed number like `const x: number = 99; const n: Dir = x` still compiles. Weak answers say any number works.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks comparing enums to strings.',
+            code: `enum S { On = 'on' }
+declare const s: S;
+if (s === 'on') {}`,
+            answer: 'It compiles: comparing is allowed, only assigning a raw string is not.',
           },
         ],
       },
@@ -1845,17 +1955,18 @@ const s: Status = Status.Active;`,
         long: 'TS emits both Dir.Up = 0 and Dir[0] = "Up" for numeric members.\nThis is useful for logs and debugging.\nString enum members have no reverse mapping.\nPitfall: Object.keys on a numeric enum returns numbers and names together.\nStrong answer: knows the reverse mapping and the Object.keys pitfall.\nWeak answer: expects reverse mapping for strings too.',
         exercises: [
           {
-            task: 'What does this print?',
-            description: 'Checks the reverse mapping shape. Run in Node.',
-            code: `enum D { Up, Down }
-console.log(Object.keys(D));`,
-            answer: '["0", "1", "Up", "Down"]. Weak answers say only names. Filter with isNaN(Number(k)) to get names.',
+            task: 'Predict the output.',
+            description: 'Checks reverse mapping.',
+            code: `enum Lvl { Low, High }
+console.log(Lvl[1]);`,
+            answer: 'It logs "High".',
           },
           {
-            task: 'Get only the member names of a numeric enum.',
-            description: 'Checks filtering. Ask for code.',
-            answer: '`Object.keys(D).filter(k => isNaN(Number(k)))`. Weak answers use Object.keys directly. A strong answer suggests string enums or const objects instead.',
-            solution: `const names = Object.keys(D).filter(k => isNaN(Number(k)));`,
+            task: 'Predict the output.',
+            description: 'Checks no reverse mapping on string enums.',
+            code: `enum C { Red = 'r' }
+console.log((C as any)['r']);`,
+            answer: 'It logs undefined: string enums have no reverse mapping.',
           },
         ],
       },
@@ -1867,16 +1978,17 @@ console.log(Object.keys(D));`,
         long: '`const labels: Record<Status, string> = { [Status.Active]: "On", [Status.Off]: "Off" }`.\nAdding a new member forces you to add a label.\nThis is a simple compile-time completeness check.\nIt works for string and numeric enums.\nStrong answer: uses this for lookup tables instead of switch.\nWeak answer: uses an index signature.',
         exercises: [
           {
-            task: 'Create a color map for this enum that breaks when a member is added.',
-            description: 'Checks Record with enums. Add a member and see the error.',
-            code: `enum Level { Low = 'low', High = 'high' }`,
-            answer: 'Use `const colors: Record<Level, string> = { [Level.Low]: "green", [Level.High]: "red" }`. Weak answers use `{ [k: string]: string }`.',
-            solution: `const colors: Record<Level, string> = { [Level.Low]: 'green', [Level.High]: 'red' };`,
+            task: 'Write a map that needs every enum member.',
+            description: 'Checks Record with enum keys.',
+            code: 'enum Plan { Free = \'free\', Pro = \'pro\' }',
+            answer: 'Record over the enum requires all keys.',
+            solution: 'const price: Record<Plan, number> = { [Plan.Free]: 0, [Plan.Pro]: 10 };',
           },
           {
-            task: 'What is `keyof typeof Level`?',
-            description: 'Checks enum object keys. Hover in the Playground.',
-            answer: '"Low" | "High", the member names. `Level` as a type means the values. Weak answers mix them up.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks missing keys in Record.',
+            code: 'const p: Record<\'a\' | \'b\', number> = { a: 1 };',
+            answer: 'It fails: property b is missing.',
           },
         ],
       },
@@ -1892,14 +2004,19 @@ if ((p & Perm.Write) !== 0) console.log('can write');`,
         long: 'Flag enums use powers of two so members can be combined.\nRead | Write = 3, which is not equal to Write.\n`(p & Perm.Write) !== 0` checks if the flag is set.\nUse `1 << n` to make the intent clear.\nStrong answer: knows bitwise checks and a None member.\nWeak answer: compares with ===.',
         exercises: [
           {
-            task: 'Remove the Write flag from p.',
-            description: 'Checks bitwise operations. Ask for one line.',
-            answer: '`p & ~Perm.Write`. Weak answers subtract, which breaks if the flag is not set.',
+            task: 'Fix the flag check.',
+            description: 'Checks bitwise AND for flags.',
+            code: `const p = Perm.Read | Perm.Write;
+if (p === Perm.Write) {}`,
+            answer: 'Use & to test one bit.',
+            solution: 'if (p & Perm.Write) console.log(\'can write\');',
           },
           {
-            task: 'Is a flag enum a good idea for a UI permission model?',
-            description: 'Checks judgment. Discuss.',
-            answer: 'Rarely: bits are hard to read in JSON and logs. A Set of string permissions is clearer. Use flags when size or speed really matters. Weak answers like the cleverness.',
+            task: 'Predict the value of p.',
+            description: 'Checks bitwise OR of flags.',
+            code: `enum Perm { Read = 1, Write = 2, Exec = 4 }
+const p = Perm.Read | Perm.Exec;`,
+            answer: 'p is 5.',
           },
         ],
       },
@@ -1917,16 +2034,16 @@ Weak answer: does not know the difference.`,
         follow: 'Why can a const enum not have computed members?',
         exercises: [
           {
-            task: 'Which line has an error and why?',
-            description: 'Checks the rule after a computed member.',
-            code: 'enum E { A = 1, B = \'abc\'.length, C }',
-            answer: 'B is computed, so C needs a value. Add `C = 5` or move C above B.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks computed members in string enums.',
+            code: 'enum E { A = \'a\'.length, B }',
+            answer: 'It fails: B needs an initializer after a computed member.',
           },
           {
-            task: 'Are these members constant or computed?',
-            description: 'Checks classification.',
-            code: 'enum Perm { Read = 1 << 0, Write = 1 << 1, Both = Read | Write }',
-            answer: 'Read and Write are constant; Both is constant too because it uses other constant members.',
+            task: 'Predict the value of C.',
+            description: 'Checks constant enum expressions.',
+            code: 'enum E { A = 1 << 1, B = A * 2, C = B + 1 }',
+            answer: 'C is 5: these are constant expressions computed at compile time.',
           },
         ],
       },
@@ -1939,14 +2056,18 @@ Weak answer: does not know the difference.`,
         ai: true,
         exercises: [
           {
-            task: 'List three features that erasableSyntaxOnly forbids.',
-            description: 'Checks knowledge. Quick question.',
-            answer: 'Enums, namespaces with runtime code, and constructor parameter properties. Also legacy import = require. Weak answers list types.',
+            task: 'Predict whether this compiles with erasableSyntaxOnly.',
+            description: 'Checks erasable syntax.',
+            code: 'enum Color { Red }',
+            answer: 'It fails: enums emit runtime code, so Node type stripping cannot erase them.',
           },
           {
-            task: 'Plan a migration away from enums in a big codebase.',
-            description: 'Checks planning. Ask for steps.',
-            answer: 'Replace each enum with an as const object and type of the same name, so most call sites keep compiling. Do it per package with a codemod. Then turn on the flag. Weak answers do a big bang.',
+            task: 'Rewrite the enum so it is erasable.',
+            description: 'Checks as const objects.',
+            code: 'enum Color { Red = \'red\', Blue = \'blue\' }',
+            answer: 'Use an as const object with a derived type.',
+            solution: `const Color = { Red: 'red', Blue: 'blue' } as const;
+type Color = (typeof Color)[keyof typeof Color];`,
           },
         ],
       },
@@ -1968,19 +2089,19 @@ Weak answer: hard-codes the list.`,
         follow: 'Do string enums have this problem?',
         exercises: [
           {
-            task: 'Get only the numeric values of the enum, typed as Size[].',
-            description: 'Checks filtering values.',
-            code: 'enum Size { S, M, L }',
-            answer: 'Filter values by typeof number.',
-            solution: 'const values = Object.values(Size).filter((v): v is Size => typeof v === \'number\');',
+            task: 'Fix the code to get only names.',
+            description: 'Checks filtering reverse keys.',
+            code: `enum Size { S, M, L }
+const options = Object.keys(Size);`,
+            answer: 'Filter out numeric keys.',
+            solution: 'const options = Object.keys(Size).filter(k => isNaN(Number(k)));',
           },
           {
-            task: 'Rewrite Size as a const object so iteration is simple.',
-            description: 'Checks the const object pattern.',
-            answer: 'Use as const and derive the type from values.',
-            solution: `const Size = { S: 0, M: 1, L: 2 } as const;
-type Size = typeof Size[keyof typeof Size];
-Object.keys(Size); // ['S', 'M', 'L']`,
+            task: 'Predict the output.',
+            description: 'Checks Object.values on numeric enums.',
+            code: `enum S { A, B }
+console.log(Object.values(S));`,
+            answer: 'It logs ["A", "B", 0, 1].',
           },
         ],
       },
@@ -1991,20 +2112,19 @@ Object.keys(Size); // ['S', 'M', 'L']`,
         ai: true,
         exercises: [
           {
-            task: 'Which lines compile in TS 5?',
-            description: 'Checks enum assignability. Run each line.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks enum to enum assignment.',
             code: `enum A { X } enum B { X }
-declare let n: number;
-const a1: A = n;
-const a2: A = 5;
-const a3: A = B.X;
-const n2: number = A.X;`,
-            answer: 'a1 compiles (number expression), a2 fails (literal not in enum), a3 fails (different enum), n2 compiles. Weak answers say a3 works because values match.',
+const a: A = B.X;`,
+            answer: 'It fails: different enums are not compatible, even with the same value.',
           },
           {
-            task: 'How do you make numeric IDs safe without enums?',
-            description: 'Checks branded types. Ask for code.',
-            answer: 'Use a branded type like `type UserId = number & { readonly __brand: "UserId" }` and a constructor function. Weak answers use enums. Strong answers explain brand erasure.',
+            task: 'Predict whether this compiles.',
+            description: 'Checks number to enum assignment.',
+            code: `enum A { X, Y }
+const n: number = A.Y;
+const a: A = 1;`,
+            answer: 'Both compile: numeric enums are assignable to number, and 1 is a valid member value.',
           },
         ],
       },
@@ -2016,14 +2136,15 @@ const n2: number = A.X;`,
         long: 'Reasons against: runtime code, nominal quirks, const enum issues, erasableSyntaxOnly.\nReasons for: familiar to C# and Java developers, readable member names.\nas const objects keep member names and stay plain JS.\nEnforce with a lint rule (no-restricted-syntax on TSEnumDeclaration).\nStrong answer: gives a rule, reasons, and a migration plan.\nWeak answer: "enums are bad" with no reasons.',
         exercises: [
           {
-            task: 'Write the lint config that bans new enums.',
-            description: 'Checks enforcement. Ask for eslint config.',
-            answer: '`"no-restricted-syntax": ["error", { selector: "TSEnumDeclaration", message: "Use an as const object" }]`. Weak answers rely on review. Strong answers allow legacy files with overrides.',
+            task: 'Name a lint rule that bans enums.',
+            description: 'Checks enforcing enum rules.',
+            answer: 'no-restricted-syntax with selector TSEnumDeclaration, or turn on erasableSyntaxOnly in tsconfig.',
           },
           {
-            task: 'How would you explain the rule to a backend C# team?',
-            description: 'Checks communication. Ask for a short pitch.',
-            answer: 'TS enums are not like C# enums: they add runtime code and have type holes. A const object gives the same names with plain JS. A strong answer stays respectful and concrete.',
+            task: 'Respond to this proposal.',
+            description: 'Checks defending a team rule.',
+            code: '"Let\'s use enums everywhere for constants."',
+            answer: 'Prefer unions or as const objects: no runtime cost, work with type stripping. Allow enums only in old code.',
           },
         ],
       },
@@ -2048,17 +2169,20 @@ Weak answer: syncs them by hand.`,
         follow: 'How do you find two versions of the same package in a monorepo?',
         exercises: [
           {
-            task: 'Why does this assignment fail even though the values are the same?',
-            description: 'Checks that enums are nominal.',
-            code: `import { Status as A } from 'orders';
-import { Status as B } from 'ui';
-const s: A = B.Open;`,
-            answer: 'Enums with the same members are still different types. Use one shared type.',
+            task: 'Fix the duplicate enums.',
+            description: 'Checks one source of truth.',
+            code: `// orders: enum Status { Open = 'open' }
+// ui:     enum Status { Open = 'OPEN' }`,
+            answer: 'Define the values once in a shared package and import them.',
+            solution: `// @acme/domain
+export const Status = { Open: 'open', Done: 'done' } as const;
+export type Status = (typeof Status)[keyof typeof Status];`,
           },
           {
-            task: 'Propose a CI check that stops new copies of this enum.',
-            description: 'Checks process thinking.',
-            answer: 'Add a lint rule (no-restricted-syntax or a custom rule) for enum Status outside contracts, or a codegen diff check.',
+            task: 'Spot the runtime bug.',
+            description: 'Checks mismatched enum values.',
+            code: 'if (order.status === UiStatus.Open) show();',
+            answer: 'Backend sends "open" but UI checks "OPEN", so show never runs.',
           },
         ],
       },
@@ -2068,14 +2192,15 @@ const s: A = B.Open;`,
         long: 'Numeric enums over JSON break when the order changes.\nConfigure the backend to serialize enums as strings.\nGenerate TS unions or as const objects from the OpenAPI spec.\nAdd unknown handling for forward compatibility.\nStrong answer: covers serialization, codegen, and evolution.\nWeak answer: copies values by hand.',
         exercises: [
           {
-            task: 'What setting makes ASP.NET Core send enums as strings?',
-            description: 'Checks cross-stack knowledge. Quick question.',
-            answer: 'Add JsonStringEnumConverter to the JSON options. Then the OpenAPI spec shows string values. Weak answers do not know.',
+            task: 'Name two ways to share C# enums with TypeScript.',
+            description: 'Checks cross-language codegen.',
+            answer: 'Generate TS from the OpenAPI spec (NSwag, openapi-typescript), or serialize enums as strings and generate unions.',
           },
           {
-            task: 'How do you keep generated enums from breaking old clients?',
-            description: 'Checks evolution strategy. Discuss.',
-            answer: 'Only add values, never rename or reuse them, and make clients handle unknown values. Strong answers mention a deprecation period.',
+            task: 'Spot the problem.',
+            description: 'Checks numeric enum serialization.',
+            code: '// C#: enum Status { Open, Done }  -> JSON: { "status": 0 }',
+            answer: 'Numbers break when C# reorders members. Serialize as strings with JsonStringEnumConverter.',
           },
         ],
       },

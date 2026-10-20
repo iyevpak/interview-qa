@@ -9,16 +9,20 @@ export default {
           follow: `How do you save a Date and get a Date back?`,
           exercises: [
             {
-              task: `What does this code print?`,
-              description: `Checks string coercion in Web Storage. Run in the browser DevTools console.`,
-              code: `localStorage.setItem('n', 5);\nlocalStorage.setItem('o', { a: 1 });\nconsole.log(typeof localStorage.getItem('n'), localStorage.getItem('o'));`,
-              answer: `It logs "string" and "[object Object]". Every value is coerced to a string, so the number becomes "5" and the object loses all its data. Use JSON.stringify/JSON.parse to round-trip structured values.`,
+              task: `Predict the output.`,
+              description: `Checks object coercion in localStorage.`,
+              code: `localStorage.setItem('u', { name: 'Ann' });
+console.log(localStorage.getItem('u'));`,
+              answer: `"[object Object]". setItem converts values with String(). Use JSON.stringify.`,
+              solution: `localStorage.setItem('u', JSON.stringify({ name: 'Ann' }));`,
             },
             {
-              task: `Write two helpers: saveJSON and loadJSON with a fallback value.`,
-              description: `Checks safe serialization with a fallback for missing or corrupt data. Run in the console and try a corrupted value.`,
-              answer: `saveJSON stringifies before setItem. loadJSON reads the raw string, returns the fallback when it is null, and wraps JSON.parse in try/catch so corrupt data also returns the fallback instead of crashing the app.`,
-              solution: `const saveJSON = (k, v) => localStorage.setItem(k, JSON.stringify(v));\nconst loadJSON = (k, fb) => {\n  const raw = localStorage.getItem(k);\n  if (raw === null) return fb;\n  try { return JSON.parse(raw); } catch { return fb; }\n};`,
+              task: `Predict the output.`,
+              description: `Checks Date round-trip through JSON.`,
+              code: `localStorage.setItem('d', JSON.stringify(new Date(0)));
+const d = JSON.parse(localStorage.getItem('d'));
+console.log(typeof d);`,
+              answer: `"string". JSON turns a Date into an ISO string. Recreate it with new Date(d).`,
             },
           ],
         },
@@ -30,16 +34,20 @@ export default {
           fix: `const count = Number(localStorage.getItem('count')) || 0;\nlocalStorage.setItem('count', String(count + 1));`,
           exercises: [
             {
-              task: `Dark mode is always on. Fix this check.`,
-              description: `Checks string truthiness. Run in the console after setItem('dark', false).`,
-              code: `localStorage.setItem('dark', false);\nif (localStorage.getItem('dark')) enableDarkMode();`,
-              answer: `The stored value is the string "false", which is truthy, so dark mode is always enabled. Compare explicitly: getItem('dark') === 'true', or store JSON and parse it.`,
+              task: `Fix the bug.`,
+              description: `Checks number parsing from storage.`,
+              code: `const n = localStorage.getItem('cart') || 0;
+localStorage.setItem('cart', n + 1);`,
+              answer: `getItem returns "1", so "1" + 1 is "11". Convert to a number first.`,
+              solution: `const n = Number(localStorage.getItem('cart')) || 0;
+localStorage.setItem('cart', String(n + 1));`,
             },
             {
-              task: `Write an increment helper. It must work even if the stored value is broken.`,
-              description: `Checks parsing and NaN handling. Set 'count' to 'abc' in the console, then call the helper.`,
-              answer: `Read the value, convert with Number, and fall back to 0 when the result is NaN. Write the new value back as a string. This keeps the counter working even after a manual or buggy write.`,
-              solution: `function inc(key) {\n  const n = Number(localStorage.getItem(key));\n  const next = (Number.isNaN(n) ? 0 : n) + 1;\n  localStorage.setItem(key, String(next));\n  return next;\n}`,
+              task: `Predict the output.`,
+              description: `Checks boolean strings from storage.`,
+              code: `localStorage.setItem('dark', false);
+if (localStorage.getItem('dark')) console.log('dark on');`,
+              answer: `It logs "dark on". The value is the string "false", which is truthy. Compare to "true".`,
             },
           ],
         },
@@ -49,14 +57,17 @@ export default {
           long: `Open DevTools and go to Application (Chrome/Edge) or Storage (Firefox).\nEach storage type is listed per origin; you can view, edit and delete entries.\nCookies show flags such as HttpOnly, Secure, SameSite and expiry.\nStorage > "Clear site data" removes everything for the origin, with checkboxes.\nThe usage chart shows how much quota is used.\nIncognito windows start with empty storage, which helps reproduce first-visit bugs.`,
           exercises: [
             {
-              task: `Find where a site keeps its cookies and local storage values.`,
-              description: `Checks DevTools navigation. Open any site you use, find its cookies and localStorage keys.`,
-              answer: `Open Application > Storage, expand Local Storage and Cookies for the origin and inspect the keys. HttpOnly cookies are visible there but not from document.cookie. Note how many entries third-party scripts created.`,
+              task: `Name the DevTools panel for storage.`,
+              description: `Checks finding storage in DevTools.`,
+              answer: `The Application panel in Chrome (Storage in Firefox) shows Local Storage, Session Storage, IndexedDB, and Cookies.`,
             },
             {
-              task: `How do you clear all storage from code, for testing?`,
-              description: `Checks the APIs for clearing storage. Run in the console on a test page.`,
-              answer: `localStorage.clear() and sessionStorage.clear() empty Web Storage; indexedDB.deleteDatabase(name) removes a database; caches.keys() plus caches.delete clears Cache Storage. Non-HttpOnly cookies can be expired via document.cookie. Servers can also send the Clear-Site-Data header.`,
+              task: `Write a console command to clear storage.`,
+              description: `Checks clearing storage from the console.`,
+              code: `// Reset the app state from DevTools.`,
+              answer: `Clear both stores for the current origin.`,
+              solution: `localStorage.clear();
+sessionStorage.clear();`,
             },
           ],
         },
@@ -70,15 +81,20 @@ export default {
           fix: `function remember(user) {\n  try {\n    localStorage.setItem('user', JSON.stringify(user));\n    return true;\n  } catch (e) {\n    console.warn('storage unavailable', e.name);\n    return false;\n  }\n}`,
           exercises: [
             {
-              task: `Write a storage wrapper. If localStorage fails, keep data in memory.`,
-              description: `Checks resilience. Test by stubbing localStorage.setItem to throw in the console.`,
-              answer: `Probe storage once by writing and removing a test key inside try/catch. If it works, delegate to localStorage; otherwise use a Map with the same get/set interface. Callers never need to know which backend is used.`,
-              solution: `const mem = new Map();\nlet ok = false;\ntry { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); ok = true; } catch {}\nexport const store = {\n  get: (k) => ok ? localStorage.getItem(k) : mem.get(k) ?? null,\n  set: (k, v) => { try { if (ok) return localStorage.setItem(k, v); } catch {} mem.set(k, v); },\n};`,
+              task: `Fix this save so it cannot crash.`,
+              description: `Checks QuotaExceededError handling.`,
+              code: `localStorage.setItem('draft', JSON.stringify(big));`,
+              answer: `setItem throws when storage is full or blocked. Catch it and handle it.`,
+              solution: `try {
+  localStorage.setItem('draft', JSON.stringify(big));
+} catch (e) {
+  if (e.name === 'QuotaExceededError') notify('Storage full');
+}`,
             },
             {
-              task: `How do you check free space before a big write?`,
-              description: `Checks the StorageManager API. Run navigator.storage.estimate() in the console.`,
-              answer: `navigator.storage.estimate() resolves to { usage, quota } for the origin across IndexedDB, Cache Storage and others. Compare usage plus the expected write size to quota. Web Storage has its own smaller per-origin cap, so estimate is mostly useful for IndexedDB and caches.`,
+              task: `Name two cases when setItem throws.`,
+              description: `Checks storage failure modes.`,
+              answer: `The quota is full, or storage is blocked by browser settings or some private modes.`,
             },
           ],
         },
@@ -89,16 +105,20 @@ export default {
           follow: `How do you log out all tabs when the user logs out in one tab?`,
           exercises: [
             {
-              task: `Log out all open tabs when one tab logs out.`,
-              description: `Checks the storage event. Open two tabs of the same local page and log out in one.`,
-              answer: `On logout write a key like 'logout' with Date.now() (the value must change to fire). Other tabs listen for 'storage' with that key and redirect to login. BroadcastChannel('auth').postMessage('logout') is a cleaner alternative.`,
-              solution: `window.addEventListener('storage', (e) => {\n  if (e.key === 'logout') location.assign('/login');\n});\nfunction logout() { localStorage.setItem('logout', String(Date.now())); }`,
+              task: `Predict where the event fires.`,
+              description: `Checks storage event scope.`,
+              code: `// Tab A: localStorage.setItem('x', '1')
+window.onstorage = e => console.log(e.key);`,
+              answer: `It fires in other tabs of the same origin, not in tab A that made the change.`,
             },
             {
-              task: `This listener never runs. Why?`,
-              description: `Checks understanding of event scope. Run in a single tab.`,
-              code: `addEventListener('storage', () => console.log('changed'));\nlocalStorage.setItem('x', '1');`,
-              answer: `The storage event is not delivered to the document that made the change. It will log only when another tab of the same origin writes. To react locally, call your handler directly or dispatch a custom event.`,
+              task: `Write a listener that syncs logout.`,
+              description: `Checks cross-tab sync with storage events.`,
+              code: `// Tab A logs out; tab B must follow.`,
+              answer: `Listen for the key and react in other tabs.`,
+              solution: `window.addEventListener('storage', e => {
+  if (e.key === 'logout') location.assign('/login');
+});`,
             },
           ],
         },
@@ -108,15 +128,15 @@ export default {
           long: `localStorage is synchronous, string-only and limited to about 5 MB.\nIndexedDB is asynchronous and stores structured-clone values: objects, Blobs, Files, typed arrays.\nIt supports indexes, key ranges, cursors and transactions.\nQuota is a share of disk (often gigabytes), managed by the browser.\nIt is available in Web Workers and Service Workers, unlike localStorage.\nThe raw API is verbose; small wrappers like idb make it pleasant.`,
           exercises: [
             {
-              task: `Save and read one record with the idb library.`,
-              description: `Checks basic IndexedDB usage. Run in a Vite project with idb installed.`,
-              answer: `openDB creates the database and object stores in the upgrade callback. put writes the record and get reads by key, both returning promises. The data keeps its types, so Dates and Blobs come back intact.`,
-              solution: `import { openDB } from 'idb';\nconst db = await openDB('app', 1, { upgrade(db) { db.createObjectStore('notes', { keyPath: 'id' }); } });\nawait db.put('notes', { id: 1, text: 'hi', at: new Date() });\nconsole.log(await db.get('notes', 1));`,
+              task: `Pick the storage for each case.`,
+              description: `Checks matching storage to data size.`,
+              code: `// a) theme name  b) 10k offline records  c) image blobs`,
+              answer: `a) localStorage. b) and c) IndexedDB: it is async, large, and stores blobs and indexed objects.`,
             },
             {
-              task: `Why is localStorage slow with big data?`,
-              description: `Checks understanding of sync I/O. Reason about the main thread; optionally profile a 4 MB setItem.`,
-              answer: `Web Storage calls are synchronous and run on the main thread, and browsers may load the whole origin's storage into memory. Writing megabytes of JSON plus JSON.stringify blocks rendering and input. IndexedDB work is asynchronous and can move to a worker.`,
+              task: `Name a reason localStorage hurts speed.`,
+              description: `Checks synchronous storage.`,
+              answer: `It is synchronous, so big reads and writes block the main thread.`,
             },
           ],
         },
@@ -131,14 +151,20 @@ export default {
           ai: true,
           exercises: [
             {
-              task: `How do you make a group of writes all succeed or all fail?`,
-              description: `Checks transaction semantics. Throw inside the batch in a test page and inspect the store.`,
-              answer: `All puts in one transaction commit or none do. If any request fails or you call tx.abort(), every change is rolled back. Await tx.done and catch errors to report the failed batch.`,
+              task: `Fix the bug.`,
+              description: `Checks awaiting inside IndexedDB transactions.`,
+              code: `const tx = db.transaction('s', 'readwrite');
+const data = await fetch('/x').then(r => r.json());
+tx.objectStore('s').put(data);`,
+              answer: `The transaction auto-commits while fetch waits. Fetch first, then open the transaction.`,
+              solution: `const data = await fetch('/x').then(r => r.json());
+const tx = db.transaction('s', 'readwrite');
+tx.objectStore('s').put(data);`,
             },
             {
-              task: `A database upgrade is blocked by another open tab. What do you do?`,
-              description: `Checks multi-tab upgrades. Open the app in two tabs, bump the DB version in one.`,
-              answer: `The new tab's open fires 'blocked' while the old tab holds a connection. Old tabs should listen for 'versionchange', close the db and prompt reload. With idb, use the blocking callback to close and the blocked callback to show a message.`,
+              task: `Name a library that makes IndexedDB easier.`,
+              description: `Checks promise wrappers for IndexedDB.`,
+              answer: `idb by Jake Archibald wraps requests in promises. Dexie adds a query API.`,
             },
           ],
         },
@@ -148,15 +174,17 @@ export default {
           long: `Each origin gets a quota derived from disk size; data is "best-effort" unless persisted.\nUnder storage pressure browsers evict whole origins, least recently used first.\nnavigator.storage.persist() asks to mark the origin persistent; Chrome grants it heuristically, Firefox may prompt.\nSafari deletes script-writable storage after 7 days without user interaction, unless the site is an installed home-screen web app.\nEviction removes the origin's IndexedDB, Cache Storage and others together.\nTreat local data as a cache that can vanish, and keep a server copy of anything important.`,
           exercises: [
             {
-              task: `Ask the browser for persistent storage and show the result.`,
-              description: `Checks the StorageManager API. Run in the console on an https or localhost page.`,
-              answer: `Call navigator.storage.persisted() to see the current state, then navigator.storage.persist() which resolves to true or false. Show the result in settings and fall back to sync-to-server messaging when it is false.`,
-              solution: `if (!(await navigator.storage.persisted())) {\n  const granted = await navigator.storage.persist();\n  console.log('persistent:', granted);\n}`,
+              task: `Write code to request persistent storage.`,
+              description: `Checks navigator.storage.persist.`,
+              code: `// Offline drafts must not be evicted.`,
+              answer: `persist asks the browser not to evict your data under storage pressure.`,
+              solution: `const ok = await navigator.storage.persist();
+console.log(ok ? 'persistent' : 'best effort');`,
             },
             {
-              task: `The local data is suddenly gone. How should the app recover?`,
-              description: `Checks resilience design. Clear site data mid-session and observe the app.`,
-              answer: `On startup verify a schema/version marker; if missing, rebuild from the server. Queue unsynced writes and sync them early instead of holding them long. Tell the user when offline edits could not be recovered rather than failing silently.`,
+              task: `Name when browsers delete stored data.`,
+              description: `Checks eviction triggers.`,
+              answer: `Under disk pressure, after long inactivity (Safari about 7 days for script storage), or when the user clears site data.`,
             },
           ],
         },
@@ -166,14 +194,16 @@ export default {
           long: `Partitioning keys storage by (top-level site, embedded origin) instead of origin alone.\nFirefox, Safari and Chrome partition localStorage, IndexedDB, Cache Storage and BroadcastChannel in third-party contexts.\nThird-party cookies are blocked by default in Safari and Firefox; Chrome still allows them by default with user controls.\nCHIPS (the Partitioned cookie attribute) gives an opt-in cookie per top-level site.\nThe Storage Access API lets an iframe request unpartitioned access after a user gesture.\nEmbedded widgets (chat, SSO, payments) must not assume shared state across sites.`,
           exercises: [
             {
-              task: `Set a partitioned cookie for an embedded widget.`,
-              description: `Checks CHIPS. Inspect the cookie in DevTools Application > Cookies.`,
-              answer: `Send Set-Cookie with Secure, SameSite=None and Partitioned, e.g. "Set-Cookie: wid=1; Secure; SameSite=None; Path=/; Partitioned". The cookie is stored per top-level site, so it works inside each embedder but cannot track across them.`,
+              task: `Predict what the iframe sees.`,
+              description: `Checks storage partitioning by top site.`,
+              code: `// widget.com iframe on siteA.com and siteB.com
+// both call localStorage.getItem('id')`,
+              answer: `Different values. Storage is partitioned by top-level site, so the widget cannot share data across sites.`,
             },
             {
-              task: `How does an iframe ask for access to its own cookies?`,
-              description: `Checks the Storage Access API. Run inside a cross-site iframe on a button click.`,
-              answer: `Check document.hasStorageAccess(), then call document.requestStorageAccess() from a user gesture. If granted, the iframe can use its unpartitioned cookies. Browsers may require prior first-party interaction, so provide a fallback such as a popup login.`,
+              task: `Name the cookie attribute for partitioned cookies.`,
+              description: `Checks CHIPS.`,
+              answer: `Partitioned, with Secure and SameSite=None. The cookie is keyed by the top-level site.`,
             },
           ],
         },
@@ -186,15 +216,18 @@ export default {
           ai: true,
           exercises: [
             {
-              task: `Write a lint rule that blocks direct use of localStorage.`,
-              description: `Checks enforcement. Add to eslint config and run lint.`,
-              answer: `Use no-restricted-globals and no-restricted-properties for localStorage and sessionStorage with a message pointing to the storage module. Disable the rule only inside that module via an override for its path.`,
-              solution: `rules: {\n  'no-restricted-globals': ['error', { name: 'localStorage', message: 'Use @/lib/storage' }, { name: 'sessionStorage', message: 'Use @/lib/storage' }],\n  'no-restricted-properties': ['error', { object: 'window', property: 'localStorage' }],\n}`,
+              task: `Write a typed storage wrapper.`,
+              description: `Checks a single storage access layer.`,
+              answer: `One module handles keys, JSON, and errors.`,
+              solution: `export const store = {
+  get<T>(k: string, d: T): T { try { return JSON.parse(localStorage.getItem(k) ?? '') } catch { return d } },
+  set(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
+};`,
             },
             {
-              task: `The app has forty storage keys in many places. Plan the move to the new layer.`,
-              description: `Checks rollout thinking. Write the plan as bullet points.`,
-              answer: `Inventory keys with grep and telemetry, assign owners and classifications. Ship the module with a read-old/write-new migration for each key, then remove old keys after a release window. Track remaining direct usages in the lint baseline until it reaches zero.`,
+              task: `Name a way to stop direct localStorage use.`,
+              description: `Checks enforcing the layer with lint.`,
+              answer: `An ESLint no-restricted-globals or no-restricted-properties rule for localStorage, allowed only in the wrapper file.`,
             },
           ],
         },
@@ -221,14 +254,20 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           follow: `What should happen when an API call returns 401 in one tab?`,
           exercises: [
             {
-              task: `Does the storage event fire in the tab that made the change?`,
-              description: `Checks a common misunderstanding.`,
-              answer: `No. It fires only in other tabs of the same origin. The current tab must call its own handler directly.`,
+              task: `Replace polling with BroadcastChannel.`,
+              description: `Checks cross-tab messaging.`,
+              code: `setInterval(() => {
+  if (!localStorage.getItem('token')) logout();
+}, 1000);`,
+              answer: `Send a message on logout and react to it in other tabs.`,
+              solution: `const ch = new BroadcastChannel('auth');
+ch.onmessage = e => e.data === 'logout' && logout();
+// on logout: ch.postMessage('logout');`,
             },
             {
-              task: `What rule do you write for teams about cross-tab auth?`,
-              description: `Checks lead-level standardization.`,
-              answer: `All login and logout state goes through one shared auth module. No feature reads session data from storage directly. Logout clears user data and broadcasts to all tabs.`,
+              task: `Name a cost of polling every second.`,
+              description: `Checks wasted work.`,
+              answer: `Constant main-thread work and battery use in every open tab, plus up to one second delay.`,
             },
           ],
         },
@@ -239,14 +278,21 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           ai: true,
           exercises: [
             {
-              task: `The same draft is edited on two devices. What happens?`,
-              description: `Checks sync design. Describe the conflict policy.`,
-              answer: `Store updatedAt and a server version on each draft. On sync, if the server version moved, show both versions or merge field by field. Never silently overwrite the newer server copy.`,
+              task: `Name two rules for offline drafts.`,
+              description: `Checks safe draft storage design.`,
+              code: `// Long application form saved offline`,
+              answer: `Store drafts in IndexedDB keyed by user, with a version and expiry, and delete them on logout or submit.`,
             },
             {
-              task: `List the safety rules for the privacy review.`,
-              description: `Checks policy thinking. Write 4-5 bullets.`,
-              answer: `Data minimization of stored fields, per-user scoping and wipe on logout, TTL-based cleanup, no tokens in the same store, and documented retention. Include a kill switch flag to disable local drafts if an issue is found.`,
+              task: `Write a debounced draft save.`,
+              description: `Checks limiting storage writes.`,
+              code: `form.addEventListener('input', save);`,
+              answer: `Save after the user pauses, not on every key.`,
+              solution: `let t;
+form.addEventListener('input', () => {
+  clearTimeout(t);
+  t = setTimeout(save, 500);
+});`,
             },
           ],
         },
@@ -260,16 +306,22 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           long: `SRP is the S in SOLID.\nA function that formats, validates and saves data changes for three reasons.\nSplitting them makes each piece easier to test and reuse.\nIt is about reasons to change, not about having only one method.\nOver-splitting into tiny files is also a smell.\nIn React, separating data fetching from rendering is a common SRP move.`,
           exercises: [
             {
-              task: `List the jobs this function does.`,
-              description: `Checks identifying concerns. Read the code and list them.`,
-              code: `function submit(form) {\n  if (!form.email.includes('@')) return alert('bad');\n  const body = JSON.stringify(form);\n  fetch('/api/u', { method: 'POST', body });\n  document.querySelector('#msg').textContent = 'Saved';\n}`,
-              answer: `Validation, serialization/network, and UI feedback are mixed. Split into validate(form), saveUser(form) and a UI layer that shows messages. Each part can then be tested on its own.`,
+              task: `Name the reasons this class would change.`,
+              description: `Checks spotting multiple responsibilities.`,
+              code: `class Invoice {
+  total() {}
+  toPdf() {}
+  saveToDb() {}
+}`,
+              answer: `Math rules, PDF layout, and database. Three reasons to change, so split into three classes.`,
             },
             {
-              task: `Split it into three functions.`,
-              description: `Checks applying SRP. Write the code and run it in Node with a fake fetch.`,
-              answer: `validate returns errors, saveUser returns the fetch promise, and submit orchestrates and updates the UI. The UI layer is now the only place touching the DOM.`,
-              solution: `const validate = (f) => (f.email.includes('@') ? [] : ['email']);\nconst saveUser = (f) => fetch('/api/u', { method: 'POST', body: JSON.stringify(f) });\nasync function submit(f, show) {\n  if (validate(f).length) return show('Invalid email');\n  await saveUser(f);\n  show('Saved');\n}`,
+              task: `Split this component by responsibility.`,
+              description: `Checks SRP in React.`,
+              code: `function UserCard() {
+  // fetches user, formats dates, renders card
+}`,
+              answer: `Move fetching into useUser, formatting into a helper, and keep UserCard for rendering only.`,
             },
           ],
         },
@@ -281,16 +333,20 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           fix: `const TAX = 1.2, FREE_SHIPPING_FROM = 100, SHIPPING = 5;\nconst finalPrice = (p) => p * TAX + (p > FREE_SHIPPING_FROM ? 0 : SHIPPING);\nconst [priceA, priceB, priceC] = [itemA, itemB, itemC].map((i) => finalPrice(i.price));`,
           exercises: [
             {
-              task: `Give names to the numbers in this code.`,
-              description: `Checks readability. Rewrite the snippet with constants.`,
-              code: `if (password.length < 8 || attempts > 5) lock();`,
-              answer: `Introduce MIN_PASSWORD_LENGTH = 8 and MAX_ATTEMPTS = 5. The condition then reads like the rule. Changes happen in one place.`,
+              task: `Refactor the repeated rule.`,
+              description: `Checks extracting a shared function.`,
+              code: `if (age >= 18 && country === 'US') {}
+// same check in 2 other files`,
+              answer: `Put the rule in one named function and reuse it.`,
+              solution: `export const canApply = u => u.age >= 18 && u.country === 'US';`,
             },
             {
-              task: `These two functions look alike. Should you merge them?`,
-              description: `Checks judgment. Explain in two sentences.`,
-              code: `const userLabel = (u) => u.firstName + ' ' + u.lastName;\nconst cityLabel = (c) => c.name + ' ' + c.country;`,
-              answer: `No. They look similar but represent different knowledge and will change for different reasons. Merging them into a generic join helper adds coupling without value.`,
+              task: `Replace the magic number.`,
+              description: `Checks named constants.`,
+              code: `if (file.size > 5242880) error();`,
+              answer: `Name the value so it is clear and changed in one place.`,
+              solution: `const MAX_FILE_BYTES = 5 * 1024 * 1024;
+if (file.size > MAX_FILE_BYTES) error();`,
             },
           ],
         },
@@ -300,17 +356,24 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           long: `Check preconditions at the start of a function.\nThrow or return early with a meaningful message.\nThis prevents errors surfacing far from their cause.\nGuard clauses also reduce nesting.\nIn UI, validate forms before submitting.\nDo not crash the whole app for user errors; show feedback instead.`,
           exercises: [
             {
-              task: `Rewrite this with early returns.`,
-              description: `Checks guard clauses. Run in Node.`,
-              code: `function pay(order) {\n  if (order) {\n    if (order.total > 0) {\n      return charge(order);\n    }\n  }\n}`,
-              answer: `Throw early for the invalid cases, then do the main work unindented. This makes failure explicit instead of silently returning undefined.`,
-              solution: `function pay(order) {\n  if (!order) throw new Error('order required');\n  if (order.total <= 0) throw new Error('total must be positive');\n  return charge(order);\n}`,
+              task: `Rewrite with guard clauses.`,
+              description: `Checks early returns.`,
+              code: `function save(u) {
+  if (u) {
+    if (u.email) { api.save(u); }
+  }
+}`,
+              answer: `Return early on bad input to flatten the code.`,
+              solution: `function save(u) {
+  if (!u?.email) throw new Error('Email required');
+  api.save(u);
+}`,
             },
             {
-              task: `What bug can happen here? How does fail fast help?`,
-              description: `Checks reasoning. Think about where NaN shows up.`,
-              code: `const total = items.reduce((s, i) => s + i.price, 0);`,
-              answer: `If one item has no price, total becomes NaN and the UI shows "NaN" pages later. Validating items when they arrive from the API catches it at the source. The error then points to the bad data.`,
+              task: `Spot the silent failure.`,
+              description: `Checks hidden errors.`,
+              code: `try { init(); } catch {}`,
+              answer: `The empty catch hides every error. Log it or rethrow, so problems show up early.`,
             },
           ],
         },
@@ -324,14 +387,22 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           fix: `const exporters = { csv: toCsv, json: (d) => JSON.stringify(d), xml: toXml };\nexport const registerExporter = (type, fn) => { exporters[type] = fn; };\nexport function exportData(data, type) {\n  const fn = exporters[type];\n  if (!fn) throw new Error('Unknown export type: ' + type);\n  return fn(data);\n}`,
           exercises: [
             {
-              task: `Add a YAML format without changing exportData.`,
-              description: `Checks extension. Call registerExporter in a separate module.`,
-              answer: `registerExporter('yaml', toYaml) in its own file extends the system. exportData stays untouched and its tests keep passing. Only the new exporter needs new tests.`,
+              task: `Refactor the switch to a map.`,
+              description: `Checks Open/Closed with a registry.`,
+              code: `switch (fmt) {
+  case 'csv': return toCsv(d);
+  case 'json': return toJson(d);
+}`,
+              answer: `New formats are added to the map without editing logic.`,
+              solution: `const exporters = { csv: toCsv, json: toJson };
+return exporters[fmt](d);`,
             },
             {
-              task: `When is this change too much?`,
-              description: `Checks judgment. Answer in 2-3 sentences.`,
-              answer: `If there are two formats that rarely change, a simple switch is clearer. Introduce the registry when variation grows or plugins come from other teams. YAGNI balances OCP.`,
+              task: `Add a new format without changing code.`,
+              description: `Checks extending through registration.`,
+              code: `const exporters = { csv: toCsv };`,
+              answer: `Register the new exporter; the export function stays closed for change.`,
+              solution: `exporters.xml = toXml;`,
             },
           ],
         },
@@ -341,16 +412,21 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           long: `Without DI, business code imports fetch, Date or localStorage directly.\nTests then need global mocks and become brittle.\nPass dependencies as parameters, constructor args or context.\nThe abstraction is often just a function signature in JS/TS.\nA composition root wires real implementations at app start.\nDo not over-engineer with DI containers in small frontends.`,
           exercises: [
             {
-              task: `Make this function easy to test.`,
-              description: `Checks injecting time. Write a unit test with a fixed date.`,
-              code: `export const isExpired = (token) => token.exp * 1000 < Date.now();`,
-              answer: `Add a now parameter with a default: isExpired(token, now = Date.now()). Tests pass a fixed value without mocking globals. Production calls stay unchanged.`,
-              solution: `export const isExpired = (token, now = Date.now()) => token.exp * 1000 < now;\n// test\nexpect(isExpired({ exp: 10 }, 20_000)).toBe(true);`,
+              task: `Inject the dependency.`,
+              description: `Checks dependency inversion for testing.`,
+              code: `function getUsers() {
+  return axios.get('/users');
+}`,
+              answer: `Pass the HTTP client in, so tests use a fake.`,
+              solution: `const getUsers = (http = axios) => http.get('/users');`,
             },
             {
-              task: `Pass an API client into a service from outside.`,
-              description: `Checks DI via factory. Write createUserService(api).`,
-              answer: `createUserService takes an object with get/post. Tests pass a fake object returning canned data. The app passes the real HTTP client once at startup.`,
+              task: `Write a fake for this test.`,
+              description: `Checks fakes over mocks.`,
+              code: `const getUsers = (http) => http.get('/users');`,
+              answer: `A plain object with the same method works as a fake.`,
+              solution: `const http = { get: async () => ({ data: [{ id: 1 }] }) };
+expect((await getUsers(http)).data).toHaveLength(1);`,
             },
           ],
         },
@@ -360,15 +436,17 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           long: `High cohesion: a feature folder holds its UI, hooks and API calls together.\nLow coupling: modules interact through small, stable interfaces.\nTight coupling shows up as changes rippling across many files.\nShared mutable globals and deep imports into other features increase coupling.\nA public API per module reduces it.\nTools like dependency-cruiser can visualize and enforce boundaries.`,
           exercises: [
             {
-              task: `What is wrong with this import?`,
-              description: `Checks recognizing deep imports. Read and explain.`,
-              code: `import { formatRow } from '../../orders/components/table/utils/formatRow';`,
-              answer: `This reaches into another feature's internals, so refactoring orders breaks this file. Expose formatRow via the orders feature's public index, or move it to a shared module if it is generic.`,
+              task: `Name the problem: coupling or cohesion?`,
+              description: `Checks identifying low cohesion.`,
+              code: `// utils.ts: formatDate, uploadFile, parseCsv, validateEmail`,
+              answer: `Low cohesion: unrelated functions in one file. Group them by purpose, like date.ts and upload.ts.`,
             },
             {
-              task: `Write a lint rule that blocks such imports.`,
-              description: `Checks tooling. Write an ESLint no-restricted-imports pattern.`,
-              answer: `Use no-restricted-imports with patterns like 'features/*/*' so only a feature's index can be imported. Violations fail lint, keeping coupling visible.`,
+              task: `Spot the tight coupling.`,
+              description: `Checks knowledge of another module's internals.`,
+              code: `cart.items.push(item);
+cart.total += item.price;`,
+              answer: `The caller changes cart internals directly. Use a cart.add(item) method that keeps total correct.`,
             },
           ],
         },
@@ -382,14 +460,21 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           fix: `class Rectangle { constructor(w, h) { this.w = w; this.h = h; } area() { return this.w * this.h; } }\nclass Square { constructor(s) { this.s = s; } area() { return this.s * this.s; } }\n// both satisfy { area(): number }`,
           exercises: [
             {
-              task: `Write a test that shows the problem.`,
-              description: `Checks behavioral contracts. Run with Vitest.`,
-              answer: `Write a helper that takes a Rectangle, sets width 5 and height 4 and expects area 20. Run it with both classes; Square returns 16. Shared contract tests like this catch LSP breaks.`,
+              task: `Predict the area.`,
+              description: `Checks Liskov violation.`,
+              code: `const r = new Square();
+r.setWidth(5);
+r.setHeight(4);
+console.log(r.area());`,
+              answer: `16, not 20. Square changes both sides, so it breaks the Rectangle contract. Do not inherit; use a common Shape.`,
             },
             {
-              task: `Give an example of this problem in a UI component.`,
-              description: `Checks applying LSP to frontend. Explain in 2-3 sentences.`,
-              answer: `A ReadOnlyInput that extends Input but throws when onChange is called breaks the contract. Callers expecting an Input crash. Use composition or a separate prop interface instead.`,
+              task: `Spot the Liskov problem.`,
+              description: `Checks subclasses that throw.`,
+              code: `class ReadOnlyList extends List {
+  add() { throw new Error('read only'); }
+}`,
+              answer: `Code using List expects add to work. Split into a readable interface and a writable one.`,
             },
           ],
         },
@@ -400,14 +485,15 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           ai: true,
           exercises: [
             {
-              task: `Two features share one address check. One feature now needs PO boxes. What do you do?`,
-              description: `Checks trade-off reasoning. Decide and explain.`,
-              answer: `If the rules differ by business context, split them and accept duplication. Keep shared low-level pieces (postal code rules per country) and let each feature compose them. Avoid flags like allowPoBox that grow without bound.`,
+              task: `Decide: share this helper across apps?`,
+              description: `Checks DRY versus coupling.`,
+              code: `// Same 5-line date helper in two apps`,
+              answer: `Keep the copy. Sharing five lines adds a package dependency and coupling that costs more than the duplication.`,
             },
             {
-              task: `How do you remove a wrong abstraction?`,
-              description: `Checks refactoring strategy. Outline the steps.`,
-              answer: `Inline the abstraction back into each caller, delete parameters that only one caller uses, and let each copy simplify. Then look for genuinely common parts and re-extract only those. Tests keep behavior stable.`,
+              task: `Name a question to settle a principle conflict.`,
+              description: `Checks reasoning about change.`,
+              answer: `"Will these change for the same reason?" If yes, share; if no, duplicate.`,
             },
           ],
         },
@@ -419,15 +505,23 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           fix: `const currentId = () => counter;\nfunction allocateId() { counter += 1; }\nif (currentId() >= 10) reset();\nallocateId();`,
           exercises: [
             {
-              task: `What is wrong with this selector?`,
-              description: `Checks side effects in queries. Reason about React rendering.`,
-              code: `const selectUser = (s) => { analytics.track('read'); return s.user; };`,
-              answer: `A selector should be a pure query. Tracking inside it fires on every render or subscription check, and twice in StrictMode development. Move tracking to an event handler or effect.`,
+              task: `Split this into a query and a command.`,
+              description: `Checks Command-Query Separation.`,
+              code: `function nextId() {
+  return ++counter;
+}`,
+              answer: `Reading should not change state. Split read and write.`,
+              solution: `const currentId = () => counter;
+const incrementId = () => { counter++; };`,
             },
             {
-              task: `Name a case where mixing is fine.`,
-              description: `Checks nuance. Answer briefly.`,
-              answer: `Array.prototype.pop or an atomic compare-and-set return a value and mutate, because splitting them would cause race conditions or awkward APIs. The name makes the mutation obvious.`,
+              task: `Spot the CQS violation.`,
+              description: `Checks getters with side effects.`,
+              code: `get user() {
+  this.loads++;
+  return this._user;
+}`,
+              answer: `A getter that changes state surprises callers. Move the counter into an explicit method.`,
             },
           ],
         },
@@ -440,14 +534,18 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           ai: true,
           exercises: [
             {
-              task: `Write a rule so features cannot import each other.`,
-              description: `Checks tooling. Write a dependency-cruiser rule.`,
-              answer: `Add a forbidden rule with from path "^src/features/([^/]+)/" and to path "^src/features/(?!$1)" so a feature cannot import another. Allow shared code via src/shared. Run depcruise in CI.`,
+              task: `Write a lint rule for function size.`,
+              description: `Checks enforcing complexity limits.`,
+              answer: `ESLint can fail CI for complex or long functions.`,
+              solution: `rules: {
+  complexity: ['error', 10],
+  'max-lines-per-function': ['warn', 60],
+}`,
             },
             {
-              task: `The code has many old violations. How do you add the rule without blocking work?`,
-              description: `Checks adoption strategy. Outline in bullets.`,
-              answer: `Record current violations in a baseline file, fail CI only for new ones, and track the count on a dashboard. Teams fix violations when touching files. Remove the baseline when it hits zero.`,
+              task: `Name a tool to block circular imports.`,
+              description: `Checks dependency checks in CI.`,
+              answer: `madge --circular or eslint-plugin-import's import/no-cycle rule in CI.`,
             },
           ],
         },
@@ -459,14 +557,15 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           fix: `export const formatMoney = (cents, currency = 'USD', locale) =>\n  new Intl.NumberFormat(locale, { style: 'currency', currency }).format(cents / 100);\nexport const formatPercent = (ratio, locale) =>\n  new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(ratio);\n/** @deprecated use formatMoney/formatPercent */\nexport function formatValue(v, type, opts) { /* delegates */ }`,
           exercises: [
             {
-              task: `Plan how to retire the old function.`,
-              description: `Checks change management. Write steps with timelines.`,
-              answer: `Mark it deprecated with JSDoc so IDEs strike it through, add a lint warning, provide a codemod, and set a removal date. Track remaining call sites weekly and remove when zero.`,
+              task: `Spot the problem with this helper.`,
+              description: `Checks flag-driven shared code.`,
+              code: `formatDate(d, { team: 'billing', legacy: true, short: false })`,
+              answer: `Team flags show many teams changing one function. Split it into small focused helpers with an owner.`,
             },
             {
-              task: `Why is Intl better than custom code here?`,
-              description: `Checks platform knowledge. Answer in 2-3 sentences.`,
-              answer: `Intl handles locale-specific separators, currency symbols and rounding correctly. Custom toFixed code breaks for many locales and currencies like JPY with zero decimals. It also reduces bundle code.`,
+              task: `Name a process fix for a shared helper.`,
+              description: `Checks ownership of shared code.`,
+              answer: `Give it an owner in CODEOWNERS, add tests for each use, and require that owner's review on changes.`,
             },
           ],
         },
@@ -477,14 +576,17 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           ai: true,
           exercises: [
             {
-              task: `Write a polite review comment for this change.`,
-              description: `Checks communication. Draft a constructive PR comment.`,
-              answer: `Acknowledge the goal, ask which upcoming requirement the interface supports, and propose inlining until a second implementation exists. Offer to note the extension point in an ADR. Keep tone collaborative.`,
+              task: `Spot the over-engineering.`,
+              description: `Checks needless abstraction layers.`,
+              code: `UserController -> UserService -> UserManager
+  -> UserRepository -> UserApiAdapter -> fetch`,
+              answer: `Five layers just wrap one fetch. Start with a simple service and add layers when a real need appears.`,
             },
             {
-              task: `Write three or four simple team rules about abstraction.`,
-              description: `Checks lightweight policy. List the rules.`,
-              answer: `Prefer concrete code until a second use case; abstractions need a named consumer; boundaries between features are mandatory, internal abstractions are optional; revisit at milestones. These keep speed without chaos.`,
+              task: `Name how you start the talk with him.`,
+              description: `Checks respectful technical disagreement.`,
+              code: `// Senior dev insists layers are needed for SOLID`,
+              answer: `Ask which concrete change each layer makes easier, then agree on a simpler version and revisit when needs grow.`,
             },
           ],
         },
@@ -498,16 +600,22 @@ function handleLogout() { clearUserData(); location.assign('/login'); }`,
           long: `React and many state libraries detect changes with reference equality.\nMutating an array in place keeps the same reference, so UI may not update.\nUse spread, map, filter, or toSorted/toSpliced/with (ES2023) for copies.\nconst only prevents reassignment, not mutation.\nstructuredClone makes deep copies when needed.\nObject.freeze makes objects shallowly read-only.`,
           exercises: [
             {
-              task: `What does this code print?`,
-              description: `Checks const vs immutability. Run in Node.`,
-              code: `const a = [1, 2];\nconst b = a;\nb.push(3);\nconsole.log(a);`,
-              answer: `It logs [1, 2, 3]. a and b reference the same array, and push mutates it. const only prevents reassigning a.`,
+              task: `Fix the state mutation.`,
+              description: `Checks immutable updates in React.`,
+              code: `const add = item => {
+  items.push(item);
+  setItems(items);
+};`,
+              answer: `Same array reference, so React may not re-render. Create a new array.`,
+              solution: `const add = item => setItems(prev => [...prev, item]);`,
             },
             {
-              task: `Add an item to a list without changing the old list.`,
-              description: `Checks spread. Write addTodo(todos, todo).`,
-              answer: `Return a new array with spread: [...todos, todo]. The original array stays unchanged and React sees a new reference.`,
-              solution: `const addTodo = (todos, todo) => [...todos, todo];`,
+              task: `Predict the output.`,
+              description: `Checks that const does not freeze objects.`,
+              code: `const user = { name: 'Ann' };
+user.name = 'Bob';
+console.log(user.name);`,
+              answer: `"Bob". const stops reassignment, not changes to the object. Use Object.freeze for shallow immutability.`,
             },
           ],
         },
@@ -526,16 +634,19 @@ Strong answer: knows both arrow forms and the object literal trap.`,
           follow: `What does (u) => { id: u.id } return, and why?`,
           exercises: [
             {
-              task: `What does this return? Fix it.`,
-              description: `Checks the object literal trap.`,
-              code: `const rows = users.map((u) => { id: u.id, label: u.name });`,
-              answer: `It is a syntax error, because the braces are read as a block, not an object. Wrap the object in parentheses: users.map((u) => ({ id: u.id, label: u.name })).`,
+              task: `Fix the bug.`,
+              description: `Checks missing return in arrow function body.`,
+              code: `const names = users.map(u => { u.name; });`,
+              answer: `Curly braces need return. Use an expression body.`,
+              solution: `const names = users.map(u => u.name);`,
             },
             {
-              task: `This filter keeps nothing. Why?`,
-              description: `Checks the same bug in filter.`,
-              code: `const active = users.filter((u) => { u.active; });`,
-              answer: `The callback returns undefined, which is falsy, so every item is removed. Use (u) => u.active.`,
+              task: `Predict the output.`,
+              description: `Checks returning object literals from arrows.`,
+              code: `const r = [1, 2].map(n => { id: n });
+console.log(r);`,
+              answer: `[undefined, undefined]. Braces are read as a block with a label. Wrap the object in parentheses.`,
+              solution: `const r = [1, 2].map(n => ({ id: n }));`,
             },
           ],
         },
@@ -545,16 +656,20 @@ Strong answer: knows both arrow forms and the object literal trap.`,
           long: `Pure functions return the same output for the same input with no side effects.\nSide effects are necessary; the goal is to isolate them.\nExamples: fetch, document.title changes, localStorage, console.log, Math.random, Date.now.\nKeep business logic pure and push effects to edges (event handlers, effects, services).\nPure code is easy to test without mocks.`,
           exercises: [
             {
-              task: `Which of these functions are pure?`,
-              description: `Checks recognition. Mark each.`,
-              code: `const a = (x) => x * 2;\nconst b = (x) => { console.log(x); return x; };\nconst c = () => Date.now();\nconst d = (arr) => arr.push(1);`,
-              answer: `a is pure. b logs (side effect), c depends on time (non-deterministic), and d mutates its input. Only a is safe to memoize and test trivially.`,
+              task: `Name the side effects in this function.`,
+              description: `Checks recognizing side effects.`,
+              code: `function save(u) {
+  console.log('save');
+  localStorage.setItem('u', JSON.stringify(u));
+  return fetch('/u', { method: 'POST' });
+}`,
+              answer: `Logging, writing storage, and a network request. All change the outside world.`,
             },
             {
-              task: `Make this function pure.`,
-              description: `Checks extracting effects. Refactor so the hour is passed in.`,
-              code: `const greet = (name) => (new Date().getHours() < 12 ? 'Good morning ' : 'Hello ') + name;`,
-              answer: `Pass the hour as a parameter: greet(name, hour). The caller provides new Date().getHours(). Tests can now check both branches deterministically.`,
+              task: `Is this function pure?`,
+              description: `Checks randomness as a side effect.`,
+              code: `const makeId = () => Math.random().toString(36).slice(2);`,
+              answer: `No. It returns a different value each call. Pass the random source in to make it testable.`,
             },
           ],
         },
@@ -568,15 +683,23 @@ Strong answer: knows both arrow forms and the object literal trap.`,
           fix: `const max = prices.length ? Math.max(...prices) : null;\nconst totals = orders.reduce((acc, o) => {\n  acc[o.user] = (acc[o.user] ?? 0) + o.sum;\n  return acc;\n}, {});`,
           exercises: [
             {
-              task: `Group orders by user with Object.groupBy.`,
-              description: `Checks modern APIs. Run in Node 21+ or a current browser.`,
-              answer: `Object.groupBy(orders, (o) => o.user) returns a null-prototype object mapping user to array of orders. Map.groupBy returns a Map, useful for non-string keys.`,
+              task: `Fix the crash on empty arrays.`,
+              description: `Checks reduce initial value.`,
+              code: `const max = nums.reduce((a, b) => Math.max(a, b));`,
+              answer: `reduce with no initial value throws on []. Give a start value.`,
+              solution: `const max = nums.reduce((a, b) => Math.max(a, b), -Infinity);`,
             },
             {
-              task: `Why is this code slow for big lists?`,
-              description: `Checks performance awareness. Analyze the cost.`,
-              code: `items.reduce((acc, i) => ({ ...acc, [i.id]: i }), {});`,
-              answer: `Each step copies the whole accumulator, so it is O(n squared). For large lists mutate the local accumulator (it is not shared), or use Object.fromEntries(items.map(i => [i.id, i])).`,
+              task: `Fix the bug.`,
+              description: `Checks returning the accumulator.`,
+              code: `const byId = list.reduce((acc, x) => {
+  acc[x.id] = x;
+}, {});`,
+              answer: `The callback returns undefined, so acc is lost. Return acc.`,
+              solution: `const byId = list.reduce((acc, x) => {
+  acc[x.id] = x;
+  return acc;
+}, {});`,
             },
           ],
         },
@@ -591,21 +714,17 @@ Strong answer: uses it for short pipelines and names arguments when it makes cod
           follow: `Why is passing a function directly to map sometimes a bug?`,
           exercises: [
             {
-              task: `Rewrite this to be easier to read for the whole team.`,
-              description: `Checks judgment, not cleverness.`,
-              code: `const f = pipe(filter(propEq('active', true)), map(pick(['id','name'])), sortBy(prop('name')));`,
-              answer: `Give the function a clear name, or write it with named arguments and plain array methods if the team does not use the library every day.`,
-              solution: `const activeUsersByName = (users) => users
-  .filter((u) => u.active)
-  .map(({ id, name }) => ({ id, name }))
-  .sort((a, b) => a.name.localeCompare(b.name));`,
+              task: `Rewrite in point-free style.`,
+              description: `Checks passing functions directly.`,
+              code: `const ids = users.map(u => getId(u));`,
+              answer: `Pass the function itself, since it takes one argument.`,
+              solution: `const ids = users.map(getId);`,
             },
             {
-              task: `Write a small pipe helper and use it point-free.`,
-              description: `Checks that the candidate understands composition.`,
-              answer: `pipe takes functions and returns a function that passes a value through them from left to right.`,
-              solution: `const pipe = (...fns) => (x) => fns.reduce((v, f) => f(v), x);
-const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s+/g, '-'));`,
+              task: `Predict the output.`,
+              description: `Checks point-free pitfalls with extra arguments.`,
+              code: `console.log(['1', '2', '3'].map(Number));`,
+              answer: `[1, 2, 3]. Number takes one argument, so this is safe, unlike map(parseInt).`,
             },
           ],
         },
@@ -615,15 +734,22 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           long: `Exceptions are invisible in function signatures.\nA Result/Either type makes failure part of the return value.\nIn TS a discriminated union works without libraries.\nCompose with helpers like map and andThen, or early returns.\nKeep throwing for truly unexpected bugs.\nAt boundaries (fetch, JSON.parse) convert exceptions to Results.`,
           exercises: [
             {
-              task: `Wrap JSON.parse so it returns a result object.`,
-              description: `Checks the pattern. Write safeParse and test valid/invalid input.`,
-              answer: `Catch the error and return { ok: false, error }, otherwise { ok: true, value }. Callers check ok before using value.`,
-              solution: `const safeParse = (s) => {\n  try { return { ok: true, value: JSON.parse(s) }; }\n  catch (error) { return { ok: false, error }; }\n};`,
+              task: `Write a safe JSON parse that returns a result.`,
+              description: `Checks returning errors as values.`,
+              code: `const safeParse = s => { /* return { ok, value | error } */ };`,
+              answer: `Return an object that says ok or error instead of throwing.`,
+              solution: `const safeParse = s => {
+  try { return { ok: true, value: JSON.parse(s) }; }
+  catch (error) { return { ok: false, error }; }
+};`,
             },
             {
-              task: `Chain two steps that can fail.`,
-              description: `Checks composition. Parse JSON, then validate an email field.`,
-              answer: `Return early if the first result is not ok, then run validation on value and return its result. A small andThen helper removes the repetition: andThen(r, f) => r.ok ? f(r.value) : r.`,
+              task: `Use the result without try/catch.`,
+              description: `Checks handling a Result type.`,
+              code: `const r = safeParse(input);`,
+              answer: `Check the ok flag, so TypeScript narrows the type.`,
+              solution: `if (r.ok) render(r.value);
+else showError(r.error.message);`,
             },
           ],
         },
@@ -637,15 +763,17 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           fix: `const ids = ['10', '10', '10'].map((s) => Number.parseInt(s, 10));`,
           exercises: [
             {
-              task: `Write a unary helper that passes only the first argument.`,
-              description: `Checks arity control. Use it with parseInt.`,
-              answer: `unary returns a function that forwards only the first argument. ['1','2'].map(unary(parseInt)) then works.`,
-              solution: `const unary = (fn) => (x) => fn(x);`,
+              task: `Predict the output.`,
+              description: `Checks map passing the index to parseInt.`,
+              code: `console.log(['10', '10', '10'].map(parseInt));`,
+              answer: `[10, NaN, 2]. map passes the index as radix: radix 1 is invalid and "10" in base 2 is 2.`,
+              solution: `['10', '10', '10'].map(s => parseInt(s, 10));`,
             },
             {
-              task: `Is it safe to pass Number.parseFloat directly to map? Why?`,
-              description: `Checks generalization. Compare with parseInt.`,
-              answer: `Yes, parseFloat takes only one parameter, so extra map arguments are ignored. parseInt has an optional second parameter, which map fills with the index. Optional parameters are the trap, so prefer explicit lambdas in shared code.`,
+              task: `Predict the output.`,
+              description: `Checks extra arguments with filter(Boolean).`,
+              code: `console.log([0, 1, '', 'a', null].filter(Boolean));`,
+              answer: `[1, 'a']. Boolean drops all falsy values, including 0 and the empty string.`,
             },
           ],
         },
@@ -656,16 +784,25 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           ai: true,
           exercises: [
             {
-              task: `What is not pure in this component?`,
-              description: `Checks render purity. Explain what StrictMode reveals.`,
-              code: `let renders = 0;\nfunction Badge() { renders++; return <span>{renders}</span>; }`,
-              answer: `It mutates module state during render, so the number depends on render count, which StrictMode doubles in development. Concurrent rendering can also discard renders. Use state or a ref updated in an effect if you need counting.`,
+              task: `Spot the impure render.`,
+              description: `Checks side effects during render.`,
+              code: `function Clock() {
+  document.title = 'Now';
+  return <p>{Date.now()}</p>;
+}`,
+              answer: `Render changes the document and reads time. Move the title update into useEffect.`,
             },
             {
-              task: `This reducer changes the old state. Rewrite it.`,
-              description: `Checks immutable reducers. Run with a quick test.`,
-              code: `function reducer(s, a) { if (a.type === 'add') s.items.push(a.item); return s; }`,
-              answer: `Return a new state object: { ...s, items: [...s.items, a.item] }. The original returns the same reference, so React bails out and the UI does not update.`,
+              task: `Fix the reducer.`,
+              description: `Checks pure reducers.`,
+              code: `function reducer(s, a) {
+  s.count++;
+  return s;
+}`,
+              answer: `It mutates state, so React sees the same object. Return a new object.`,
+              solution: `function reducer(s, a) {
+  return { ...s, count: s.count + 1 };
+}`,
             },
           ],
         },
@@ -675,15 +812,21 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           long: `arr.map().filter().slice(0, 5) builds full intermediate arrays.\nA generator pipeline processes one item at a time through all steps.\nIt stops as soon as enough results are produced.\nIterator helpers (Iterator.prototype.map/filter/take) ship in current Chrome, Firefox and Safari.\nFor small arrays, plain array methods are faster and clearer.\nAsync generators help with paginated APIs.`,
           exercises: [
             {
-              task: `Get the first three even squares, computing only what you need.`,
-              description: `Checks generators. Run in Node 22+.`,
-              answer: `Write a naturals generator, then chain iterator helpers map, filter and take(3), and spread into an array. Only the needed values are computed.`,
-              solution: `function* naturals() { let n = 1; while (true) yield n++; }\nconsole.log([...naturals().map((n) => n * n).filter((n) => n % 2 === 0).take(3)]);`,
+              task: `Write a generator for numbers from 1 up.`,
+              description: `Checks infinite lazy sequences.`,
+              code: `// naturals() yields 1, 2, 3, ... forever`,
+              answer: `A generator yields values only when asked, so infinite is safe.`,
+              solution: `function* naturals() {
+  let n = 1;
+  while (true) yield n++;
+}`,
             },
             {
-              task: `Read a paged API with an async generator.`,
-              description: `Checks async iteration. Sketch it with fetch.`,
-              answer: `Loop while a next cursor exists, fetch a page and yield each item. Consumers use for await and can break early, which stops further requests.`,
+              task: `Take the first three values lazily.`,
+              description: `Checks iterator helpers.`,
+              code: `const it = naturals();`,
+              answer: `Iterator helpers like take work lazily in modern browsers.`,
+              solution: `console.log(naturals().take(3).toArray()); // [1, 2, 3]`,
             },
           ],
         },
@@ -697,14 +840,26 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           fix: `export function decideApproval(app) {\n  if (app.flags.length) return { ok: false, reason: 'flagged' };\n  if (app.score <= 80) return { ok: false, reason: 'low score' };\n  return { ok: true, next: { ...app, status: 'approved' } };\n}\nasync function approve(appId) {\n  const r = decideApproval(await api.get(appId));\n  if (!r.ok) return toast('Cannot approve: ' + r.reason);\n  await api.save(r.next);\n  toast('Approved');\n}`,
           exercises: [
             {
-              task: `Write table tests for the pure function.`,
-              description: `Checks testability. Use Vitest it.each.`,
-              answer: `List cases (flagged, low score, approved) with inputs and expected results and assert decideApproval output. No mocks are needed, and new rules add rows.`,
+              task: `Split the pure logic from the side effects.`,
+              description: `Checks functional core, imperative shell.`,
+              code: `async function apply() {
+  const app = await api.get();
+  if (app.score > 80) await api.admit(app.id);
+}`,
+              answer: `Extract the decision as a pure function; keep the API calls in a thin outer function.`,
+              solution: `const shouldAdmit = app => app.score > 80;
+async function apply() {
+  const app = await api.get();
+  if (shouldAdmit(app)) await api.admit(app.id);
+}`,
             },
             {
-              task: `How does this help the team?`,
-              description: `Checks leadership framing. 2-3 sentences.`,
-              answer: `Rules become readable and reviewable through tests, and changes are low risk. Onboarding is easier because I/O patterns live in one place.`,
+              task: `Write a test for the pure part.`,
+              description: `Checks testing pure logic without mocks.`,
+              code: `const shouldAdmit = app => app.score > 80;`,
+              answer: `No mocks needed: pass data, check output.`,
+              solution: `expect(shouldAdmit({ score: 81 })).toBe(true);
+expect(shouldAdmit({ score: 80 })).toBe(false);`,
             },
           ],
         },
@@ -715,15 +870,16 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           ai: true,
           exercises: [
             {
-              task: `Rewrite this code so it is easy to read.`,
-              description: `Checks judgment. Rewrite the snippet clearly.`,
-              code: `const r = pipe(filter(propEq('active', true)), map(prop('email')), uniq, join(', '))(users);`,
-              answer: `Use native methods with names: const emails = users.filter(u => u.active).map(u => u.email); then new Set and join. It is understandable without knowing Ramda.`,
+              task: `Spot the readability problem.`,
+              description: `Checks overly clever FP code.`,
+              code: `const f = compose(map(prop('n')), filter(propEq('a', true)));`,
+              answer: `Hard to read for most of the team. Plain filter and map with arrows says the same thing clearly.`,
+              solution: `const f = list => list.filter(x => x.a).map(x => x.n);`,
             },
             {
-              task: `Which lint rules support these guidelines?`,
-              description: `Checks enforcement. Name rules.`,
-              answer: `no-param-reassign with props, prefer-const, eslint-plugin-functional's immutable-data limited to domain folders, and react-hooks rules. Keep them scoped to avoid friction in imperative glue code.`,
+              task: `Write a short team rule for FP style.`,
+              description: `Checks practical style guidance.`,
+              answer: `Prefer pure functions and immutable updates; avoid point-free chains longer than two steps and custom FP helpers.`,
             },
           ],
         },
@@ -733,14 +889,16 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           long: `Manual spreading of deep updates is verbose and error-prone.\nImmer lets you write mutations on a draft and produces a new immutable object.\nRedux Toolkit already uses Immer.\nImmutable.js uses its own collections, needs toJS conversions and has low activity.\nThe native Records and Tuples proposal was withdrawn.\nMeasure overhead in hot paths; Immer has some cost for large drafts.`,
           exercises: [
             {
-              task: `Update a nested field with Immer.`,
-              description: `Checks Immer usage. Run with immer installed.`,
-              answer: `produce(state, draft => { draft.user.address.city = 'Kyiv'; }) returns a new state with only changed branches copied. Unchanged subtrees keep references.`,
+              task: `Rewrite this update with Immer.`,
+              description: `Checks Immer produce.`,
+              code: `setUser(u => ({ ...u, address: { ...u.address, city: 'Kyiv' } }));`,
+              answer: `Immer lets you write a mutation on a draft and returns a new object.`,
+              solution: `setUser(produce(d => { d.address.city = 'Kyiv'; }));`,
             },
             {
-              task: `List the sections of a decision record for this choice.`,
-              description: `Checks ADR thinking. List sections.`,
-              answer: `Context (deep updates, bugs), options (manual, Immer, Immutable.js), decision with rationale, consequences (bundle size, perf, learning), and migration plan. Include revisit criteria.`,
+              task: `Name a reason not to adopt Immutable.js.`,
+              description: `Checks library trade-offs.`,
+              answer: `It uses its own data types, so you convert to plain objects at every boundary. Immer works with plain objects.`,
             },
           ],
         },
@@ -754,16 +912,20 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           long: `class User { constructor(name) { this.name = name; } } defines the shape.\nnew User('Ann') creates an instance with its own data.\nMethods live on the prototype and are shared by instances.\nEach instance has its own field values.\nIn JS, classes are syntax over prototypes.\ninstanceof checks if the class prototype is in the object's chain.`,
           exercises: [
             {
-              task: `What does this code print?`,
-              description: `Checks prototype sharing. Run in Node.`,
-              code: `class Dog { bark() { return 'woof'; } }\nconst a = new Dog(), b = new Dog();\nconsole.log(a.bark === b.bark, a === b);`,
-              answer: `It logs true false. The method is shared on Dog.prototype, but a and b are different objects.`,
+              task: `Predict the output.`,
+              description: `Checks class instances are separate objects.`,
+              code: `class Dog { name = 'Rex'; }
+const a = new Dog(), b = new Dog();
+a.name = 'Max';
+console.log(b.name, a === b);`,
+              answer: `Rex false. Each new call makes a separate object from the class blueprint.`,
             },
             {
-              task: `Write a Counter class.`,
-              description: `Checks basic class syntax. Test increment and value.`,
-              answer: `Store count in a field initialized to 0, add increment() that adds one, and a value getter. Each instance tracks its own count.`,
-              solution: `class Counter {\n  count = 0;\n  increment() { this.count++; }\n  get value() { return this.count; }\n}`,
+              task: `Predict the output.`,
+              description: `Checks that classes are functions.`,
+              code: `class A {}
+console.log(typeof A, typeof new A());`,
+              answer: `"function" and "object". A class is a special function; an instance is an object.`,
             },
           ],
         },
@@ -775,16 +937,27 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           fix: `class Cat extends Animal {\n  lives = 9;\n  constructor(name) {\n    super(name);\n  }\n}`,
           exercises: [
             {
-              task: `Override a method and also call the parent method.`,
-              description: `Checks super.method. Run in Node.`,
-              answer: `Define speak() in the subclass and call super.speak() inside it, then add behavior. This extends rather than replaces the parent logic.`,
-              solution: `class Animal { speak() { return 'sound'; } }\nclass Cat extends Animal { speak() { return super.speak() + ': meow'; } }`,
+              task: `Fix the bug.`,
+              description: `Checks calling super before this.`,
+              code: `class Admin extends User {
+  constructor(name) {
+    this.role = 'admin';
+    super(name);
+  }
+}`,
+              answer: `this is not ready until super runs. Call super first.`,
+              solution: `constructor(name) {
+  super(name);
+  this.role = 'admin';
+}`,
             },
             {
-              task: `What does this code print?`,
-              description: `Checks instanceof. Run in Node.`,
-              code: `class A {}\nclass B extends A {}\nconst b = new B();\nconsole.log(b instanceof A, b instanceof B);`,
-              answer: `It logs true true. B.prototype inherits from A.prototype, so both are in b's chain.`,
+              task: `Predict the output.`,
+              description: `Checks calling the parent method with super.`,
+              code: `class A { hi() { return 'A'; } }
+class B extends A { hi() { return super.hi() + 'B'; } }
+console.log(new B().hi());`,
+              answer: `"AB". super.hi() calls the parent method, then B adds its part.`,
             },
           ],
         },
@@ -794,15 +967,21 @@ const slug = pipe((s) => s.trim(), (s) => s.toLowerCase(), (s) => s.replace(/\\s
           long: `Encapsulation protects invariants by controlling how state changes.\nThe old _underscore convention is only a hint.\n#field syntax is enforced by the engine.\nAccessing obj.#field outside the class is a SyntaxError.\nPrivate methods (#method) and static privates also exist.\nUse getters to expose read-only views.`,
           exercises: [
             {
-              task: `Make the balance private in a bank account class.`,
-              description: `Checks # syntax. Write BankAccount with deposit and balance getter.`,
-              answer: `Use #balance = 0, a deposit that validates positive amounts, and get balance(). Outside code cannot set #balance directly, so invariants hold.`,
-              solution: `class BankAccount {\n  #balance = 0;\n  deposit(n) { if (n <= 0) throw new Error('positive only'); this.#balance += n; }\n  get balance() { return this.#balance; }\n}`,
+              task: `Predict the result.`,
+              description: `Checks private field access.`,
+              code: `class Bank { #balance = 10; }
+console.log(new Bank().#balance);`,
+              answer: `SyntaxError. #balance can only be used inside the class body.`,
             },
             {
-              task: `Check if an object is a real instance, using its private field.`,
-              description: `Checks the #x in obj syntax. Write a static isAccount.`,
-              answer: `static isAccount(o) { return #balance in o; } returns true only for real instances. It is a reliable brand check, unlike instanceof across realms.`,
+              task: `Add a safe way to read the balance.`,
+              description: `Checks getters with private fields.`,
+              code: `class Bank { #balance = 10; }`,
+              answer: `Expose a getter but no setter, so outside code cannot change it.`,
+              solution: `class Bank {
+  #balance = 10;
+  get balance() { return this.#balance; }
+}`,
             },
           ],
         },
@@ -833,15 +1012,22 @@ Strong answer: protects invariants, removes duplicated state, and keeps the publ
           follow: `When is returning a copy too slow, and what can you do instead?`,
           exercises: [
             {
-              task: `Is a shallow copy enough? What can a caller still break?`,
-              description: `Checks shallow vs deep copy.`,
-              answer: `A shallow copy protects the array, but the item objects are shared, so cart.items[0].price = 0 still changes the cart. Freeze items, copy them, or store immutable values.`,
+              task: `Fix the encapsulation leak.`,
+              description: `Checks returning internal arrays.`,
+              code: `class Cart {
+  #items = [];
+  get items() { return this.#items; }
+}`,
+              answer: `Callers can push into the private array. Return a copy or a read-only view.`,
+              solution: `get items() { return [...this.#items]; }`,
             },
             {
-              task: `Add a remove method that keeps the cart valid.`,
-              description: `Checks keeping changes inside the class.`,
-              answer: `Remove by id with filter on the private list; total stays correct because it is computed.`,
-              solution: `remove(id) { this.#items = this.#items.filter((i) => i.id !== id); }`,
+              task: `Predict the output.`,
+              description: `Checks Object.freeze is shallow.`,
+              code: `const cfg = Object.freeze({ list: [1] });
+cfg.list.push(2);
+console.log(cfg.list);`,
+              answer: `[1, 2]. freeze is shallow: the inner array can still change.`,
             },
           ],
         },
@@ -851,15 +1037,22 @@ Strong answer: protects invariants, removes duplicated state, and keeps the publ
           long: `Example: payment methods each implement pay(amount).\nCheckout calls method.pay() without knowing if it is card or PayPal.\nIn JS it is duck typing; in TS, interfaces make it explicit.\nIt replaces switch statements on type.\nIn React, components receiving the same props shape are polymorphic too.\nOveruse creates indirection; use it where variants are real.`,
           exercises: [
             {
-              task: `Replace this type check with polymorphism.`,
-              description: `Checks the refactor. Write shape classes with area().`,
-              code: `function area(s) { if (s.type === 'circle') return Math.PI * s.r ** 2; if (s.type === 'sq') return s.a ** 2; }`,
-              answer: `Create Circle and Square classes each with area(). Callers call shape.area(). Adding a triangle means a new class, not editing area().`,
+              task: `Replace the if chain with polymorphism.`,
+              description: `Checks shared method interface.`,
+              code: `if (n.type === 'email') sendEmail(n);
+else if (n.type === 'sms') sendSms(n);`,
+              answer: `Give each notifier the same send method and call it.`,
+              solution: `const notifiers = { email: new EmailNotifier(), sms: new SmsNotifier() };
+notifiers[n.type].send(n);`,
             },
             {
-              task: `Add TypeScript types for the shapes.`,
-              description: `Checks interfaces. Write the Shape interface.`,
-              answer: `interface Shape { area(): number } and classes implement it. Functions accept Shape and the compiler enforces every variant has area. A discriminated union with exhaustive switch is a valid functional alternative.`,
+              task: `Predict the output.`,
+              description: `Checks method overriding.`,
+              code: `class A { name() { return 'A'; } }
+class B extends A { name() { return 'B'; } }
+const list = [new A(), new B()];
+console.log(list.map(x => x.name()));`,
+              answer: `['A', 'B']. Each object uses its own class method.`,
             },
           ],
         },
@@ -869,16 +1062,22 @@ Strong answer: protects invariants, removes duplicated state, and keeps the publ
           long: `Declared with static, accessed as ClassName.member.\nGood for factory methods like User.fromJSON(data).\nStatic blocks (static {}) run once for complex initialization.\nStatic state is shared globally, which complicates tests.\nA class with only static methods is usually better as a module of functions.\nthis inside a static method refers to the class (subclasses too).`,
           exercises: [
             {
-              task: `Write a static method that builds a User from API data.`,
-              description: `Checks static usage. Create User.fromApi(dto).`,
-              answer: `static fromApi(dto) maps API fields to constructor args and returns new User(...). It keeps parsing logic close to the model and allows validation before construction.`,
-              solution: `class User {\n  constructor(id, name) { this.id = id; this.name = name; }\n  static fromApi(d) { return new User(d.user_id, d.full_name); }\n}`,
+              task: `Predict the output.`,
+              description: `Checks static members belong to the class.`,
+              code: `class Id { static count = 0; }
+const i = new Id();
+console.log(Id.count, i.count);`,
+              answer: `0 undefined. Static fields live on the class, not on instances.`,
             },
             {
-              task: `Why can this static field cause test problems?`,
-              description: `Checks global state awareness. Explain.`,
-              code: `class Cache { static items = new Map(); }`,
-              answer: `All tests share one Map, so state leaks between tests and order matters. Use instances injected where needed or reset in beforeEach.`,
+              task: `Write a static factory method.`,
+              description: `Checks a good use of static methods.`,
+              code: `class Money { constructor(cents) { this.cents = cents; } }`,
+              answer: `A static factory gives a clear name for creating instances.`,
+              solution: `class Money {
+  constructor(cents) { this.cents = cents; }
+  static fromDollars(d) { return new Money(Math.round(d * 100)); }
+}`,
             },
           ],
         },
@@ -892,14 +1091,18 @@ Strong answer: protects invariants, removes duplicated state, and keeps the publ
           fix: `function Button({ icon, loading, tooltip, children, ...rest }) {\n  const btn = (\n    <button aria-busy={loading || undefined} disabled={loading} {...rest}>\n      {loading ? <Spinner /> : icon}{children}\n    </button>\n  );\n  return tooltip ? <Tooltip title={tooltip}>{btn}</Tooltip> : btn;\n}`,
           exercises: [
             {
-              task: `Build a logger from small wrapper functions.`,
-              description: `Checks object composition. Add timestamp and prefix behaviors.`,
-              answer: `Create small functions that wrap a log function (withTimestamp, withPrefix) and combine them. Each piece is independently testable and combinable in any order.`,
+              task: `Rewrite with composition.`,
+              description: `Checks combining behaviors instead of subclasses.`,
+              code: `class Button {}
+class IconButton extends Button {}
+class LoadingIconButton extends IconButton {}`,
+              answer: `Use props or small parts that combine freely.`,
+              solution: `<Button icon={<SaveIcon />} loading={saving}>Save</Button>`,
             },
             {
-              task: `What is the fragile base class problem?`,
-              description: `Checks theory. Give an example.`,
-              answer: `A base class changes add() to call addAll() internally; a subclass overriding both to count items now double-counts. Subclasses depend on base implementation details, not just its contract.`,
+              task: `Name a problem with deep inheritance.`,
+              description: `Checks fragile base class risk.`,
+              answer: `A change in the base class can break every subclass, and combinations of features need new classes.`,
             },
           ],
         },
@@ -911,14 +1114,25 @@ Strong answer: protects invariants, removes duplicated state, and keeps the publ
           fix: `class Store {\n  #listeners = new Set();\n  #v;\n  get = () => this.#v;\n  subscribe = (fn) => { this.#listeners.add(fn); return () => this.#listeners.delete(fn); };\n  set(v) { this.#v = v; for (const l of [...this.#listeners]) l(v); }\n}`,
           exercises: [
             {
-              task: `Use this store in a React component.`,
-              description: `Checks useSyncExternalStore. Write a hook.`,
-              answer: `useSyncExternalStore(store.subscribe, store.get) subscribes, reads a snapshot and resubscribes correctly in concurrent rendering. The subscribe and get functions must be stable, which the arrow fields provide.`,
+              task: `Add an unsubscribe function.`,
+              description: `Checks cleanup in the Observer pattern.`,
+              code: `subscribe(fn) {
+  this.subs.push(fn);
+}`,
+              answer: `Return a function that removes the listener.`,
+              solution: `subscribe(fn) {
+  this.subs.add(fn);
+  return () => this.subs.delete(fn);
+}`,
             },
             {
-              task: `One listener throws an error. Make sure the others still run.`,
-              description: `Checks robustness. Modify set().`,
-              answer: `Wrap each listener call in try/catch and report errors (or rethrow in queueMicrotask) so other listeners still run. This mirrors how DOM event dispatch handles exceptions.`,
+              task: `Use the subscription in React.`,
+              description: `Checks cleanup in useEffect.`,
+              code: `useEffect(() => {
+  store.subscribe(setValue);
+}, []);`,
+              answer: `Without cleanup, each mount adds a listener and leaks. Return the unsubscribe.`,
+              solution: `useEffect(() => store.subscribe(setValue), []);`,
             },
           ],
         },
@@ -934,22 +1148,20 @@ Strong answer: gives concrete examples and shows how a value object removes repe
           follow: `How do you compare two value objects in JavaScript, since === compares references?`,
           exercises: [
             {
-              task: `Write a small Money value object that refuses to add different currencies.`,
-              description: `Checks immutability and invariants.`,
-              answer: `Store amount in minor units and currency, freeze the object, and return a new Money from add; throw when currencies differ.`,
-              solution: `class Money {
-  constructor(cents, currency) { this.cents = cents; this.currency = currency; Object.freeze(this); }
-  add(o) {
-    if (o.currency !== this.currency) throw new Error('Currency mismatch');
-    return new Money(this.cents + o.cents, this.currency);
-  }
-  equals(o) { return o.cents === this.cents && o.currency === this.currency; }
-}`,
+              task: `Name each: entity or value object?`,
+              description: `Checks identity versus value equality.`,
+              code: `// Applicant { id, name }
+// Money { amount, currency }`,
+              answer: `Applicant is an entity, known by id. Money is a value object, equal when its values are equal.`,
             },
             {
-              task: `Is an applicant record an entity or a value object? Is a postal address?`,
-              description: `Checks the distinction on domain examples.`,
-              answer: `The applicant is an entity: it has an id and changes over time. A postal address is usually a value object: two identical addresses are the same, and you replace it instead of changing it.`,
+              task: `Write an equals method for Money.`,
+              description: `Checks value-based equality.`,
+              code: `class Money { constructor(amount, cur) { Object.assign(this, { amount, cur }); } }`,
+              answer: `Compare values, not references.`,
+              solution: `equals(o) {
+  return this.amount === o.amount && this.cur === o.cur;
+}`,
             },
           ],
         },
@@ -968,21 +1180,19 @@ Strong answer: covers surface size, versioning, deprecation and automatic checks
           follow: `How do you find out which teams use a function you want to remove?`,
           exercises: [
             {
-              task: `Which signature is easier to grow without breaking callers? Why?`,
-              description: `Checks API design for growth.`,
-              code: `createClient(url, timeout, retries, onError)
-createClient({ url, timeout, retries, onError })`,
-              answer: `The options object. New options can be added with defaults, order does not matter, and calls are easier to read.`,
+              task: `Write a package.json exports map.`,
+              description: `Checks limiting a library's public API.`,
+              code: `// Hide dist/internal/* from consumers`,
+              answer: `exports hides internal files, so you can change them freely.`,
+              solution: `"exports": {
+  ".": "./dist/index.js",
+  "./button": "./dist/button.js"
+}`,
             },
             {
-              task: `Show how to deprecate a function softly.`,
-              description: `Checks a deprecation path.`,
-              answer: `Keep the old function, make it call the new one, mark it with a JSDoc @deprecated tag and warn once in development.`,
-              solution: `/** @deprecated Use fetchUser instead. */
-export function getUser(id) {
-  if (process.env.NODE_ENV !== 'production') console.warn('getUser is deprecated, use fetchUser');
-  return fetchUser(id);
-}`,
+              task: `Name a safe way to remove an old option.`,
+              description: `Checks deprecation process.`,
+              answer: `Mark it @deprecated with a warning in one minor version, then remove it in the next major version.`,
             },
           ],
         },
@@ -994,14 +1204,21 @@ export function getUser(id) {
           fix: `export class ApiClient {\n  #baseUrl; #getToken;\n  constructor({ baseUrl, getToken }) { this.#baseUrl = baseUrl; this.#getToken = getToken; }\n  async get(path, { signal } = {}) {\n    const r = await fetch(this.#baseUrl + path, {\n      signal, headers: { Authorization: 'Bearer ' + (await this.#getToken()) },\n    });\n    if (!r.ok) throw new HttpError(r.status, await r.text());\n    return r.json();\n  }\n}`,
           exercises: [
             {
-              task: `Write a test with a fake token.`,
-              description: `Checks testability. Use Vitest with a mocked fetch.`,
-              answer: `Create ApiClient with getToken: async () => 't', stub global fetch to capture headers, and assert Authorization is 'Bearer t'. No static state needs resetting.`,
+              task: `Spot the problem in this API client.`,
+              description: `Checks hard-coded global configuration.`,
+              code: `class Api {
+  static token = localStorage.getItem('t');
+  static get(u) { return fetch(BASE + u, { headers: { Authorization: Api.token } }); }
+}`,
+              answer: `Token is read once at load, so it goes stale, and static state is hard to test. Create an instance with injected config.`,
             },
             {
-              task: `Two hundred places use the old class. Plan the change.`,
-              description: `Checks rollout. Outline steps.`,
-              answer: `Keep the static Api as a facade delegating to a default instance, migrate callers module by module, add a lint rule against the static import, and remove the facade once usage is zero.`,
+              task: `Write a client that takes config.`,
+              description: `Checks dependency injection for clients.`,
+              answer: `Pass base URL and a token getter, so tests can create their own client.`,
+              solution: `const createApi = ({ baseUrl, getToken }) => ({
+  get: u => fetch(baseUrl + u, { headers: { Authorization: \`Bearer \${getToken()}\` } }),
+});`,
             },
           ],
         },
@@ -1012,14 +1229,17 @@ export function getUser(id) {
           ai: true,
           exercises: [
             {
-              task: `Three vendors return users in different formats. Which pattern helps?`,
-              description: `Checks mapping a problem to a pattern. Explain.`,
-              answer: `Adapter: one function per vendor maps their response to your User type. The app depends only on User, and adding a vendor is a new adapter.`,
+              task: `Spot the overused pattern.`,
+              description: `Checks needless factory classes.`,
+              code: `class ButtonFactory {
+  create(label) { return new Button(label); }
+}`,
+              answer: `The factory adds nothing over calling new Button. Use a pattern only when it removes real complexity.`,
             },
             {
-              task: `Someone wrote an abstract factory for only one button type. Is it good?`,
-              description: `Checks judgment. Evaluate it.`,
-              answer: `With one implementation the factory adds indirection without benefit. Remove it and use the component directly. Reintroduce it if variants appear.`,
+              task: `Name a way to teach patterns to the team.`,
+              description: `Checks practical knowledge sharing.`,
+              answer: `Show a pattern on real code in a short session or PR example, with a note on when not to use it.`,
             },
           ],
         },
@@ -1033,14 +1253,20 @@ export function getUser(id) {
           long: `Pages map to routes and handle URL params and layout.\nThey compose feature components and fetch page-level data.\nReusable components (Button, Card) know nothing about routes.\nKeeping pages thin makes features reusable elsewhere.\nRoute-level code splitting usually happens at the page boundary.`,
           exercises: [
             {
-              task: `Put these files in folders: a profile page, an avatar, a useUser hook, and a date formatter.`,
-              description: `Checks structure. Explain each placement.`,
-              answer: `UserProfilePage in pages or routes, Avatar in shared UI components, useUser in the user feature's hooks, formatDate in shared lib/utils. This keeps responsibilities clear.`,
+              task: `Name each file: page or component?`,
+              description: `Checks routing-level versus reusable UI.`,
+              code: `// /applications route -> ApplicationsPage
+// StatusBadge used in 6 places`,
+              answer: `ApplicationsPage is a page tied to a route; StatusBadge is a reusable component.`,
             },
             {
-              task: `Load a page only when the user opens it.`,
-              description: `Checks code splitting. Write it with React.lazy.`,
-              answer: `const Settings = lazy(() => import('./pages/Settings')); and render inside Suspense with a fallback. The page's code loads only when visited.`,
+              task: `Spot the problem in this component.`,
+              description: `Checks reusable components reading routes.`,
+              code: `function StatusBadge() {
+  const { id } = useParams();
+  const app = useApp(id);
+}`,
+              answer: `A reusable badge should not read the URL. Pass the status as a prop.`,
             },
           ],
         },
@@ -1052,14 +1278,23 @@ export function getUser(id) {
           fix: `// api/users.js\nexport const getUsers = (signal) => fetch(import.meta.env.VITE_API_URL + '/users', { signal }).then((r) => r.json());\n// Users.jsx\nfunction Users() {\n  const { data = [], isPending, error } = useQuery({ queryKey: ['users'], queryFn: ({ signal }) => getUsers(signal) });\n  if (isPending) return <p>Loading...</p>;\n  if (error) return <p>Failed to load</p>;\n  return <ul>{data.map((u) => <li key={u.id}>{u.name}</li>)}</ul>;\n}`,
           exercises: [
             {
-              task: `Write the same thing with useEffect, without a library.`,
-              description: `Checks effect cleanup. Implement it.`,
-              answer: `Create an AbortController in the effect, call getUsers(signal).then(setUsers), and abort in cleanup. Use an empty dependency array so it runs on mount.`,
+              task: `Fix the bug.`,
+              description: `Checks fetching during render.`,
+              code: `function Users() {
+  fetch('http://localhost:5000/users').then(r => r.json()).then(setUsers);
+  return <List items={users} />;
+}`,
+              answer: `Fetch in render runs on every render and loops. Fetch in an effect or a query hook and use a config URL.`,
+              solution: `useEffect(() => {
+  fetch(\`\${API_URL}/users\`).then(r => r.json()).then(setUsers);
+}, []);`,
             },
             {
-              task: `How do you set a different API address for each environment?`,
-              description: `Checks env config. Explain Vite env files.`,
-              answer: `Put VITE_API_URL in .env.development and .env.production; Vite exposes only VITE_-prefixed vars on import.meta.env. They are inlined at build time, so never put secrets there.`,
+              task: `Move the API address into config.`,
+              description: `Checks environment variables in Vite.`,
+              code: `const API = 'http://localhost:5000';`,
+              answer: `Read the base URL from env so each environment can change it.`,
+              solution: `const API = import.meta.env.VITE_API_URL;`,
             },
           ],
         },
@@ -1076,14 +1311,18 @@ Weak answer: "if it has many stars, it is fine".`,
           follow: `What would make you remove a package that is already used?`,
           exercises: [
             {
-              task: `A teammate adds a full date library just to format one date. What do you suggest?`,
-              description: `Checks platform knowledge and bundle awareness.`,
-              answer: `Use Intl.DateTimeFormat, which is built into the browser and adds no bundle size. Add a library only if you need complex date math in many places.`,
+              task: `Name three checks before adding a package.`,
+              description: `Checks dependency evaluation.`,
+              code: `// npm i tiny-date-lib`,
+              answer: `Bundle size, maintenance activity, and license. Also check known vulnerabilities and whether native APIs already do it.`,
             },
             {
-              task: `Name three things you check on the npm page or repository before adding a package.`,
-              description: `Checks a practical checklist. Accept any reasonable three.`,
-              answer: `For example: recent releases and active maintainers, bundle size and tree shaking, license, open security advisories, TypeScript support, number of dependencies.`,
+              task: `Replace this package with a built-in API.`,
+              description: `Checks native alternatives.`,
+              code: `import { v4 } from 'uuid';
+const id = v4();`,
+              answer: `Modern browsers have crypto.randomUUID.`,
+              solution: `const id = crypto.randomUUID();`,
             },
           ],
         },
@@ -1097,15 +1336,19 @@ Weak answer: "if it has many stars, it is fine".`,
           fix: `function Profile() {\n  const qc = useQueryClient();\n  const { data } = useQuery({ queryKey: ['me'], queryFn: getMe });\n  const save = useMutation({ mutationFn: updateMe, onSuccess: (u) => qc.setQueryData(['me'], u) });\n  if (!data) return null;\n  return <Form key={data.id} defaultValue={data} onSave={save.mutate} />;\n}`,
           exercises: [
             {
-              task: `This code keeps count in its own state. Fix it.`,
-              description: `Checks avoiding redundant state.`,
-              code: `const [items, setItems] = useState([]);\nconst [count, setCount] = useState(0); // kept in sync manually`,
-              answer: `count is derivable from items.length, so storing it risks drift. Compute it during render. Use useMemo only if the derivation is expensive.`,
+              task: `Spot the problem.`,
+              description: `Checks copying props into state.`,
+              code: `function Edit({ user }) {
+  const [name, setName] = useState(user.name);
+}`,
+              answer: `State is set only once, so it goes stale when user changes. Use key={user.id} to reset, or read props directly.`,
             },
             {
-              task: `When do you use invalidate, and when setQueryData?`,
-              description: `Checks cache strategy. 2-3 sentences.`,
-              answer: `setQueryData updates instantly when the response contains the full new entity. invalidateQueries refetches, which is safer when the server computes related fields or lists. Often both are used.`,
+              task: `Fix this with a key.`,
+              description: `Checks resetting state by key.`,
+              code: `<Edit user={user} />`,
+              answer: `A new key remounts the form with fresh state.`,
+              solution: `<Edit key={user.id} user={user} />`,
             },
           ],
         },
@@ -1115,14 +1358,23 @@ Weak answer: "if it has many stars, it is fine".`,
           long: `src/features/orders contains its UI, hooks, API and tests.\nEach feature exposes a small public API via index.ts.\nShared UI and utilities live in src/shared.\napp/ holds providers, routing and global setup.\nFeatures should not import each other's internals.\nFeature-Sliced Design formalizes this into layers.`,
           exercises: [
             {
-              task: `Draw the folder tree for orders and users.`,
-              description: `Checks structure. Write the folders.`,
-              answer: `src/app (router, providers), src/features/orders/{components,hooks,api,index.ts}, src/features/users/..., src/shared/{ui,lib,api}. Pages compose features.`,
+              task: `Reorganize these files by feature.`,
+              description: `Checks feature-based structure.`,
+              code: `components/ApplicantList.tsx
+hooks/useApplicants.ts
+api/applicants.ts`,
+              answer: `Group by feature, so related files sit together.`,
+              solution: `features/applicants/
+  ApplicantList.tsx
+  useApplicants.ts
+  api.ts
+  index.ts`,
             },
             {
-              task: `The orders feature needs the user avatar. What do you do?`,
-              description: `Checks boundaries. Explain options.`,
-              answer: `Import UserAvatar from the users feature's public index, or move it to shared if generic. If both features need each other, lift the composition to the page.`,
+              task: `Spot the boundary problem.`,
+              description: `Checks deep imports into features.`,
+              code: `import { helper } from '@/features/billing/internal/helper';`,
+              answer: `It reaches into another feature's internals. Import only from the feature's public index.`,
             },
           ],
         },
@@ -1138,19 +1390,16 @@ Strong answer: one source of truth, generated types, runtime validation at the b
           follow: `Where do you put the mapping from API data to UI models?`,
           exercises: [
             {
-              task: `The backend renamed first_name to firstName. The app shows "undefined" but TypeScript did not complain. Why? How do you prevent it?`,
-              description: `Checks the gap between compile-time types and runtime data.`,
-              answer: `The type was hand-written and still says first_name, so TypeScript trusts it. Generate types from the API schema and validate responses at runtime so the error appears in CI or at the API layer, not in the UI.`,
+              task: `Name a tool to generate types from OpenAPI.`,
+              description: `Checks codegen for API types.`,
+              answer: `openapi-typescript or Orval generate types from the backend schema, run in CI to catch drift.`,
             },
             {
-              task: `Write a function that validates and maps a user response.`,
-              description: `Checks the boundary pattern. zod or plain checks are both fine.`,
-              answer: `Parse the raw JSON with a schema, throw a clear error if it does not match, then return a frontend model with the field names the UI uses.`,
-              solution: `const UserDto = z.object({ id: z.number(), first_name: z.string() });
-export function toUser(json) {
-  const dto = UserDto.parse(json);
-  return { id: dto.id, firstName: dto.first_name };
-}`,
+              task: `Spot the risk in this type.`,
+              description: `Checks trusting unchecked API data.`,
+              code: `const user = (await res.json()) as User;`,
+              answer: `as User only tells the compiler; it does not check data. Validate with a schema like Zod at the boundary.`,
+              solution: `const user = UserSchema.parse(await res.json());`,
             },
           ],
         },
@@ -1183,21 +1432,18 @@ export const label = (u) => formatUser(u, ROLES[u.role]);`,
           follow: `How would you stop new cycles from being merged?`,
           exercises: [
             {
-              task: `Write a lint rule config that blocks shared code from importing features.`,
-              description: `Checks automatic enforcement. Any tool is fine: ESLint no-restricted-imports, boundaries plugin, or dependency-cruiser.`,
-              answer: `Use no-restricted-imports with an override for files in shared that forbids paths matching features. In CI, the lint step fails on any new violation.`,
-              solution: `// .eslintrc overrides
-{
-  files: ['src/shared/**'],
-  rules: {
-    'no-restricted-imports': ['error', { patterns: ['**/features/**', '**/app/**'] }],
-  },
-}`,
+              task: `Fix the dependency direction.`,
+              description: `Checks shared code importing features.`,
+              code: `// shared/utils.ts
+import { formatApplicant } from '@/features/applicants';`,
+              answer: `Shared code must not depend on features. Move the helper into the feature or make it generic.`,
             },
             {
-              task: `Why can a circular import give undefined at runtime?`,
-              description: `Checks ES module evaluation order. Let the candidate explain with the example above.`,
-              answer: `Modules in a cycle are evaluated one after another. When module A starts, it imports B, B imports A, but A has not finished, so A's exports are not ready yet. If B uses them at the top level, it sees undefined or gets a TDZ error.`,
+              task: `Write a lint rule to block this.`,
+              description: `Checks enforcing import direction.`,
+              answer: `no-restricted-imports in shared files can block feature imports.`,
+              solution: `// for files in src/shared/**
+'no-restricted-imports': ['error', { patterns: ['@/features/*'] }]`,
             },
           ],
         },
@@ -1208,14 +1454,18 @@ export const label = (u) => formatUser(u, ROLES[u.role]);`,
           ai: true,
           exercises: [
             {
-              task: `Turn HTTP status codes into error types.`,
-              description: `Checks the client layer. Write a function.`,
-              answer: `Check status: 401 to AuthError, 403 to ForbiddenError, 422 to ValidationError with field details, 5xx to ServerError, fetch TypeError to NetworkError. UI code switches on type rather than status codes.`,
+              task: `Write a React 19 root error handler.`,
+              description: `Checks global error reporting.`,
+              code: `createRoot(el).render(<App />);`,
+              answer: `createRoot accepts error callbacks to log uncaught render errors.`,
+              solution: `createRoot(el, {
+  onUncaughtError: (err, info) => report(err, info.componentStack),
+}).render(<App />);`,
             },
             {
-              task: `Where do you put error boundaries on a dashboard?`,
-              description: `Checks granularity. Describe placement.`,
-              answer: `One at the app root as a last resort, one per route for navigation recovery, and one per independent widget. Reset boundaries on route change with resetKeys or key.`,
+              task: `Name what error boundaries do not catch.`,
+              description: `Checks boundary limits.`,
+              answer: `Errors in event handlers, async code like setTimeout or fetch, and SSR. Handle those with try/catch or query error states.`,
             },
           ],
         },
@@ -1232,18 +1482,20 @@ Strong answer: covers text, formatting, time zones, RTL and the translation proc
           follow: `How do you test that no text is hard-coded?`,
           exercises: [
             {
-              task: `This deadline shows the wrong day for users in Asia. Fix it.`,
-              description: `Checks time zone handling.`,
-              code: `const d = new Date('2026-05-01');
-label.textContent = d.getDate() + '/' + (d.getMonth() + 1);`,
-              answer: `A date-only ISO string is parsed as UTC midnight, then getDate uses local time, so some zones see a different day. Decide whether it is a calendar date or an instant. For a deadline instant, send a full timestamp with time zone and format with Intl and the user time zone.`,
-              solution: `const d = new Date('2026-05-01T23:59:00Z');
-label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', timeZone: userTimeZone }).format(d);`,
+              task: `Format this date for the user's locale.`,
+              description: `Checks Intl.DateTimeFormat.`,
+              code: `const d = new Date('2026-03-01T12:00:00Z');`,
+              answer: `Intl formats with locale and time zone.`,
+              solution: `new Intl.DateTimeFormat('de-DE', {
+  dateStyle: 'medium', timeZone: 'Europe/Berlin',
+}).format(d);`,
             },
             {
-              task: `Why is "You have " + n + " messages" a bad pattern for translation?`,
-              description: `Checks plural rules and word order.`,
-              answer: `Languages have different plural forms and word order, so string building cannot be translated well. Use one message with an ICU plural, for example "{n, plural, one {# message} other {# messages}}".`,
+              task: `Spot the time zone bug.`,
+              description: `Checks date-only strings parsed as UTC.`,
+              code: `const due = new Date('2026-03-01');
+console.log(due.getDate());`,
+              answer: `Date-only strings parse as UTC midnight, so users west of UTC see February 28. Parse as a local date or keep the string.`,
             },
           ],
         },
@@ -1256,14 +1508,18 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           ai: true,
           exercises: [
             {
-              task: `Write the import rules for each layer.`,
-              description: `Checks enforcement. Express them as a table.`,
-              answer: `shared imports nothing above; entities import shared; features import entities and shared; pages import features, entities, shared; app imports all. Imports within the same layer go through public APIs or are forbidden.`,
+              task: `Name a tool to enforce module boundaries.`,
+              description: `Checks automated architecture rules.`,
+              answer: `dependency-cruiser or eslint-plugin-boundaries, with rules run in CI.`,
             },
             {
-              task: `The current code is tangled. How do you add boundaries step by step?`,
-              description: `Checks rollout. Outline steps.`,
-              answer: `Map current dependencies, choose target layers, enable rules as warnings with a baseline, fix hotspots first, then make rules errors. Report violation counts per team.`,
+              task: `Write a public index for a module.`,
+              description: `Checks a narrow module API.`,
+              code: `// features/billing/`,
+              answer: `Export only what other modules may use.`,
+              solution: `// features/billing/index.ts
+export { BillingPage } from './BillingPage';
+export type { Invoice } from './types';`,
             },
           ],
         },
@@ -1275,14 +1531,17 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           fix: `// flags.ts\nexport const FLAGS = {\n  newCheckout: { default: false, owner: 'payments', expires: '2026-12-31' },\n} as const;\nexport type FlagName = keyof typeof FLAGS;\nexport function useFlag(name: FlagName): boolean {\n  const client = useFlagClient();\n  return client?.isOn(name) ?? FLAGS[name].default;\n}`,
           exercises: [
             {
-              task: `How do you find and remove old flags automatically?`,
-              description: `Checks process. Describe a CI check.`,
-              answer: `A script reads the registry and warns or fails when a flag passed its expiry, and opens a ticket for the owner. Removing a flag means deleting the entry, so TypeScript errors show every usage.`,
+              task: `Wrap flag reads in one hook.`,
+              description: `Checks centralizing feature flags.`,
+              code: `if (window.flags?.newNav === 'on') {}`,
+              answer: `One typed hook hides the provider and gives defaults.`,
+              solution: `type Flag = 'newNav' | 'newSearch';
+export const useFlag = (f: Flag) => useContext(FlagsContext)[f] ?? false;`,
             },
             {
-              task: `The flag service is down. What should the app do?`,
-              description: `Checks resilience. 2-3 sentences.`,
-              answer: `Use defaults or the last known values cached locally, with a timeout on initialization. Do not block rendering on the flag SDK. Monitor fallback rates.`,
+              task: `Name a rule for old flags.`,
+              description: `Checks flag cleanup.`,
+              answer: `Each flag has an owner and an expiry date; a CI or lint check reports flags past expiry.`,
             },
           ],
         },
@@ -1293,14 +1552,15 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           ai: true,
           exercises: [
             {
-              task: `Outline a decision record for choosing TanStack Query.`,
-              description: `Checks the format. Fill the headings briefly.`,
-              answer: `Context: duplicated fetch logic and stale data. Decision: TanStack Query for server state. Options: RTK Query, SWR, custom. Consequences: new dependency, training, removal of manual caches. Status: accepted.`,
+              task: `Name the main sections of an ADR.`,
+              description: `Checks ADR structure.`,
+              answer: `Context, decision, and consequences, plus status and date.`,
             },
             {
-              task: `Which decisions do not need a record?`,
-              description: `Checks judgment. Give examples.`,
-              answer: `Easily reversible or local choices, such as a helper name or one component's layout, do not need ADRs. Overdocumenting makes people ignore the folder.`,
+              task: `Name when to write an ADR.`,
+              description: `Checks ADR scope.`,
+              code: `// Choose TanStack Query vs Redux for server state`,
+              answer: `When a decision is hard to reverse or affects many teams, like this state library choice.`,
             },
           ],
         },
@@ -1314,16 +1574,22 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           long: `display: none - no box, no space, not focusable, hidden from screen readers.\nvisibility: hidden - space reserved, not clickable or focusable, hidden from screen readers.\nopacity: 0 - invisible but still clickable, focusable and read by screen readers.\nopacity and visibility can be transitioned; display can transition only with transition-behavior: allow-discrete.\nFor visually hidden but accessible text use a .sr-only pattern.`,
           exercises: [
             {
-              task: `Write a class that hides text on screen but keeps it for screen readers.`,
-              description: `Checks accessible hiding. Test with the accessibility tree in DevTools.`,
-              answer: `Position absolutely with 1px size, overflow hidden, clip-path inset(50%) and white-space nowrap. The text stays in the accessibility tree but is invisible.`,
-              solution: `.sr-only {\n  position: absolute; width: 1px; height: 1px;\n  padding: 0; margin: -1px; overflow: hidden;\n  clip-path: inset(50%); white-space: nowrap; border: 0;\n}`,
+              task: `Predict which element can be clicked.`,
+              description: `Checks hidden elements and events.`,
+              code: `.a { opacity: 0; }
+.b { visibility: hidden; }
+.c { display: none; }`,
+              answer: `Only .a: it is invisible but still takes space and gets clicks. .b keeps space only; .c is removed from layout.`,
             },
             {
-              task: `Users cannot click the page under this overlay. Why?`,
-              description: `Checks interaction. Explain.`,
-              code: `.overlay { position: fixed; inset: 0; opacity: 0; }`,
-              answer: `The overlay is invisible but still captures clicks on content below. Use visibility: hidden or pointer-events: none when it is not shown.`,
+              task: `Write a visually hidden class.`,
+              description: `Checks screen-reader-only text.`,
+              code: `<button><svg aria-hidden="true"/><span class="?">Close</span></button>`,
+              answer: `Hide visually but keep it readable by screen readers.`,
+              solution: `.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}`,
             },
           ],
         },
@@ -1335,14 +1601,17 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           fix: `.btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 0.5rem;\n  min-height: 40px;\n  padding-inline: 1rem;\n}`,
           exercises: [
             {
-              task: `Line up an icon and text in the middle.`,
-              description: `Checks flex alignment. Build it in a CodePen.`,
-              answer: `Use display: inline-flex, align-items: center and gap on the wrapper. The icon and text align on the same center line regardless of font size.`,
+              task: `Center the text vertically.`,
+              description: `Checks flex alignment.`,
+              code: `.btn { height: 40px; }`,
+              answer: `Use inline-flex with align-items center.`,
+              solution: `.btn { height: 40px; display: inline-flex; align-items: center; justify-content: center; }`,
             },
             {
-              task: `Center a block in the middle of the page.`,
-              description: `Checks grid centering. Write the CSS.`,
-              answer: `On the parent: display: grid; place-items: center; min-height: 100dvh. This centers both axes with one declaration.`,
+              task: `Spot the problem.`,
+              description: `Checks fixed line-height versus content.`,
+              code: `.btn { height: 40px; line-height: 40px; padding: 8px; }`,
+              answer: `Padding plus line-height overflows 40px, so text moves down. Remove the fixed line-height and use flex.`,
             },
           ],
         },
@@ -1352,15 +1621,19 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           long: `rem scales with the user's browser font-size preference.\nem compounds when nested, useful for component-relative spacing.\n% depends on the property (width relative to parent width).\nvw/vh relate to the viewport; dvh/svh/lvh handle mobile toolbars.\nclamp() combines them for fluid typography.\npx font sizes ignore the user's default font-size setting.`,
           exercises: [
             {
-              task: `What font size does each element get?`,
-              description: `Checks em compounding. Inspect in DevTools.`,
-              code: `html { font-size: 16px; }\n.a { font-size: 1.5em; }\n.a .a { font-size: 1.5em; }`,
-              answer: `Outer .a is 24px and nested .a is 36px because em compounds on the parent. Using 1.5rem would make both 24px.`,
+              task: `Predict the font size.`,
+              description: `Checks em compounding.`,
+              code: `html { font-size: 16px; }
+.a { font-size: 2em; }
+.a .b { font-size: 2em; }`,
+              answer: `.b is 64px. em uses the parent size, so it compounds. rem would give 32px.`,
             },
             {
-              task: `Make a heading size grow with the screen, with a min and a max.`,
-              description: `Checks clamp. Test by resizing the window.`,
-              answer: `font-size: clamp(1.5rem, 1rem + 2vw, 3rem) grows with viewport but stays between bounds. Including rem in the middle term keeps zoom working.`,
+              task: `Pick a unit for font size.`,
+              description: `Checks accessible font sizing.`,
+              code: `body { font-size: 14px; }`,
+              answer: `Use rem, so text grows with the user's browser font setting.`,
+              solution: `body { font-size: 0.875rem; }`,
             },
           ],
         },
@@ -1374,15 +1647,26 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           fix: `.row { display: flex; align-items: center; gap: 8px; }\n.row img { flex-shrink: 0; }\n.title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }`,
           exercises: [
             {
-              task: `A wide code block breaks this grid. Fix it.`,
-              description: `Checks minmax.`,
-              code: `.layout { display: grid; grid-template-columns: 240px 1fr; }`,
-              answer: `Use grid-template-columns: 240px minmax(0, 1fr). 1fr has an automatic minimum of min-content, so wide content pushes the column; minmax(0, 1fr) lets it shrink and the pre can scroll.`,
+              task: `Fix the overflowing text.`,
+              description: `Checks min-width in flex items.`,
+              code: `.row { display: flex; }
+.title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }`,
+              answer: `Flex items have min-width: auto, so they do not shrink. Set min-width: 0.`,
+              solution: `.title {
+  min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}`,
             },
             {
-              task: `Show only two lines of text and cut the rest.`,
-              description: `Checks line clamping. Test in current browsers.`,
-              answer: `Use display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden. All major browsers support it; the standard line-clamp property is still rolling out.`,
+              task: `Write a two-line clamp.`,
+              description: `Checks multi-line truncation.`,
+              answer: `line-clamp truncates after two lines.`,
+              solution: `.text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}`,
             },
           ],
         },
@@ -1392,15 +1676,20 @@ label.textContent = new Intl.DateTimeFormat(userLocale, { dateStyle: 'medium', t
           long: `--brand: #0a58ca is set on an element and inherited by descendants.\nvar(--brand, fallback) reads it at computed-value time.\nOverride per theme, component or media query without recompiling.\nJS can set them with element.style.setProperty.\n@property registers type, initial value and inheritance, enabling transitions.\nSass is still useful for mixins and loops, but tokens work best as custom properties.`,
           exercises: [
             {
-              task: `Add dark mode with custom properties.`,
-              description: `Checks theming. Toggle the OS theme in DevTools rendering emulation.`,
-              answer: `Define tokens on :root and redefine them in @media (prefers-color-scheme: dark). Components only use var(--bg) etc. light-dark() with color-scheme is a newer, concise option.`,
-              solution: `:root { color-scheme: light dark; --bg: light-dark(#fff, #111); --fg: light-dark(#111, #eee); }\nbody { background: var(--bg); color: var(--fg); }`,
+              task: `Predict the button color.`,
+              description: `Checks runtime cascade of custom properties.`,
+              code: `:root { --c: blue; }
+.danger { --c: red; }
+.btn { color: var(--c); }
+/* <div class="danger"><button class="btn"> */`,
+              answer: `Red. Custom properties inherit at runtime; a Sass variable would be fixed at build time.`,
             },
             {
-              task: `Animate the angle of a gradient.`,
-              description: `Checks @property. Test in a current browser.`,
-              answer: `Register @property --angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; } and animate --angle. Unregistered custom properties cannot interpolate, so they jump.`,
+              task: `Add a fallback value.`,
+              description: `Checks var() fallback.`,
+              code: `.card { padding: var(--space); }`,
+              answer: `The second argument is used when the property is not set.`,
+              solution: `.card { padding: var(--space, 1rem); }`,
             },
           ],
         },
@@ -1416,16 +1705,16 @@ Strong answer: maps physical to logical names and mentions dir and icons that mu
           follow: `Which icons should flip in right-to-left layouts, and which should not?`,
           exercises: [
             {
-              task: `Rewrite this CSS with logical properties.`,
-              description: `Checks the mapping.`,
-              code: `.card { margin-left: 16px; padding-right: 8px; text-align: left; border-left: 4px solid; }`,
-              answer: `Use inline-start and inline-end, and text-align: start.`,
-              solution: `.card { margin-inline-start: 16px; padding-inline-end: 8px; text-align: start; border-inline-start: 4px solid; }`,
+              task: `Rewrite with logical properties.`,
+              description: `Checks RTL-friendly CSS.`,
+              code: `.icon { margin-left: 8px; }`,
+              answer: `margin-inline-start flips in right-to-left languages.`,
+              solution: `.icon { margin-inline-start: 8px; }`,
             },
             {
-              task: `How do you switch the page to right-to-left?`,
-              description: `Checks the dir attribute.`,
-              answer: `Set dir="rtl" (and the right lang) on the html element. Logical properties and flex order then follow automatically.`,
+              task: `Name the logical version of width.`,
+              description: `Checks logical sizing.`,
+              answer: `inline-size. It follows the writing direction, as block-size does for height.`,
             },
           ],
         },
@@ -1439,14 +1728,22 @@ Strong answer: maps physical to logical names and mentions dir and icons that mu
           fix: `<img src="hero.jpg" width="1200" height="600" alt="..." fetchpriority="high">\n<style>\nimg { max-width: 100%; height: auto; }\n@font-face { font-family: Brand; src: url(brand.woff2) format('woff2'); font-display: swap; }\n@font-face { font-family: BrandFallback; src: local('Arial'); size-adjust: 104%; ascent-override: 92%; }\nbody { font-family: Brand, BrandFallback, sans-serif; }\n</style>`,
           exercises: [
             {
-              task: `Keep space for an ad before it loads.`,
-              description: `Checks CLS prevention. Write CSS.`,
-              answer: `Set min-height (or aspect-ratio) on the slot container matching the expected ad size. Content below no longer jumps when the ad loads.`,
+              task: `Fix the image layout shift.`,
+              description: `Checks reserving image space.`,
+              code: `<img src="photo.jpg" alt="Campus">`,
+              answer: `Width and height let the browser reserve space before load.`,
+              solution: `<img src="photo.jpg" alt="Campus" width="800" height="450">`,
             },
             {
-              task: `How do you find which element moves?`,
-              description: `Checks tooling. Describe the tools.`,
-              answer: `Use the DevTools Performance panel (Layout shifts track) or a PerformanceObserver for 'layout-shift' entries, which list sources. The web-vitals attribution build reports the largest shift target in the field.`,
+              task: `Reduce the font swap jump.`,
+              description: `Checks fallback font metrics.`,
+              code: `@font-face { font-family: Inter; src: url(inter.woff2); font-display: swap; }`,
+              answer: `Match the fallback font size to the web font with size-adjust.`,
+              solution: `@font-face {
+  font-family: InterFallback; src: local(Arial);
+  size-adjust: 107%;
+}
+body { font-family: Inter, InterFallback, sans-serif; }`,
             },
           ],
         },
@@ -1463,20 +1760,20 @@ Strong answer: tokens, system plus user choice, color-scheme, no flash, contrast
           follow: `How do you avoid a flash of the light theme on page load?`,
           exercises: [
             {
-              task: `Write CSS tokens that follow the system theme and allow a manual override.`,
-              description: `Checks media query plus attribute override.`,
-              answer: `Set light tokens on :root, dark tokens in the media query unless light is forced, and dark tokens for data-theme="dark".`,
-              solution: `:root { --surface: #fff; --text: #111; color-scheme: light dark; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --surface: #121212; --text: #eee; }
+              task: `Write a dark mode with custom properties.`,
+              description: `Checks prefers-color-scheme.`,
+              code: `:root { --bg: white; --fg: black; }`,
+              answer: `Override the tokens in a media query.`,
+              solution: `@media (prefers-color-scheme: dark) {
+  :root { --bg: #111; --fg: #eee; }
 }
-:root[data-theme="dark"] { --surface: #121212; --text: #eee; }
-body { background: var(--surface); color: var(--text); }`,
+body { background: var(--bg); color: var(--fg); }`,
             },
             {
-              task: `Inputs and scrollbars stay white in dark mode. Why?`,
-              description: `Checks the color-scheme property.`,
-              answer: `The browser does not know the page supports dark mode. Add color-scheme: light dark (or dark) so built-in controls use dark styles.`,
+              task: `Name what color-scheme does.`,
+              description: `Checks native dark controls.`,
+              code: `:root { color-scheme: light dark; }`,
+              answer: `It tells the browser to style native parts like scrollbars and form controls for both themes.`,
             },
           ],
         },
@@ -1492,15 +1789,19 @@ Strong answer: explains what is skipped, the size placeholder and how to measure
           follow: `Why do you need contain-intrinsic-size with content-visibility?`,
           exercises: [
             {
-              task: `A long article page renders slowly. Add CSS to skip off-screen sections.`,
-              description: `Checks the typical pattern.`,
-              answer: `Apply content-visibility: auto to each section and give an estimated size.`,
-              solution: `.article-section { content-visibility: auto; contain-intrinsic-size: auto 800px; }`,
+              task: `Speed up this long page.`,
+              description: `Checks content-visibility: auto.`,
+              code: `.section { /* 200 long sections */ }`,
+              answer: `Skip rendering off-screen sections and reserve their size.`,
+              solution: `.section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}`,
             },
             {
-              task: `How do you prove it helped?`,
-              description: `Checks measurement.`,
-              answer: `Record the page load in the Performance panel before and after and compare rendering and layout time, and check LCP in field data.`,
+              task: `Name a side effect of content-visibility.`,
+              description: `Checks scrollbar jumps.`,
+              answer: `Without contain-intrinsic-size, hidden sections have zero height, so the scrollbar jumps as you scroll.`,
             },
           ],
         },
@@ -1513,15 +1814,20 @@ Strong answer: explains what is skipped, the size placeholder and how to measure
           ai: true,
           exercises: [
             {
-              task: `Write a basic layer setup.`,
-              description: `Checks syntax. Create main.css.`,
-              answer: `Start with @layer reset, vendor, base, components, utilities; then import vendor CSS into layer(vendor) and wrap rules in their layers. A utility class like .mt-4 then beats a component selector without !important.`,
-              solution: `@layer reset, vendor, base, components, utilities;\n@import url('normalize.css') layer(reset);\n@import url('datepicker.css') layer(vendor);\n@layer components { .card .title { margin: 0; } }\n@layer utilities { .mt-4 { margin-top: 1rem; } }`,
+              task: `Predict the color.`,
+              description: `Checks layer order beats specificity.`,
+              code: `@layer base, components;
+@layer components { .btn { color: red; } }
+@layer base { #app .btn { color: blue; } }`,
+              answer: `Red. Later layers win, no matter the selector specificity.`,
             },
             {
-              task: `How do you move old CSS into layers step by step?`,
-              description: `Checks rollout. Outline steps.`,
-              answer: `Wrap all legacy CSS in @layer legacy placed low, so new layered code can override it. Remove !important usages as you migrate components. Track unlayered CSS size until zero.`,
+              task: `Put a third-party library in a low layer.`,
+              description: `Checks importing CSS into a layer.`,
+              code: `@import url('lib.css');`,
+              answer: `Import it into a layer listed first.`,
+              solution: `@layer vendor, app;
+@import url('lib.css') layer(vendor);`,
             },
           ],
         },
@@ -1533,14 +1839,19 @@ Strong answer: explains what is skipped, the size placeholder and how to measure
           fix: `:root { --color-action: #0a58ca; }\n[data-brand='b'] { --color-action: #c2185b; }\n[data-brand='b'][data-theme='dark'] { --color-action: #f06292; }\n.btn-primary { background: var(--btn-bg, var(--color-action)); }`,
           exercises: [
             {
-              task: `Describe the three levels of tokens with one example each.`,
-              description: `Checks structure.`,
-              answer: `Primitive: --pink-700: #c2185b. Semantic: --color-action: var(--pink-700). Component: --btn-bg: var(--color-action). Brands swap semantic mappings; components stay unchanged.`,
+              task: `Spot the problem in this theme code.`,
+              description: `Checks hard-coded brand colors.`,
+              code: `.btn-brandA { background: #0055ff; }
+.btn-brandB { background: #ff5500; }`,
+              answer: `Each new brand needs new classes. Use one token and set it per brand.`,
+              solution: `[data-brand='a'] { --brand: #0055ff; }
+[data-brand='b'] { --brand: #ff5500; }
+.btn { background: var(--brand); }`,
             },
             {
-              task: `How do you check color contrast for every brand automatically?`,
-              description: `Checks accessibility governance. Describe the check.`,
-              answer: `In the token build, compute contrast for each foreground/background semantic pair per brand and mode and fail when below 4.5:1 for text. Also run axe in visual regression stories per brand.`,
+              task: `Name the token layers in a design system.`,
+              description: `Checks primitive versus semantic tokens.`,
+              answer: `Primitive tokens like blue-500, and semantic tokens like color-action that brands map to primitives.`,
             },
           ],
         },
@@ -1551,14 +1862,18 @@ Strong answer: explains what is skipped, the size placeholder and how to measure
           ai: true,
           exercises: [
             {
-              task: `Add a CSS size limit to CI.`,
-              description: `Checks tooling. Describe configuration.`,
-              answer: `Use size-limit with entries for dist/assets/*.css and a gzip limit, run it in CI and comment the diff on PRs. Raising the limit requires review from an owner.`,
+              task: `Name two CSS metrics to track in CI.`,
+              description: `Checks CSS budgets.`,
+              answer: `Total CSS bytes per page and unused CSS percent. Fail CI when a budget is exceeded.`,
             },
             {
-              task: `Make a long page render faster with content-visibility.`,
-              description: `Checks rendering optimization. Write the CSS.`,
-              answer: `Apply content-visibility: auto with contain-intrinsic-size: auto 800px to offscreen sections. The browser skips layout and paint until they near the viewport, and intrinsic size prevents scrollbar jumps.`,
+              task: `Write a stylelint rule to limit specificity.`,
+              description: `Checks keeping selectors simple.`,
+              answer: `selector-max-specificity blocks heavy selectors.`,
+              solution: `rules: {
+  'selector-max-specificity': '0,3,0',
+  'declaration-no-important': true,
+}`,
             },
           ],
         },

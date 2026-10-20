@@ -15,21 +15,20 @@ Weak answer: thinks every method is copied onto every instance.`,
           follow: 'What changes if a method is defined as an arrow-function class field instead?',
           exercises: [
             {
-              task: 'Predict each console.log.',
-              description: 'Checks where members live. Run in Node or the browser console after predicting.',
-              code: `class A { x = 1; m() {} static s() {} }
+              task: 'Predict the output.',
+              description: 'Checks static vs instance access.',
+              code: `class A { static n = 1; }
 const a = new A();
-console.log(Object.hasOwn(a, 'x'), Object.hasOwn(a, 'm'), typeof a.s, typeof A.s);`,
-              answer: 'Prints true false "undefined" "function". x is an own field, m is on A.prototype, and s is on A only. A common wrong answer is thinking a.s works because "static is shared". A strong answer explains the three locations.',
+console.log(a.n, A.n);`,
+              answer: 'undefined 1. Static fields live on the class itself, not on instances.',
             },
             {
-              task: 'Add a static factory fromJSON to a User class.',
-              description: 'Checks static method usage. Write the code and call User.fromJSON(\'{"name":"Ann"}\').',
-              answer: 'static fromJSON(json) { const d = JSON.parse(json); return new User(d.name); }. Using this inside a static method refers to the class (so new this(d.name) also supports subclasses). Wrong answers put it on the prototype and require an instance first.',
-              solution: `class User {
-  constructor(name) { this.name = name; }
-  static fromJSON(json) { const d = JSON.parse(json); return new this(d.name); }
-}`,
+              task: 'Predict the output.',
+              description: 'Checks prototype method sharing.',
+              code: `class B { f() {} g = () => {} }
+const x = new B(), y = new B();
+console.log(x.f === y.f, x.g === y.g);`,
+              answer: 'true false. Methods are shared on the prototype; arrow fields are created per instance.',
             },
           ],
         },
@@ -58,15 +57,23 @@ Weak answer: just reorders lines without knowing the rule.`,
 }`,
           exercises: [
             {
-              task: 'Rewrite Dog using a class field instead of a constructor.',
-              description: 'Checks knowledge of field initialization order. Write it and run new Dog("Rex").',
-              answer: 'class Dog extends Animal { sound = "woof"; } works with no explicit constructor, because the implicit constructor calls super(...args) and then initializes fields. Wrong answers think fields run before super. Strong answer mentions the default derived constructor.',
-              solution: `class Dog extends Animal { sound = 'woof'; }`,
+              task: 'Fix the bug.',
+              description: 'Checks super call before this.',
+              code: `class B extends A {
+  constructor() { this.x = 1; super(); }
+}`,
+              answer: 'Call super() before touching this; this is uninitialized until super runs.',
+              solution: `class B extends A {
+  constructor() { super(); this.x = 1; }
+}`,
             },
             {
-              task: 'What happens if the Dog constructor does not call super() at all?',
-              description: 'Checks the derived-constructor rule. Predict, then run.',
-              answer: 'new Dog() throws a ReferenceError when the constructor finishes, because this was never initialized (unless the constructor returns an object explicitly). Candidates often think it silently creates an object without name. A strong answer knows the explicit-return escape hatch exists but is rarely appropriate.',
+              task: 'Predict what happens.',
+              description: 'Checks missing super in derived constructor.',
+              code: `class A {}
+class B extends A { constructor() {} }
+new B();`,
+              answer: 'ReferenceError: a derived constructor must call super() or return an object.',
             },
           ],
         },
@@ -82,18 +89,17 @@ Weak answer: thinks instanceof inspects how the object was "created".`,
           exercises: [
             {
               task: 'Predict the output.',
-              description: 'Checks prototype-chain semantics of instanceof. Run in Node after predicting.',
-              code: `function F() {}
-const o = new F();
-F.prototype = {};
-console.log(o instanceof F, Object.create(F.prototype) instanceof F);`,
-              answer: 'Prints false true. o still links to the old prototype object, and instanceof compares against the current F.prototype. Many expect true because o was created with new F. A strong answer explains it is a chain lookup, not a creation record.',
+              description: 'Checks typeof quirks.',
+              code: 'console.log(typeof null, typeof [], typeof (() => {}));',
+              answer: 'object object function. typeof null is a historic bug; use Array.isArray for arrays.',
             },
             {
-              task: 'Write a type check for a class without using instanceof. Use a private field.',
-              description: 'Checks ergonomic brand checks. Implement static isPoint(o) and test with a plain object.',
-              answer: 'Use static isPoint(o) { return #x in o; } inside class Point { #x; }. It is true only for objects constructed by Point (or subclasses) and cannot be spoofed by prototype tricks. Wrong answers check o.constructor.name. Strong answer notes it still does not cross realms.',
-              solution: `class Point { #x = 0; static isPoint(o) { return #x in o; } }`,
+              task: 'Predict the output.',
+              description: 'Checks instanceof uses prototype chain.',
+              code: `class A {}
+const o = Object.create(A.prototype);
+console.log(o instanceof A);`,
+              answer: `true. instanceof checks whether A.prototype is in o's prototype chain, not how o was built.`,
             },
           ],
         },
@@ -111,22 +117,21 @@ Strong answer: discusses serialization, debugging visibility, and keeping getter
           follow: 'How do you make a class with accessors serialize correctly to JSON?',
           exercises: [
             {
-              task: 'Predict output of spread and JSON on an object with a getter.',
-              description: 'Checks own vs prototype accessors. Run in Node.',
-              code: `class T { #c = 20; get f() { return this.#c * 9 / 5 + 32; } }
-const t = new T();
-console.log({ ...t }, JSON.stringify(t));`,
-              answer: 'Prints {} and "{}". f is a prototype accessor and #c is private, so neither is an own enumerable property. People often expect { f: 68 }. A strong answer adds toJSON() { return { f: this.f }; }.',
+              task: 'Predict the output.',
+              description: 'Checks getter without setter.',
+              code: `'use strict';
+class T { get v() { return 1; } }
+const t = new T(); t.v = 5;`,
+              answer: 'TypeError in strict mode (class bodies are strict too): accessor property has no setter.',
             },
             {
-              task: 'Implement a setter that rejects negative ages with a RangeError.',
-              description: 'Checks validation via accessors and private state. Write the class and test p.age = -1.',
-              answer: 'Store the value in #age and in set age(v) throw RangeError for v < 0, plus a matching getter. Missing the getter is the classic mistake. Using this.age = v inside the setter causes infinite recursion, which strong candidates call out.',
-              solution: `class Person {
-  #age = 0;
-  get age() { return this.#age; }
-  set age(v) { if (v < 0) throw new RangeError('age'); this.#age = v; }
-}`,
+              task: 'Spot the problem.',
+              description: 'Checks expensive work hidden in getters.',
+              code: `class List {
+  get total() { return this.items.reduce((s, i) => s + i.price, 0); }
+}
+for (let i = 0; i < n; i++) use(list.total);`,
+              answer: 'The getter looks like a cheap field but recomputes each access. Cache the value or use an explicit method.',
             },
           ],
         },
@@ -160,14 +165,24 @@ class Child extends Base {
 const c = Child.create();`,
           exercises: [
             {
-              task: 'Log the order of field initialization and constructors.',
-              description: 'Checks evaluation order. Add console.log calls in fields (via a helper) and constructors, then run.',
-              answer: 'Order is: Base fields, Base constructor body, Child fields, Child constructor body after super(). Many guess Child fields come first. A strong candidate links this to why the original code fails.',
+              task: 'Predict the output.',
+              description: 'Checks parent constructor calling overridden method.',
+              code: `class A { constructor() { this.init(); } init() {} }
+class B extends A {
+  name = 'b';
+  init() { console.log(this.name); }
+}
+new B();`,
+              answer: 'undefined. Parent constructor runs before subclass fields are initialized.',
             },
             {
-              task: 'Why does a static factory using new this() work for subclasses?',
-              description: 'Checks this inside static methods. Explain and demonstrate with Child.create() instanceof Child.',
-              answer: 'In a static method called as Child.create(), this is Child, so new this() constructs Child. Hardcoding new Base() would lose the subclass. Strong answers note static methods are inherited via the constructor prototype chain.',
+              task: 'Fix the bug.',
+              description: 'Checks passing constructor arguments to super.',
+              code: `class A { constructor(id) { this.id = id; } }
+class B extends A { constructor(id) { super(); } }
+console.log(new B(7).id);`,
+              answer: 'Logs undefined; pass the argument to super.',
+              solution: 'class B extends A { constructor(id) { super(id); } }',
             },
           ],
         },
@@ -182,18 +197,22 @@ Strong answer: knows the setter/non-writable exceptions and the shared-mutable-p
 Weak answer: thinks assignment modifies the prototype.`,
           exercises: [
             {
-              task: 'Predict output.',
-              description: 'Checks shared mutable state on prototypes. Run in Node.',
-              code: `const proto = { tags: [], n: 0 };
-const a = Object.create(proto), b = Object.create(proto);
-a.tags.push('x'); a.n++;
-console.log(b.tags, b.n, Object.hasOwn(a, 'n'));`,
-              answer: "Prints ['x'] 0 true. push mutates the shared array, while a.n++ reads 0 from the prototype and writes an own n. Candidates often say b.tags is empty. Strong answer recommends per-instance state in constructors/fields.",
+              task: 'Predict the output.',
+              description: 'Checks shadowing on write.',
+              code: `const proto = { x: 1 };
+const o = Object.create(proto);
+o.x = 2;
+console.log(proto.x, o.x);`,
+              answer: '1 2. Assignment creates an own property on o, shadowing the inherited one.',
             },
             {
-              task: 'Show what happens assigning to an inherited non-writable property in strict mode.',
-              description: 'Checks the non-writable exception. Use Object.defineProperty on proto, then assign on a child in a module.',
-              answer: 'It throws a TypeError in strict mode (modules and classes are strict) and is silently ignored in sloppy mode; no own property is created. Most candidates expect shadowing. Strong answers mention Object.defineProperty on the child as the way to shadow anyway.',
+              task: 'Predict the output.',
+              description: 'Checks mutation of shared prototype object.',
+              code: `const proto = { list: [] };
+const a = Object.create(proto), b = Object.create(proto);
+a.list.push(1);
+console.log(b.list);`,
+              answer: '[1]. a.list reads the inherited array and mutates it; no own property is created.',
             },
           ],
         },
@@ -211,26 +230,23 @@ Strong answer: notes species is a known source of complexity and engine slow pat
           ai: true,
           exercises: [
             {
-              task: 'Predict the result of map on a subclass with a required constructor arg.',
-              description: 'Checks species behavior. Run in Node.',
-              code: `class Named extends Array {
-  constructor(name, ...items) { super(...items); this.name = name; }
-}
-const n = new Named('a', 1, 2);
-const m = n.map(x => x * 2);
-console.log(m instanceof Named, m.name, [...m]);`,
-              answer: 'map calls new Named(2) via species, so name becomes 2 and the array starts empty, then items are defined: prints true 2 [2, 4]. Candidates expect "a" or a plain Array. Strong answer fixes it with static get [Symbol.species]() { return Array; }.',
+              task: 'Predict the output.',
+              description: 'Checks Symbol.species on Array subclasses.',
+              code: `class MyArr extends Array {}
+const m = MyArr.from([1, 2]).map(x => x);
+console.log(m instanceof MyArr);`,
+              answer: 'true. map uses Symbol.species, which defaults to the subclass constructor.',
             },
             {
-              task: 'Write a custom HttpError class that preserves the original cause and works with instanceof.',
-              description: 'Checks Error subclassing best practices. Write and test with try/catch.',
-              answer: 'class HttpError extends Error { constructor(status, msg, opts) { super(msg, opts); this.name = "HttpError"; this.status = status; } } and pass { cause: err }. Forgetting name gives unhelpful logs; manually copying stack is unnecessary. Strong answers mention cause is standard since ES2022.',
+              task: 'Fix the custom error.',
+              description: 'Checks name and cause on Error subclasses.',
+              code: `class HttpError extends Error {
+  constructor(msg, status) { super(msg); }
+}`,
+              answer: 'Set name and status so logs and checks work; optionally pass cause.',
               solution: `class HttpError extends Error {
-  constructor(status, message, options) {
-    super(message, options);
-    this.name = 'HttpError';
-    this.status = status;
-  }
+  name = 'HttpError';
+  constructor(msg, status, opts) { super(msg, opts); this.status = status; }
 }`,
             },
           ],
@@ -264,19 +280,22 @@ const price = Money.fromJSON(JSON.parse(localStorage.getItem('price')));`,
           follow: 'How would you restore many different classes from one JSON document?',
           exercises: [
             {
-              code: `class User { #token = 'x'; name = 'Ann'; hi() {} }
-console.log(JSON.stringify(new User()));`,
               task: 'Predict the output.',
-              description: 'Checks JSON rules for classes.',
-              answer: '{"name":"Ann"}. The private field is skipped, and the method lives on the prototype, so it is not saved.',
+              description: 'Checks JSON drops methods and prototype.',
+              code: `class P { constructor(n) { this.n = n; } hi() {} }
+const o = JSON.parse(JSON.stringify(new P(1)));
+console.log(o instanceof P, typeof o.hi);`,
+              answer: 'false undefined. JSON keeps only own data properties; rehydrate with new P(o.n).',
             },
             {
-              task: 'Use a JSON.parse reviver to restore Money objects.',
-              description: 'Checks the reviver function.',
-              answer: 'Save a type tag, then in the reviver check the tag and return a new instance.',
-              solution: `const data = JSON.parse(text, (key, value) =>
-  value && value.type === 'Money' ? Money.fromJSON(value) : value
-);`,
+              task: 'Write a static fromJSON that rehydrates a class.',
+              description: 'Checks restoring class instances from plain data.',
+              code: 'class Money { constructor(c) { this.cents = c; } }',
+              answer: 'Add a static factory that builds a real instance from parsed data.',
+              solution: `class Money {
+  constructor(c) { this.cents = c; }
+  static fromJSON(d) { return new Money(d.cents); }
+}`,
             },
           ],
         },
@@ -292,20 +311,19 @@ Strong answer: distinguishes legacy vs standard, and limits decorators to well-u
           ai: true,
           exercises: [
             {
-              task: 'Write a standard @logged method decorator.',
-              description: 'Checks the standard decorator signature. Run with TypeScript 5+ (no experimentalDecorators) or Babel.',
-              answer: 'function logged(fn, ctx) { return function (...args) { console.log(String(ctx.name), args); return fn.apply(this, args); }; }. Using the legacy (target, key, descriptor) signature is the common wrong answer. Strong answers preserve this with apply.',
-              solution: `function logged(fn, context) {
-  return function (...args) {
-    console.log(\`call \${String(context.name)}\`, args);
-    return fn.apply(this, args);
-  };
+              task: 'Write a method decorator that logs calls.',
+              description: 'Checks standard decorator signature.',
+              code: 'class S { @log save() {} }',
+              answer: 'A method decorator receives (value, context) and returns a replacement function.',
+              solution: `function log(fn, ctx) {
+  return function (...a) { console.log(ctx.name); return fn.apply(this, a); };
 }`,
             },
             {
-              task: 'Implement @bound using addInitializer.',
-              description: 'Checks per-instance initialization. Test by passing obj.method as a callback.',
-              answer: 'function bound(fn, ctx) { ctx.addInitializer(function () { this[ctx.name] = this[ctx.name].bind(this); }); }. It binds per instance at construction. Strong candidates note private methods need ctx.access instead of this[name].',
+              task: 'Name two risks of decorators in shared code.',
+              description: 'Checks awareness of tooling and hidden behavior.',
+              code: '// TS experimentalDecorators vs TC39 decorators',
+              answer: 'Legacy and standard decorator semantics differ, and decorators hide behavior, making debugging and tree shaking harder.',
             },
           ],
         },
@@ -324,22 +342,17 @@ Map errors to user messages in one place, not in every component.
 Strong answer: covers cause, codes, and the instanceof limits. Weak answer: throws plain strings.`,
           exercises: [
             {
-              task: 'Write an HttpError class with status and cause.',
-              description: 'Checks correct Error subclassing.',
-              answer: 'Call super with the message and options, set name and status. The cause is stored by the Error constructor.',
-              solution: `class HttpError extends Error {
-  constructor(status, message, options) {
-    super(message, options);
-    this.name = 'HttpError';
-    this.status = status;
-  }
-}
-throw new HttpError(404, 'User not found', { cause: originalError });`,
+              task: 'Spot the problem.',
+              description: 'Checks losing the original error.',
+              code: `try { await api() }
+catch (e) { throw new Error('Load failed'); }`,
+              answer: `Original stack and details are lost. Use new Error('Load failed', { cause: e }).`,
             },
             {
-              task: 'Why can instanceof HttpError be false for a real HttpError?',
-              description: 'Checks realm and package duplication issues.',
-              answer: 'If the error comes from an iframe or a second copy of the library, it was made by a different class object. Check err.name or a code field as a fallback.',
+              task: 'Name fields for an app error class.',
+              description: 'Checks useful error metadata design.',
+              code: 'class AppError extends Error { /* ? */ }',
+              answer: 'code (stable id), user-safe message, retryable flag, cause, and context like requestId; avoid secrets.',
             },
           ],
         },
@@ -370,14 +383,21 @@ Strong answer: balances API stability for consumers with internal cleanup.`,
 const phone = new Input({ mask: maskPhone, validators: [required, isPhone] });`,
           exercises: [
             {
-              task: 'Write an RFC outline for the change.',
-              description: 'Checks communication and versioning judgment. Produce headings and key points.',
-              answer: 'Problem, proposed API, migration path with deprecation warnings, codemod, semver major plan, timeline, owners. Weak answers skip consumer migration. Strong answers include adoption metrics and a sunset date.',
+              task: 'Refactor inheritance to composition.',
+              description: 'Checks composition over deep hierarchies.',
+              code: `class Button extends Clickable {}
+class Clickable extends Focusable {}`,
+              answer: 'Compose small behaviors (hooks or helpers) instead of chains, so changes in a base class do not ripple.',
+              solution: `function Button(p) {
+  const focus = useFocus(); const click = useClick(p);
+  return <button {...focus} {...click} />;
+}`,
             },
             {
-              task: 'Identify one concrete bug class the deep hierarchy enables.',
-              description: 'Checks reasoning about fragile base classes. Explain with an example.',
-              answer: 'E.g. BaseComponent.validate starts returning a Promise; every subclass using super.validate() && ... now gets a truthy Promise and validation silently passes. Strong candidates give such a concrete cascade, not a vague "hard to maintain".',
+              task: 'Name one risk of deep inheritance.',
+              description: 'Checks fragile base class problem.',
+              code: '// Level1 > Level2 > Level3 > Level4',
+              answer: 'Fragile base class: a change at the top silently breaks subclasses, and behavior is hard to trace.',
             },
           ],
         },
@@ -392,16 +412,18 @@ Enforce with no-extend-native lint rule.
 Strong answer: explains ecosystem impact, not just "bad practice".`,
           exercises: [
             {
-              task: 'Replace a patched arr.last() and arr.groupBy(fn) with standard APIs.',
-              description: 'Checks knowledge of modern built-ins. Write code and run in Node 22+.',
-              answer: 'Use arr.at(-1) and Object.groupBy(arr, fn) (or Map.groupBy for non-string keys). Weak answers write custom loops or lodash without knowing the built-ins. Strong answers mention browser baseline support.',
-              solution: `const last = arr.at(-1);
-const byType = Object.groupBy(arr, x => x.type);`,
+              task: 'Spot the problem.',
+              description: 'Checks enumerable prototype pollution.',
+              code: `Array.prototype.last = function () { return this.at(-1); };
+for (const k in [1]) console.log(k);`,
+              answer: 'Logs 0 and last: the added method is enumerable and leaks into for...in. It can also clash with future standards.',
             },
             {
-              task: 'Show how a patched enumerable prototype method breaks for...in.',
-              description: 'Checks enumerability. Assign Array.prototype.foo = fn and loop with for...in.',
-              answer: 'for...in over an array then yields "foo" in addition to indices, breaking legacy code. Defining via Object.defineProperty with enumerable: false avoids that but not name collisions. Strong answers mention both issues.',
+              task: 'Rewrite as a safe helper.',
+              description: 'Checks standalone utility instead of patching.',
+              code: 'Array.prototype.groupBy = function (f) { /*...*/ };',
+              answer: 'Use the built-in Object.groupBy or a plain imported function.',
+              solution: 'const byType = Object.groupBy(items, i => i.type);',
             },
           ],
         },
@@ -420,17 +442,19 @@ Strong answer: knows size vs length, the object identity rule, and iteration ord
 Weak answer: calls set.length or expects deep equality.`,
           exercises: [
             {
-              task: 'Predict the size of the Set.',
-              description: 'Checks the SameValueZero rule. Predict, then run in Node.',
-              code: `const s = new Set([1, '1', NaN, NaN, {}, {}, 0, -0]);
+              task: 'Predict the output.',
+              description: 'Checks Set uniqueness and size.',
+              code: `const s = new Set([1, 1, '1']);
+s.add(2).delete(1);
 console.log(s.size);`,
-              answer: 'The size is 6: 1, "1", NaN, {}, {}, 0. NaN is only stored once, 0 and -0 are the same, and two object literals are different. Candidates often say 4 or 8. A strong answer names SameValueZero.',
+              answer: `2. Duplicates collapse, '1' differs from 1, add returns the Set; left with '1' and 2.`,
             },
             {
-              task: 'Count unique words in a sentence.',
-              description: 'Checks basic Set usage. Write a function and test with "a b a c".',
-              answer: 'new Set(text.split(/\\s+/)).size gives 3 for "a b a c". Normalizing case with toLowerCase is a good extra step. Weak answers use nested loops.',
-              solution: `const uniqueWords = (text) => new Set(text.toLowerCase().split(/\\s+/).filter(Boolean)).size;`,
+              task: 'Write a one-liner to dedupe an array.',
+              description: 'Checks Set to array conversion.',
+              code: 'const a = [3, 1, 3, 2, 1];',
+              answer: 'Spread a Set back into an array; insertion order is kept.',
+              solution: 'const unique = [...new Set(a)]; // [3, 1, 2]',
             },
           ],
         },
@@ -453,16 +477,22 @@ console.log(prices.get('apple')); // 2
 console.log(prices.size); // 1`,
           exercises: [
             {
-              task: 'Convert a plain object to a Map and back.',
-              description: 'Checks Object.entries and Object.fromEntries. Run with { a: 1, b: 2 }.',
-              answer: 'new Map(Object.entries(obj)) and Object.fromEntries(map). This only works well for string keys. Weak answers loop manually without knowing these helpers.',
-              solution: `const m = new Map(Object.entries({ a: 1, b: 2 }));
-const back = Object.fromEntries(m);`,
+              task: 'Predict the output.',
+              description: 'Checks object keys by reference.',
+              code: `const m = new Map();
+m.set({ id: 1 }, 'a');
+console.log(m.get({ id: 1 }));`,
+              answer: 'undefined. Object keys compare by reference; use the same object or a primitive key like id.',
             },
             {
-              task: 'Why can a Map use an object as a key, but an object cannot?',
-              description: 'Checks key types. Try obj[{}] = 1 and log Object.keys(obj).',
-              answer: 'Object keys are converted to strings, so every object becomes "[object Object]" and keys collide. Map keeps the real reference. A strong answer gives a use case like storing data per DOM node.',
+              task: 'Fix the bug.',
+              description: 'Checks bracket access versus get.',
+              code: `const m = new Map();
+m['x'] = 1;
+console.log(m.get('x'), m.size);`,
+              answer: 'Brackets set a plain property, not an entry; use set.',
+              solution: `m.set('x', 1);
+console.log(m.get('x'), m.size); // 1 1`,
             },
           ],
         },
@@ -477,18 +507,19 @@ Strong answer: mentions the forEach argument order and the re-insert trick used 
 Weak answer: thinks Map order is random like some other languages.`,
           exercises: [
             {
-              task: 'Predict the printed keys.',
-              description: 'Checks insertion order rules. Run in Node.',
-              code: `const m = new Map([['a', 1], ['b', 2]]);
-m.set('a', 3);
-m.delete('b'); m.set('b', 4);
+              task: 'Predict the output.',
+              description: 'Checks Map insertion order.',
+              code: `const m = new Map([['b', 1], ['a', 2]]);
+m.set('b', 3);
 console.log([...m.keys()]);`,
-              answer: "Prints ['a', 'b']. Updating a keeps its position; b is deleted and added again, so it goes last (it was already last). Strong candidates explain both rules.",
+              answer: `['b', 'a']. Updating an existing key keeps its original insertion position.`,
             },
             {
-              task: 'Sum all values in a Map.',
-              description: 'Checks iteration helpers. Write it in one line.',
-              answer: '[...map.values()].reduce((a, b) => a + b, 0). In 2026 you can also use map.values().reduce with iterator helpers. Weak answers use for...in, which does not work on Maps.',
+              task: 'Write code to convert a Map to an object.',
+              description: 'Checks Map and object conversion.',
+              code: `const m = new Map([['x', 1], ['y', 2]]);`,
+              answer: 'Use Object.fromEntries, which accepts any iterable of pairs.',
+              solution: 'const obj = Object.fromEntries(m); // { x: 1, y: 2 }',
             },
           ],
         },
@@ -505,15 +536,18 @@ Strong answer: knows the methods exist and the set-like requirement; weak answer
 Older environments need a polyfill (core-js).`,
           exercises: [
             {
-              task: 'Check if a user has all required roles.',
-              description: 'Checks isSupersetOf / isSubsetOf. Write it and run in Node 22+.',
-              answer: 'required.isSubsetOf(userRoles) or userRoles.isSupersetOf(required). Before ES2025 you would write [...required].every(r => userRoles.has(r)). Strong answers mention both.',
-              solution: `const ok = new Set(['read', 'write']).isSubsetOf(new Set(user.roles));`,
+              task: 'Predict the output.',
+              description: 'Checks Set.prototype.intersection.',
+              code: `const a = new Set([1, 2, 3]);
+console.log([...a.intersection(new Set([2, 3, 4]))]);`,
+              answer: '[2, 3]. intersection returns a new Set of shared elements.',
             },
             {
-              task: 'Find which items were added and removed between two selections.',
-              description: 'Checks difference. Use prev and next Sets.',
-              answer: 'added = next.difference(prev), removed = prev.difference(next). Using symmetricDifference loses the direction, a common mistake. Strong answers note it is linear time.',
+              task: 'Predict the output.',
+              description: 'Checks isSubsetOf and difference.',
+              code: `const s = new Set([1, 2]);
+console.log(s.isSubsetOf(new Set([1, 2, 3])), [...s.difference(new Set([1]))]);`,
+              answer: 'true [2]. difference keeps items not in the other set.',
             },
           ],
         },
@@ -537,18 +571,19 @@ console.log(loaded.get('theme')); // "dark"`,
           follow: 'How would you save a Set of numbers?',
           exercises: [
             {
-              task: 'Save and load a Set of tags.',
-              description: 'Checks the same idea with Set.',
-              answer: 'Spread the Set into an array before stringify, and pass the parsed array to new Set.',
-              solution: `localStorage.setItem('tags', JSON.stringify([...tags]));
-const tags2 = new Set(JSON.parse(localStorage.getItem('tags')));`,
+              task: 'Predict the output.',
+              description: 'Checks JSON serialization of Set.',
+              code: `console.log(JSON.stringify({ tags: new Set(['a']) }));`,
+              answer: '{"tags":{}}. Sets and Maps serialize as empty objects; convert to arrays first.',
             },
             {
-              task: 'Write a JSON replacer that handles Maps everywhere in an object.',
-              description: 'Checks the replacer argument.',
-              answer: 'In the replacer, return a tagged object with the entries when the value is a Map. Use a matching reviver on parse.',
-              solution: `const replacer = (k, v) => v instanceof Map ? { __map: [...v] } : v;
-const reviver = (k, v) => v && v.__map ? new Map(v.__map) : v;`,
+              task: 'Fix the save and load of a Map.',
+              description: 'Checks persisting Map via entries.',
+              code: `localStorage.p = JSON.stringify(prefs);
+const prefs2 = JSON.parse(localStorage.p);`,
+              answer: 'Serialize entries and rebuild the Map on load.',
+              solution: `localStorage.p = JSON.stringify([...prefs]);
+const prefs2 = new Map(JSON.parse(localStorage.p));`,
             },
           ],
         },
@@ -563,19 +598,21 @@ Strong answer: explains why iteration is impossible and gives a concrete use.
 Weak answer: thinks WeakSet is a faster Set.`,
           exercises: [
             {
-              task: 'Avoid infinite loops when walking an object graph with cycles.',
-              description: 'Checks WeakSet as a visited marker. Write a deepCount function and test with a cyclic object.',
-              answer: 'Keep a WeakSet of visited objects and return early if seen.has(obj). A WeakSet or Set both work here; WeakSet avoids leaks if the marker outlives the walk. Strong answers mention structuredClone also handles cycles.',
-              solution: `function countNodes(obj, seen = new WeakSet()) {
-  if (obj === null || typeof obj !== 'object' || seen.has(obj)) return 0;
-  seen.add(obj);
-  return 1 + Object.values(obj).reduce((n, v) => n + countNodes(v, seen), 0);
-}`,
+              task: 'Predict what happens.',
+              description: 'Checks WeakSet value restrictions.',
+              code: `const ws = new WeakSet();
+ws.add(1);`,
+              answer: 'TypeError. WeakSet holds only objects (or non-registered symbols), not primitives.',
             },
             {
-              task: 'What happens when you call weakSet.add(42)?',
-              description: 'Checks allowed value types. Run in Node.',
-              answer: 'It throws a TypeError ("Invalid value used in weak set") because primitives cannot be held weakly. Strong candidates add that unique symbols are allowed since ES2023.',
+              task: 'Write a guard to process each node once.',
+              description: 'Checks WeakSet as visited marker.',
+              code: 'function init(el) { /* run once per element */ }',
+              answer: 'Track elements in a WeakSet so removed nodes can be collected.',
+              solution: `const seen = new WeakSet();
+function init(el) {
+  if (seen.has(el)) return; seen.add(el); setup(el);
+}`,
             },
           ],
         },
@@ -603,14 +640,19 @@ const registry = []; // leak: holds el forever
           ai: true,
           exercises: [
             {
-              task: 'Explain what an ephemeron is.',
-              description: 'Checks GC semantics. Explain in your own words.',
-              answer: 'An ephemeron is a key/value pair where the value is only reachable if the key is reachable through other paths. So cycles between key and value do not prevent collection. Weak candidates think the value keeps the key alive. Strong ones relate it to WeakMap correctness.',
+              task: 'Spot the leak.',
+              description: 'Checks value referencing its own key.',
+              code: `const wm = new WeakMap();
+wm.set(el, { el, handler });
+window.cache = { el };`,
+              answer: 'The leak is window.cache holding el strongly. WeakMap values referencing their key do not keep it alive alone.',
             },
             {
-              task: 'Use DevTools to confirm detached DOM nodes are collected.',
-              description: 'Checks leak debugging skill. Describe the steps in Chrome.',
-              answer: 'Take a heap snapshot, remove nodes, force GC, take another, filter by "Detached", and inspect retainers. Strong answers use the comparison view and the retainers tree, not just total memory.',
+              task: 'Explain why WeakMap has no size.',
+              description: 'Checks non-enumerability of weak collections.',
+              code: `const wm = new WeakMap();
+console.log(wm.size);`,
+              answer: 'undefined. Entries vanish on GC at unpredictable times, so size and iteration are not exposed.',
             },
           ],
         },
@@ -625,25 +667,19 @@ The Records and Tuples proposal that would have given value-based keys was withd
 Strong answer: compares options and mentions separator collisions. Weak answer: uses arrays as keys and expects them to match.`,
           exercises: [
             {
+              task: 'Write a composite key for a Map.',
+              description: 'Checks string key encoding.',
               code: `const m = new Map();
-m.set([1, 'a'], 'x');
-m.get([1, 'a']); // undefined`,
-              task: 'Why does this lookup return undefined? Fix it with a string key.',
-              description: 'Checks reference equality of keys.',
-              answer: 'Each [1, "a"] is a new array, so the key in get is a different object. Build a string key instead.',
-              solution: `const key = (id, d) => id + '|' + d;
-m.set(key(1, 'a'), 'x');
-m.get(key(1, 'a')); // 'x'`,
+// key: userId + date`,
+              answer: 'Join parts with a safe separator into a primitive key.',
+              solution: `const key = (u, d) => \`\${u}|\${d}\`;
+m.set(key(7, '2026-01-01'), data);`,
             },
             {
-              task: 'Write get and set helpers for a nested Map with two keys.',
-              description: 'Checks the Map of Maps pattern.',
-              answer: 'Get or create the inner Map for the first key, then use the second key on it.',
-              solution: `function set2(m, a, b, v) {
-  if (!m.has(a)) m.set(a, new Map());
-  m.get(a).set(b, v);
-}
-const get2 = (m, a, b) => m.get(a)?.get(b);`,
+              task: 'Name a second option besides string keys.',
+              description: 'Checks nested Map approach.',
+              code: '// Map<userId, Map<date, value>>',
+              answer: `Use nested Maps: outer by userId, inner by date. Avoids encoding bugs and allows deleting one user's entries.`,
             },
           ],
         },
@@ -674,23 +710,19 @@ function getLayout(node) {
 }`,
           exercises: [
             {
-              task: 'Extend memoize to support two object arguments.',
-              description: 'Checks nested WeakMaps. Write memo2(fn).',
-              answer: 'Use a WeakMap from a to a WeakMap from b to result. Concatenating keys into a string does not work for objects. Strong answers generalize to a trie of WeakMaps.',
-              solution: `function memo2(fn) {
-  const root = new WeakMap();
-  return (a, b) => {
-    let inner = root.get(a);
-    if (!inner) root.set(a, (inner = new WeakMap()));
-    if (!inner.has(b)) inner.set(b, fn(a, b));
-    return inner.get(b);
-  };
-}`,
+              task: 'Predict the output.',
+              description: 'Checks WeakMap memo cache hits.',
+              code: `const memo = new WeakMap();
+const f = o => memo.get(o) ?? (memo.set(o, o.x * 2), o.x * 2);
+console.log(f({ x: 1 }) , memo.has({ x: 1 }));`,
+              answer: '2 false. A new literal is a different object, so the cache lookup misses.',
             },
             {
-              task: 'Why use get then compare to undefined instead of has then get?',
-              description: 'Checks a micro-optimization and its edge case. Discuss.',
-              answer: 'It does one lookup instead of two. But if undefined is a valid result, it will recompute each time, so has is correct then. Strong answers mention the trade-off.',
+              task: 'Spot the problem.',
+              description: 'Checks memory growth in Map caches.',
+              code: `const cache = new Map();
+const calc = o => cache.get(o) ?? cache.set(o, heavy(o)).get(o);`,
+              answer: 'Map keeps every object alive forever. Use WeakMap so entries die with their keys.',
             },
           ],
         },
@@ -708,14 +740,20 @@ Strong answer: combines tooling, ownership, and prevention; weak answer just say
           ai: true,
           exercises: [
             {
-              task: 'Design a soak test for memory growth.',
-              description: 'Checks practical test design. Outline tool and pass/fail rule.',
-              answer: 'Use Playwright to repeat a user flow N times, collect heap size via CDP after forced GC, and fail if growth passes a threshold after warmup. Weak answers rely on manual checks. Strong answers handle noise with multiple samples.',
+              task: 'Name two fixes for growing global Maps.',
+              description: 'Checks cache eviction strategies.',
+              code: 'const usersById = new Map(); // grows all day',
+              answer: 'Add bounded LRU eviction or TTL, and delete entries on logout or route leave; use WeakMap for object keys.',
             },
             {
-              task: 'Write a review checklist item for new caches.',
-              description: 'Checks governance. Write 3 to 4 bullet points.',
-              answer: 'Key type and why; eviction (size/TTL/WeakMap); invalidation on data change; owner and metric. Strong answers keep it short so people actually use it.',
+              task: 'Write a tiny LRU set using Map order.',
+              description: 'Checks Map insertion order for eviction.',
+              code: 'function put(m, k, v, max) { /* ... */ }',
+              answer: 'Re-insert on write; delete the oldest key when over limit.',
+              solution: `function put(m, k, v, max) {
+  m.delete(k); m.set(k, v);
+  if (m.size > max) m.delete(m.keys().next().value);
+}`,
             },
           ],
         },
@@ -741,27 +779,19 @@ state.rows = state.rows.map((r) => (r.id === changedId ? { ...r, ...patch } : r)
           follow: 'When is keying by ID in a normal Map better than a WeakMap here?',
           exercises: [
             {
-              code: `const a = { id: 1 };
-getHeight(a);
-getHeight(a);
-getHeight({ ...a });`,
-              task: 'How many times does measure run in this code?',
-              description: 'Checks identity versus copies.',
-              answer: 'Twice. The second call gets a copy, which is a different object, so it misses the cache.',
+              task: 'Predict the output.',
+              description: 'Checks immutable updates create new keys.',
+              code: `const wm = new WeakMap();
+let s = { a: 1 }; wm.set(s, 'x');
+s = { ...s, a: 2 };
+console.log(wm.get(s));`,
+              answer: 'undefined. Spread creates a new object, so the reference-keyed cache misses.',
             },
             {
-              task: 'Write a cache keyed by id and version, with a size limit.',
-              description: 'Checks the alternative design.',
-              answer: 'Build a string key from id and version, and delete the oldest key when the Map is too large.',
-              solution: `const cache = new Map();
-function getHeight(row) {
-  const k = row.id + ':' + row.version;
-  if (!cache.has(k)) {
-    if (cache.size > 1000) cache.delete(cache.keys().next().value);
-    cache.set(k, measure(row));
-  }
-  return cache.get(k);
-}`,
+              task: 'Suggest a cache key fix.',
+              description: 'Checks keying cache on stable inputs.',
+              code: 'cache.set(state, selectTotal(state));',
+              answer: 'Key on the specific slice that the selector reads, like state.items, which only changes when it actually updates.',
             },
           ],
         },
@@ -777,14 +807,20 @@ If you adopt it, keep it inside one module and expose plain data.
 Strong answer: weighs bundle size, interop and real need. Weak answer: "immutable is always better".`,
           exercises: [
             {
-              task: 'What is structural sharing? Why does it make updates cheap?',
-              description: 'Checks the core idea behind persistent data.',
-              answer: 'A new version reuses most of the old tree and copies only the path to the changed item. So an update costs about log n, not a full copy.',
+              task: 'Predict the output.',
+              description: 'Checks shallow freeze limitations.',
+              code: `const o = Object.freeze({ list: [1] });
+o.list.push(2);
+console.log(o.list.length);`,
+              answer: '2. Object.freeze is shallow; nested objects stay mutable.',
             },
             {
-              task: 'How would you get runtime immutability in development without a library?',
-              description: 'Checks native tools.',
-              answer: 'Deep freeze state in development builds, so accidental writes throw in strict mode. Skip it in production for speed, and use readonly types for compile-time checks.',
+              task: 'Write an immutable update without a library.',
+              description: 'Checks native immutable array methods.',
+              code: `const items = [3, 1, 2];
+// sorted copy, items unchanged`,
+              answer: 'Use ES2023 non-mutating methods like toSorted, toSpliced, with.',
+              solution: 'const sorted = items.toSorted((a, b) => a - b);',
             },
           ],
         },
@@ -803,20 +839,21 @@ Strong answer: explains pause/resume and laziness with an example.
 Weak answer: thinks a generator returns an array.`,
           exercises: [
             {
-              task: 'Predict each next() result.',
-              description: 'Checks the iterator result shape. Run in Node.',
-              code: `function* g() { yield 1; yield 2; return 3; }
+              task: 'Predict the output.',
+              description: 'Checks lazy generator execution.',
+              code: `function* g() { console.log('start'); yield 1; }
 const it = g();
-console.log(it.next(), it.next(), it.next(), it.next());`,
-              answer: 'Prints {value:1,done:false} {value:2,done:false} {value:3,done:true} {value:undefined,done:true}. Many forget the return value appears with done: true. Strong answers note for...of ignores the returned 3.',
+console.log('made');
+it.next();`,
+              answer: 'made, then start. A generator body runs only when next is called.',
             },
             {
-              task: 'Write a generator that yields numbers from start to end.',
-              description: 'Checks basic generator writing. Spread it into an array to test.',
-              answer: 'function* range(a, b) { for (let i = a; i <= b; i++) yield i; } then [...range(1, 3)] gives [1, 2, 3]. Weak answers build an array inside. Strong answers mention laziness.',
-              solution: `function* range(start, end) {
-  for (let i = start; i <= end; i++) yield i;
-}`,
+              task: 'Write an infinite id generator.',
+              description: 'Checks yield in a loop.',
+              code: '// ids.next().value -> 1, 2, 3...',
+              answer: 'Loop forever and yield an incremented counter.',
+              solution: `function* ids() { let i = 0; while (true) yield ++i; }
+const it = ids();`,
             },
           ],
         },
@@ -843,20 +880,18 @@ Strong answer: explains the done flag. Weak answer: adds an extra yield without 
           follow: 'How can you read the return value of a generator?',
           exercises: [
             {
+              task: 'Predict the output.',
+              description: 'Checks return value ignored by spread.',
               code: `function* g() { yield 1; return 2; }
-const it = g();
-it.next(); it.next(); it.next();`,
-              task: 'Write what each next call returns.',
-              description: 'Checks the iterator result objects.',
-              answer: '{ value: 1, done: false }, then { value: 2, done: true }, then { value: undefined, done: true }.',
+console.log([...g()]);`,
+              answer: '[1]. Spread and for...of ignore the value from return (done: true).',
             },
             {
-              task: 'Write a generator that yields numbers from 1 to n.',
-              description: 'Checks basic generator writing.',
-              answer: 'Use a for loop and yield each number.',
-              solution: `function* range(n) {
-  for (let i = 1; i <= n; i++) yield i;
-}`,
+              task: 'Predict the output.',
+              description: 'Checks reusing an exhausted iterator.',
+              code: `const it = [1, 2].values();
+console.log([...it], [...it]);`,
+              answer: '[1, 2] []. Iterators are single-use; the second spread gets nothing.',
             },
           ],
         },
@@ -872,16 +907,17 @@ Weak answer: thinks symbols are just strings.`,
           exercises: [
             {
               task: 'Predict the output.',
-              description: 'Checks symbol identity and visibility. Run in Node.',
-              code: `const a = Symbol('x'), b = Symbol.for('x');
-const o = { [a]: 1, [b]: 2, y: 3 };
-console.log(a === Symbol('x'), b === Symbol.for('x'), Object.keys(o), JSON.stringify(o));`,
-              answer: 'Prints false true ["y"] {"y":3}. Symbol keys are hidden from keys and JSON. Use Object.getOwnPropertySymbols or Reflect.ownKeys to see them. Strong answers mention that.',
+              description: 'Checks Symbol.for registry.',
+              code: `console.log(Symbol('a') === Symbol('a'), Symbol.for('a') === Symbol.for('a'));`,
+              answer: 'false true. Symbol.for returns a shared registry symbol per key.',
             },
             {
-              task: 'List all keys of an object, including symbols.',
-              description: 'Checks Reflect.ownKeys. Test with the object above.',
-              answer: 'Reflect.ownKeys(o) returns ["y", Symbol(x), Symbol(x)], including non-enumerable keys too. Weak answers use Object.keys. Strong answers know the difference from getOwnPropertySymbols.',
+              task: 'Predict the output.',
+              description: 'Checks symbol keys are hidden from keys.',
+              code: `const k = Symbol('k');
+const o = { [k]: 1, a: 2 };
+console.log(Object.keys(o), JSON.stringify(o));`,
+              answer: `['a'] {"a":2}. Symbol keys are skipped by Object.keys and JSON.`,
             },
           ],
         },
@@ -899,32 +935,19 @@ Weak answer: thinks next(v) changes the yielded value.`,
           exercises: [
             {
               task: 'Predict the output.',
-              description: 'Checks two-way communication. Run in Node.',
-              code: `function* calc() {
-  const a = yield 'first';
-  const b = yield a * 2;
-  return a + b;
-}
-const it = calc();
-console.log(it.next(5).value, it.next(10).value, it.next(1).value);`,
-              answer: 'Prints first 20 11. The first 5 is ignored; a = 10 so yield gives 20; b = 1 and return gives 11. Many say 10 for the second value. Strong answers trace each pause.',
+              description: 'Checks first next argument ignored.',
+              code: `function* g() { const x = yield 1; console.log(x); }
+const it = g();
+it.next('a'); it.next('b');`,
+              answer: 'Logs b. The first next starts the generator; its argument is discarded.',
             },
             {
-              task: 'Write a tiny runner that lets a generator yield promises like await.',
-              description: 'Checks understanding of co-style runners. Test with yield fetch-like promises.',
-              answer: 'Call next with each resolved value and throw on rejection, until done. This is what async/await does natively. Strong answers handle rejections via it.throw.',
-              solution: `function run(gen) {
-  const it = gen();
-  return new Promise((resolve, reject) => {
-    function step(method, arg) {
-      let r;
-      try { r = it[method](arg); } catch (e) { return reject(e); }
-      if (r.done) return resolve(r.value);
-      Promise.resolve(r.value).then(v => step('next', v), e => step('throw', e));
-    }
-    step('next');
-  });
-}`,
+              task: 'Predict the output.',
+              description: 'Checks throw into a generator.',
+              code: `function* g() { try { yield 1; } catch (e) { yield 'caught'; } }
+const it = g(); it.next();
+console.log(it.throw(new Error()).value);`,
+              answer: 'caught. throw resumes at the yield and raises the error there.',
             },
           ],
         },
@@ -954,16 +977,23 @@ Weak answer: tweaks numbers until it "works".`,
 console.log([...countdown]); // [3, 2, 1, 0]`,
           exercises: [
             {
-              task: 'Make a class Range iterable with a generator method.',
-              description: 'Checks *[Symbol.iterator] in classes. Test with for...of.',
-              answer: 'Add *[Symbol.iterator]() { for (let i = this.a; i <= this.b; i++) yield i; } to the class. Strong answers note it can be iterated many times because each call makes a new generator.',
+              task: 'Fix the bug.',
+              description: 'Checks iterator done flag.',
+              code: `const it = { i: 0, next() { return { value: this.i++ }; },
+  [Symbol.iterator]() { return this; } };`,
+              answer: 'Without done: true, loops never end; return done when finished.',
+              solution: `next() { return this.i < 3
+  ? { value: this.i++, done: false } : { value: undefined, done: true }; }`,
             },
             {
-              task: 'Use iterator helpers to take the first 3 even numbers from an infinite generator.',
-              description: 'Checks ES2025 iterator helpers. Run in Node 22+.',
-              answer: 'naturals().filter(n => n % 2 === 0).take(3).toArray() gives [0, 2, 4] (if naturals starts at 0). Spreading an infinite generator first hangs. Strong answers mention helpers are lazy.',
-              solution: `function* naturals() { let n = 0; while (true) yield n++; }
-naturals().filter(n => n % 2 === 0).take(3).toArray();`,
+              task: 'Rewrite the iterator as a generator.',
+              description: 'Checks generators simplify iterators.',
+              code: 'class Range { constructor(n) { this.n = n; } }',
+              answer: 'Make Symbol.iterator a generator method; done is handled automatically.',
+              solution: `class Range {
+  constructor(n) { this.n = n; }
+  *[Symbol.iterator]() { for (let i = 0; i < this.n; i++) yield i; }
+}`,
             },
           ],
         },
@@ -978,21 +1008,19 @@ yield inner() (without the star) yields the generator object itself, a common bu
 Strong answer: mentions recursion and the return value. Weak answer: thinks yield* is just a loop.`,
           exercises: [
             {
-              task: 'Write a generator that walks a tree and yields every node value.',
-              description: 'Checks recursion with yield*.',
-              answer: 'Yield the node value, then yield* the walk of each child.',
-              solution: `function* walk(node) {
-  yield node.value;
-  for (const child of node.children ?? []) yield* walk(child);
-}`,
+              task: 'Predict the output.',
+              description: 'Checks yield star delegation.',
+              code: `function* a() { yield 1; yield 2; }
+function* b() { yield 0; yield* a(); yield 3; }
+console.log([...b()]);`,
+              answer: '[0, 1, 2, 3]. yield* yields every value from the inner iterable.',
             },
             {
-              code: `function* b() { yield 1; yield 2; return 'done'; }
-function* a() { const r = yield* b(); yield r; }
-console.log([...a()]);`,
               task: 'Predict the output.',
-              description: 'Checks the return value of yield*.',
-              answer: '[1, 2, "done"]. a yields 1 and 2 from b, then r is "done" (b\'s return value), and a yields it.',
+              description: 'Checks yield star on a string.',
+              code: `function* g() { yield* 'hi'; }
+console.log([...g()]);`,
+              answer: `['h', 'i']. yield* works on any iterable, including strings.`,
             },
           ],
         },
@@ -1027,14 +1055,26 @@ Weak answer: adds a flag variable the consumer must set.`,
 }`,
           exercises: [
             {
-              task: 'Write a test that proves cleanup runs on break.',
-              description: 'Checks testing of the early-exit path. Use a fake cursor with a close spy (Vitest or node:test).',
-              answer: 'Create a fake with next() returning rows and a close spy, iterate and break, then assert close was called once. Strong answers also test the throw path.',
+              task: 'Fix the bug.',
+              description: 'Checks finally cleanup in async generators.',
+              code: `async function* rows(db) {
+  const c = await db.open();
+  while (true) yield await c.read();
+  c.close();
+}`,
+              answer: 'Code after the loop never runs on early break; use try/finally.',
+              solution: `async function* rows(db) {
+  const c = await db.open();
+  try { while (true) yield await c.read(); }
+  finally { await c.close(); }
+}`,
             },
             {
-              task: 'Can you yield inside finally? What happens?',
-              description: 'Checks edge semantics. Try it in Node and call return().',
-              answer: 'Yes; return() then gives that yielded value with done: false, and the generator is not finished yet. That is confusing and usually a bug. Strong answers say avoid yield in finally.',
+              task: 'Predict the output.',
+              description: 'Checks break triggers return and finally.',
+              code: `function* g() { try { yield 1; yield 2; } finally { console.log('done'); } }
+for (const x of g()) break;`,
+              answer: `Logs done. break calls the iterator's return(), which runs finally.`,
             },
           ],
         },
@@ -1051,20 +1091,17 @@ Async iterator helpers are a separate, later proposal.
 Strong answer: explains laziness and single use. Weak answer: thinks they are the same as array methods.`,
           exercises: [
             {
-              task: 'Get the first three even squares from an infinite generator.',
-              description: 'Checks lazy helper chaining.',
-              answer: 'Chain map, filter and take, then toArray. Only the needed values are computed.',
-              solution: `function* naturals() { let n = 1; while (true) yield n++; }
-const result = naturals().map((n) => n * n).filter((n) => n % 2 === 0).take(3).toArray();
-// [4, 16, 36]`,
+              task: 'Predict the output.',
+              description: 'Checks lazy iterator helpers with take.',
+              code: `function* nat() { let i = 0; while (true) yield i++; }
+console.log(nat().filter(n => n % 2).take(3).toArray());`,
+              answer: '[1, 3, 5]. Iterator helpers are lazy, so infinite sources work with take.',
             },
             {
-              code: `const it = [1, 2, 3].values().map((x) => x * 2);
-it.toArray();
-it.toArray(); // []`,
-              task: 'Why does the second toArray return an empty array?',
-              description: 'Checks single-use iterators.',
-              answer: 'The iterator is used up by the first toArray. Create a new iterator from the source each time.',
+              task: 'Spot the difference.',
+              description: 'Checks laziness versus array eagerness.',
+              code: '[1, 2, 3].values().map(x => (console.log(x), x));',
+              answer: 'Nothing logs: iterator map is lazy until consumed. Array map would run immediately and allocate a new array.',
             },
           ],
         },
@@ -1079,19 +1116,23 @@ Explicit resource management is in TypeScript 5.2+ and shipping in modern engine
 Strong answer: understands the "protocol via symbol" design and why symbols avoid name clashes.`,
           exercises: [
             {
-              task: 'Make a ReadableStream-like object usable with for await.',
-              description: 'Checks the async iteration protocol. Implement [Symbol.asyncIterator] as an async generator.',
-              answer: 'Add async *[Symbol.asyncIterator]() { const r = this.getReader(); try { while (true) { const { done, value } = await r.read(); if (done) return; yield value; } } finally { r.releaseLock(); } }. Strong answers include the finally.',
+              task: 'Rewrite with using for automatic cleanup.',
+              description: 'Checks explicit resource management.',
+              code: `const lock = acquire();
+try { work(); } finally { lock[Symbol.dispose](); }`,
+              answer: 'using calls Symbol.dispose at scope exit, even on throw.',
+              solution: `{
+  using lock = acquire();
+  work();
+}`,
             },
             {
-              task: 'Predict the order of disposal.',
-              description: 'Checks using semantics. Run with TS 5.2+ or Node with support.',
-              code: `{
-  using a = { [Symbol.dispose]() { console.log('a'); } };
-  using b = { [Symbol.dispose]() { console.log('b'); } };
-  console.log('body');
-}`,
-              answer: 'Prints body, b, a. Disposal runs in reverse order of declaration, like a stack. Strong answers relate this to try/finally nesting.',
+              task: 'Make this object work with for await.',
+              description: 'Checks Symbol.asyncIterator implementation.',
+              code: 'const feed = { pages: [1, 2] };',
+              answer: 'Define an async generator under Symbol.asyncIterator.',
+              solution: `const feed = { pages: [1, 2],
+  async *[Symbol.asyncIterator]() { for (const p of this.pages) yield fetchPage(p); } };`,
             },
           ],
         },
@@ -1109,14 +1150,19 @@ Strong answer: avoids big-bang rewrites and gives decision criteria, not taste.`
           ai: true,
           exercises: [
             {
-              task: 'Write the criteria for keeping a saga.',
-              description: 'Checks decision framing. List 3 to 4 criteria.',
-              answer: 'Keep if it coordinates several actions over time, needs takeLatest/race semantics not covered by the query lib, or has heavy tests that would be costly to redo. Weak answers say "keep all" or "drop all".',
+              task: 'Rewrite the saga effect as async code.',
+              description: 'Checks migration path from sagas.',
+              code: 'function* load() { const u = yield call(api.user); yield put(set(u)); }',
+              answer: 'Use async/await or TanStack Query; migrate feature by feature behind tests.',
+              solution: `async function load(dispatch) {
+  const u = await api.user(); dispatch(set(u));
+}`,
             },
             {
-              task: 'Estimate migration effort for 120 sagas.',
-              description: 'Checks planning. Describe how you would size it.',
-              answer: 'Classify sagas by type, migrate a sample of each type to measure time, then extrapolate and add buffer. Strong answers propose parallel run and metrics, not gut feeling.',
+              task: 'Name one reason to keep sagas.',
+              description: 'Checks balanced migration judgment.',
+              code: '// complex cancel/race flows across actions',
+              answer: 'Complex orchestration like takeLatest, race and cancellation is tested and working; rewriting has risk with little user value.',
             },
           ],
         },
@@ -1143,17 +1189,20 @@ Strong answer: shows how to read the symbol and mentions XSS limits. Weak answer
           follow: 'Even with a private field, how could an attacker on the page still get the token?',
           exercises: [
             {
-              task: 'Read the symbol value from outside the class.',
-              description: 'Checks that the candidate can show the leak.',
-              answer: 'Get the symbols with Object.getOwnPropertySymbols and read the first one.',
-              solution: `const s = new Session('secret');
-const [sym] = Object.getOwnPropertySymbols(s);
-console.log(s[sym]); // 'secret'`,
+              task: 'Show how to read a symbol-keyed value.',
+              description: 'Checks symbols are not private.',
+              code: `const s = Symbol('token');
+const session = { [s]: 'abc' };`,
+              answer: 'Object.getOwnPropertySymbols exposes it, so it is not private.',
+              solution: `const [k] = Object.getOwnPropertySymbols(session);
+console.log(session[k]); // 'abc'`,
             },
             {
-              task: 'When is a Symbol key the right choice?',
-              description: 'Checks correct use of Symbols.',
-              answer: 'When you need a property that will not clash with other code, like a protocol hook (Symbol.iterator) or metadata on shared objects. Not when you need privacy.',
+              task: 'Rewrite with true privacy.',
+              description: 'Checks private class fields.',
+              code: 'class Session { constructor(t) { this[TOKEN] = t; } }',
+              answer: 'Use a #private field; it is inaccessible outside the class body.',
+              solution: 'class Session { #token; constructor(t) { this.#token = t; } }',
             },
           ],
         },
@@ -1169,22 +1218,21 @@ Strong answer: names concrete APIs and a way to check compliance.`,
           follow: 'What changes if the files must also upload while they are processed?',
           exercises: [
             {
-              task: 'Count lines in a large File without reading it all.',
-              description: 'Checks streaming. Use file.stream() with TextDecoderStream and for await.',
-              answer: 'Pipe file.stream() through new TextDecoderStream(), iterate chunks, and count "\\n". Peak memory stays near one chunk. Weak answers call file.text(). Strong answers handle the last line without a newline.',
-              solution: `async function countLines(file) {
-  let n = 0, last = '';
-  for await (const chunk of file.stream().pipeThrough(new TextDecoderStream())) {
-    for (const c of chunk) if (c === '\\n') n++;
-    last = chunk.at(-1) ?? last;
-  }
-  return last && last !== '\\n' ? n + 1 : n;
+              task: 'Write a loop that reads a file in chunks.',
+              description: 'Checks streaming instead of full load.',
+              code: 'async function count(file) { /* bytes */ }',
+              answer: 'Iterate file.stream() with for await to avoid loading it whole.',
+              solution: `async function count(file) {
+  let n = 0;
+  for await (const c of file.stream()) n += c.length;
+  return n;
 }`,
             },
             {
-              task: 'How would you check the guideline in code review?',
-              description: 'Checks enforcement. List concrete signals.',
-              answer: 'Flag file.text(), arrayBuffer() on large inputs, missing signal parameters, and parsing on the main thread. Add a lint rule or a review checklist. Strong answers back it with a performance test on a big fixture.',
+              task: 'Name two guidelines for large file processing.',
+              description: 'Checks memory and responsiveness rules.',
+              code: '// 2 GB CSV upload preview',
+              answer: 'Stream chunks instead of reading whole files, and do heavy parsing in a Web Worker with cancellation via AbortSignal.',
             },
           ],
         },
@@ -1204,14 +1252,18 @@ Web Workers give you real extra threads for your own code.
 Strong answer: separates the engine from browser APIs. Weak answer: says JavaScript is multi-threaded.`,
           exercises: [
             {
-              task: 'A fetch finishes after 50 ms, but a loop runs for 2 seconds. When does the then callback run?',
-              description: 'Checks blocking.',
-              answer: 'After the loop ends, at about 2 seconds. The response is ready, but the callback waits until the call stack is empty.',
+              task: 'Predict the output.',
+              description: 'Checks timer delay is minimum.',
+              code: `setTimeout(() => console.log('t'), 0);
+const end = Date.now() + 100; while (Date.now() < end);
+console.log('loop');`,
+              answer: 'loop, then t. Timers wait for the call stack to clear; the delay is a minimum.',
             },
             {
-              task: 'Name two things the browser does outside the main JS thread.',
-              description: 'Checks knowledge of browser threads.',
-              answer: 'For example: network requests, timers, decoding images, and often scrolling and some animations on the compositor thread.',
+              task: 'Name what runs fetch while JS is busy.',
+              description: 'Checks browser threads beyond JS.',
+              code: `fetch('/big.zip'); heavySyncWork();`,
+              answer: 'The browser network thread downloads in parallel; only the callback waits for the JS thread to be free.',
             },
           ],
         },
@@ -1237,14 +1289,21 @@ Weak answer: thinks textContent is "async".`,
 };`,
           exercises: [
             {
-              task: 'Why does await Promise.resolve() alone not fix it?',
-              description: 'Checks microtask vs render timing. Try it and see.',
-              answer: 'Microtasks run before rendering, so the browser still has no chance to paint. You need a new task or a frame. Strong answers explain the order: task, microtasks, render.',
+              task: 'Fix the bug.',
+              description: 'Checks yielding to rendering.',
+              code: `el.textContent = 'Loading...';
+heavyWork();`,
+              answer: 'The browser cannot paint during sync work; yield a frame first.',
+              solution: `el.textContent = 'Loading...';
+requestAnimationFrame(() => setTimeout(heavyWork));`,
             },
             {
-              task: 'Move heavyCalculation to a Web Worker.',
-              description: 'Checks basic Worker usage. Write main and worker code.',
-              answer: 'Create new Worker(new URL("./calc.js", import.meta.url), { type: "module" }), postMessage the input, and update the status on message. Strong answers handle errors with the error event.',
+              task: 'Predict whether the text paints.',
+              description: 'Checks microtasks block rendering.',
+              code: `el.textContent = 'Loading';
+await Promise.resolve();
+heavyWork();`,
+              answer: 'No. Microtasks run before rendering, so awaiting a resolved promise does not let the browser paint.',
             },
           ],
         },
@@ -1259,20 +1318,19 @@ Strong answer: knows the "drain fully" rule and its risk.
 Weak answer: thinks microtasks are just "faster timers".`,
           exercises: [
             {
-              task: 'Predict the order.',
-              description: 'Checks microtask vs task order. Run in Node or a browser.',
-              code: `setTimeout(() => console.log('timeout'));
-queueMicrotask(() => console.log('micro'));
-Promise.resolve().then(() => console.log('promise'));
-console.log('sync');`,
-              answer: 'Prints sync, micro, promise, timeout. Microtasks run in the order they were queued, before the timer. Strong answers say why micro comes before promise.',
+              task: 'Predict the output.',
+              description: 'Checks microtask before macrotask.',
+              code: `setTimeout(() => console.log(1));
+queueMicrotask(() => console.log(2));
+console.log(3);`,
+              answer: '3 2 1. Sync code first, then microtasks, then timer tasks.',
             },
             {
-              task: 'Why can this freeze the page?',
-              description: 'Checks microtask starvation. Read the code; do not run it in a real tab.',
+              task: 'Spot the problem.',
+              description: 'Checks recursive microtasks starve rendering.',
               code: `function loop() { queueMicrotask(loop); }
 loop();`,
-              answer: 'Each microtask queues another, so the queue never empties and the browser never renders or handles input. A setTimeout loop would not freeze the page. Strong answers explain the difference.',
+              answer: 'The microtask queue never empties, so the page freezes; timers and rendering never run.',
             },
           ],
         },
@@ -1298,14 +1356,18 @@ Awaiting a native promise takes one tick in modern engines (since the 2019 spec 
 Strong answer: explains the synchronous part of async functions.`,
           exercises: [
             {
-              task: 'What changes if a() does not contain any await?',
-              description: 'Checks async function sync behavior. Remove the await and predict.',
-              answer: 'Then a1 and a2 both log synchronously: start, a1, a2, end, p. An async function only becomes async at the first await. Strong answers note it still returns a promise.',
+              task: 'Predict the output.',
+              description: 'Checks code after await is a microtask.',
+              code: `async function f() { console.log(1); await null; console.log(2); }
+f(); console.log(3);`,
+              answer: '1 3 2. Code before await runs synchronously; the rest resumes as a microtask.',
             },
             {
-              task: 'Explain why "return await" can change ordering.',
-              description: 'Checks extra ticks. Compare return p vs return await p in an async function.',
-              answer: 'return p in an async function adopts the promise, which takes extra microtask ticks, while return await p resolves after one tick. Inside try/catch, return await is needed to catch the rejection. Strong answers care more about the try/catch rule than the tick count.',
+              task: 'Predict the output.',
+              description: 'Checks then chain ordering.',
+              code: `Promise.resolve().then(() => console.log('a')).then(() => console.log('b'));
+Promise.resolve().then(() => console.log('c'));`,
+              answer: 'a c b. Each then schedules the next only after the previous resolves.',
             },
           ],
         },
@@ -1321,28 +1383,22 @@ Strong answer: uses time budgets, not fixed item counts.`,
           follow: 'What if the array processing must also be cancellable?',
           exercises: [
             {
-              task: 'Write a yieldToMain helper with a fallback.',
-              description: 'Checks feature detection. Run in Chrome and Firefox.',
-              answer: 'Use globalThis.scheduler?.yield ? scheduler.yield() : new Promise(r => setTimeout(r, 0)). Strong answers explain why a microtask (Promise.resolve) is not a yield.',
-              solution: `const yieldToMain = () =>
-  globalThis.scheduler?.yield
-    ? scheduler.yield()
-    : new Promise(resolve => setTimeout(resolve, 0));`,
-            },
-            {
-              task: 'Process items with a 8 ms time budget.',
-              description: 'Checks time-based chunking. Use performance.now().',
-              answer: 'Track a deadline; when performance.now() passes it, await yieldToMain() and reset the deadline. Strong answers keep each item small and measure with the Performance panel.',
-              solution: `async function processAll(items, fn) {
-  let deadline = performance.now() + 8;
-  for (const item of items) {
-    fn(item);
-    if (performance.now() > deadline) {
-      await yieldToMain();
-      deadline = performance.now() + 8;
-    }
+              task: 'Write chunked processing that yields between batches.',
+              description: 'Checks scheduler.yield usage.',
+              code: 'async function run(items) { /* process each */ }',
+              answer: 'Process in batches and yield so input and paint can happen.',
+              solution: `async function run(items) {
+  for (let i = 0; i < items.length; i++) {
+    process(items[i]);
+    if (i % 500 === 0) await scheduler.yield();
   }
 }`,
+            },
+            {
+              task: 'Name a fallback where scheduler.yield is missing.',
+              description: 'Checks yielding alternatives.',
+              code: 'await scheduler.yield();',
+              answer: 'await new Promise(r => setTimeout(r)) yields a macrotask; a microtask like Promise.resolve does not yield.',
             },
           ],
         },
@@ -1370,14 +1426,21 @@ function animate(t) {
 requestAnimationFrame(animate);`,
           exercises: [
             {
-              task: 'Where does requestAnimationFrame run in the event loop?',
-              description: 'Checks rendering steps. Explain the order.',
-              answer: 'After a task and its microtasks, if the browser decides to render, it runs rAF callbacks, then style, layout and paint. Strong answers note rAF does not run every loop turn.',
+              task: 'Fix the bug.',
+              description: 'Checks rAF over setInterval for animation.',
+              code: `setInterval(() => { box.style.left = x++ + 'px'; }, 16);`,
+              answer: 'Intervals drift from refresh; use requestAnimationFrame and transform.',
+              solution: `function step() {
+  box.style.transform = \`translateX(\${x++}px)\`;
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);`,
             },
             {
-              task: 'When would you use the Web Animations API or CSS instead?',
-              description: 'Checks tool choice. Give one example.',
-              answer: 'For simple transitions (fade, slide) CSS or element.animate() is simpler and can run off the main thread. Use rAF for physics or values from user input. Strong answers prefer the declarative tool first.',
+              task: 'Spot the problem.',
+              description: 'Checks frame-rate dependent movement.',
+              code: 'function step() { x += 2; requestAnimationFrame(step); }',
+              answer: 'Speed depends on refresh rate (60 vs 120 Hz). Use the rAF timestamp delta to scale movement.',
             },
           ],
         },
@@ -1402,14 +1465,20 @@ Strong answer: knows the I/O context makes the order deterministic.`,
           ai: true,
           exercises: [
             {
-              task: 'What happens to the order at the top level of the script?',
-              description: 'Checks the non-determinism case. Run it a few times outside the callback.',
-              answer: 'setTimeout 0 and setImmediate can print in either order, depending on how fast the loop starts. tick and promise still come first. Strong answers explain the 1 ms timer threshold.',
+              task: 'Predict the output in Node.js.',
+              description: 'Checks nextTick before promises.',
+              code: `Promise.resolve().then(() => console.log('p'));
+process.nextTick(() => console.log('t'));`,
+              answer: 't p. In CommonJS, the nextTick queue drains before the promise microtask queue.',
             },
             {
-              task: 'Why prefer queueMicrotask over process.nextTick in new code?',
-              description: 'Checks portability judgment. Explain.',
-              answer: 'queueMicrotask is standard and works the same in browsers and Node; nextTick is Node-only and runs before promises, which can surprise people. Node docs recommend queueMicrotask for most cases.',
+              task: 'Predict the output in Node.js.',
+              description: 'Checks setImmediate inside I/O callback.',
+              code: `fs.readFile(f, () => {
+  setTimeout(() => console.log('timeout'));
+  setImmediate(() => console.log('immediate'));
+});`,
+              answer: 'immediate, then timeout. After the poll phase, the check phase runs before the next timers phase.',
             },
           ],
         },
@@ -1424,14 +1493,17 @@ Messages arrive as tasks, so a busy main thread delays them.
 Strong answer: measures serialization cost and picks transfer when data is big.`,
           exercises: [
             {
-              task: 'Send a 100 MB ArrayBuffer to a worker without copying it.',
-              description: 'Checks transferables. Write the postMessage call and check byteLength afterward.',
-              answer: 'worker.postMessage(buf, [buf]); after this, buf.byteLength is 0 on the main thread because ownership moved. Strong answers mention structuredClone also supports transfer.',
+              task: 'Rewrite to transfer the buffer instead of copying.',
+              description: 'Checks transferable objects.',
+              code: 'worker.postMessage({ buf });',
+              answer: 'Pass a transfer list so the ArrayBuffer moves without cloning.',
+              solution: 'worker.postMessage({ buf }, [buf]);',
             },
             {
-              task: 'Why would the worker reply arrive late even though the worker is fast?',
-              description: 'Checks event loop thinking. Explain.',
-              answer: 'The message event is a task on the main thread; if the main thread runs a long task, the reply waits. Strong answers suggest breaking up main-thread work.',
+              task: 'Predict what happens.',
+              description: 'Checks structured clone limits.',
+              code: 'worker.postMessage({ fn: () => 1 });',
+              answer: 'DataCloneError. Functions and DOM nodes cannot be structured-cloned.',
             },
           ],
         },
@@ -1463,18 +1535,19 @@ tick();`,
           follow: 'Why might performance.now() be better than Date.now() here?',
           exercises: [
             {
-              code: `const t = performance.now();
-setTimeout(() => console.log(performance.now() - t), 100);
-const end = Date.now() + 300;
-while (Date.now() < end) {}`,
-              task: 'Why can this log more than 100 ms?',
-              description: 'Checks timer delay from a busy thread.',
-              answer: 'The busy loop blocks the main thread for 300 ms, and the timer callback can only run after it ends. So the log shows about 300 ms.',
+              task: 'Fix the bug.',
+              description: 'Checks time-based countdown instead of ticks.',
+              code: `let left = 60;
+setInterval(() => render(--left), 1000);`,
+              answer: 'Background tabs throttle timers; compute from a deadline.',
+              solution: `const end = Date.now() + 60_000;
+setInterval(() => render(Math.ceil((end - Date.now()) / 1000)), 1000);`,
             },
             {
-              task: 'Compare Date.now and performance.now for measuring time.',
-              description: 'Checks clock knowledge.',
-              answer: 'Date.now is wall-clock time and can jump if the system clock changes. performance.now is monotonic and precise, so it is better for measuring durations.',
+              task: 'Name the event to resync on tab return.',
+              description: 'Checks Page Visibility API.',
+              code: '// tab becomes visible again',
+              answer: `visibilitychange; check document.visibilityState === 'visible' and recompute the UI.`,
             },
           ],
         },
@@ -1492,14 +1565,19 @@ Strong answer: combines measurement, ownership and enablement, not only rules.`,
           ai: true,
           exercises: [
             {
-              task: 'How do you attribute a slow interaction to a team?',
-              description: 'Checks RUM attribution. Describe the data you collect.',
-              answer: 'Collect INP with the web-vitals attribution build and LoAF script entries (sourceURL, function name), then map URLs to owners via a CODEOWNERS-like table. Strong answers sample to control cost.',
+              task: 'Name two enforceable main-thread rules.',
+              description: 'Checks performance budgets for teams.',
+              code: '// 12 teams, one SPA',
+              answer: 'Set long-task and INP budgets per route checked in CI, and require heavy work to go to workers or yield.',
             },
             {
-              task: 'Write a CI rule for long tasks.',
-              description: 'Checks practical enforcement. Describe tool and threshold.',
-              answer: 'Run a Playwright script for key flows with CPU throttling, collect the trace, and fail if total blocking time or any task over a threshold grows past budget. Strong answers allow small noise margins.',
+              task: 'Write code that reports long tasks.',
+              description: 'Checks PerformanceObserver for long tasks.',
+              code: '// log tasks > 50ms',
+              answer: 'Observe longtask entries and send them to monitoring.',
+              solution: `new PerformanceObserver(l => l.getEntries()
+  .forEach(e => report(e.duration))
+).observe({ type: 'longtask', buffered: true });`,
             },
           ],
         },
@@ -1524,14 +1602,18 @@ Strong answer: gives specific broken behaviors and a better default.`,
 });`,
           exercises: [
             {
-              task: 'Show how preventDefault breaks with the helper.',
-              description: 'Checks event timing. Use a link and call preventDefault inside safe().',
-              answer: 'The browser navigates because preventDefault runs after dispatch finished. Strong answers explain that default actions happen at the end of dispatch.',
+              task: 'Predict the output.',
+              description: 'Checks setTimeout does not reduce work.',
+              code: `const wrap = f => setTimeout(f, 0);
+[1, 2, 3].forEach(() => wrap(heavy100ms));`,
+              answer: 'Three 100ms long tasks still block; deferring only moves work, it does not split it.',
             },
             {
-              task: 'How would you remove this helper across the codebase safely?',
-              description: 'Checks migration planning. Outline steps.',
-              answer: 'Find usages, add a lint rule to block new ones, measure interactions before and after, and replace in batches with tests. Strong answers check each site for real long work first.',
+              task: 'Spot the problem.',
+              description: 'Checks ordering bugs from deferred callbacks.',
+              code: `wrap(() => setUser(u));
+console.log(getUser());`,
+              answer: 'getUser runs before the deferred set, so it reads stale data. Hidden async breaks ordering assumptions.',
             },
           ],
         },
@@ -1547,14 +1629,16 @@ Strong answer: decides from profiles and gives a rollout with metrics.`,
           follow: 'What if the work needs a lot of shared memory with the main thread?',
           exercises: [
             {
-              task: 'List three signals that a feature should use a worker.',
-              description: 'Checks decision criteria. Write a short list.',
-              answer: 'Repeated long tasks in profiles, pure computation without DOM, and large data that can be transferred. Strong answers add a measured INP problem as the trigger.',
+              task: 'Decide: worker or main thread?',
+              description: 'Checks worker cost-benefit judgment.',
+              code: '// parse 20 MB JSON vs format 10 dates',
+              answer: 'Worker for large JSON parsing (long task); main thread for tiny formatting, since messaging overhead outweighs gains.',
             },
             {
-              task: 'What can go wrong after moving to a worker?',
-              description: 'Checks risk awareness. Name two issues.',
-              answer: 'Clone cost can be higher than the work itself; errors in the worker are silent without handlers; bundling and CSP may block worker scripts. Strong answers plan monitoring for worker errors.',
+              task: `Name a reason a worker can't help.`,
+              description: 'Checks worker DOM limitations.',
+              code: '// work: measure and update DOM layout',
+              answer: 'Workers have no DOM access; layout and DOM updates must stay on the main thread.',
             },
           ],
         },
@@ -1573,15 +1657,17 @@ Strong answer: knows when NOT to lazy-load and mentions sizes.
 Weak answer: lazy-loads everything.`,
           exercises: [
             {
-              task: 'Fix this hero image markup.',
-              description: 'Checks LCP best practices. Edit the HTML.',
-              code: `<img src="hero.jpg" loading="lazy">`,
-              answer: 'Remove loading="lazy", add width/height and fetchpriority="high": <img src="hero.jpg" width="1200" height="600" fetchpriority="high" alt="...">. Strong answers also mention modern formats (AVIF/WebP).',
+              task: 'Fix the image markup.',
+              description: 'Checks lazy loading above the fold.',
+              code: '<img src="hero.jpg" loading="lazy">',
+              answer: 'Do not lazy-load the LCP hero; load eagerly with high priority.',
+              solution: '<img src="hero.jpg" fetchpriority="high" width="1200" height="600">',
             },
             {
-              task: 'How do you check if lazy loading works?',
-              description: 'Checks DevTools use. Describe steps.',
-              answer: 'Open the Network panel, filter by Img, reload, and scroll; images should load as you scroll. Strong answers also check the Lighthouse LCP element.',
+              task: 'Spot the problem.',
+              description: 'Checks layout shift from missing dimensions.',
+              code: '<img src="a.jpg" loading="lazy">',
+              answer: 'Missing width and height cause layout shift (CLS) when it loads; set dimensions or aspect-ratio.',
             },
           ],
         },
@@ -1613,14 +1699,28 @@ function closeModal() {
 }`,
           exercises: [
             {
-              task: 'How do you see how many listeners are attached?',
-              description: 'Checks DevTools. Use Chrome.',
-              answer: 'In the Console, run getEventListeners(window); or check the Event Listeners tab in Elements. Strong answers also use the Performance Monitor to watch the listener count.',
+              task: 'Fix the bug.',
+              description: 'Checks removing event listeners on close.',
+              code: `function open() {
+  window.addEventListener('keydown', onKey);
+}
+function close() { modal.remove(); }`,
+              answer: 'The listener accumulates each open; remove it on close.',
+              solution: `function close() {
+  window.removeEventListener('keydown', onKey);
+  modal.remove();
+}`,
             },
             {
-              task: 'Fix the leak without AbortController.',
-              description: 'Checks the named-function approach. Write the code.',
-              answer: 'Use a named function and call window.removeEventListener("resize", positionModal) on close. Strong answers note the options (capture) must match too.',
+              task: 'Rewrite cleanup using AbortController.',
+              description: 'Checks signal-based listener removal.',
+              code: `el.addEventListener('click', a);
+window.addEventListener('resize', b);`,
+              answer: 'Pass one signal; abort removes all listeners at once.',
+              solution: `const ac = new AbortController();
+el.addEventListener('click', a, { signal: ac.signal });
+window.addEventListener('resize', b, { signal: ac.signal });
+// close: ac.abort();`,
             },
           ],
         },
@@ -1635,14 +1735,16 @@ Strong answer: names targets and one fix for each.
 Weak answer: lists only Lighthouse score.`,
           exercises: [
             {
-              task: 'Name one common cause and fix for each vital.',
-              description: 'Checks practical knowledge. Write three short pairs.',
-              answer: 'LCP: big unoptimized hero image → compress and preload. INP: heavy click handler → split work. CLS: images without size or late ads → set dimensions. Strong answers give concrete numbers.',
+              task: 'Name the metric this hurts.',
+              description: 'Checks INP from slow handlers.',
+              code: 'btn.onclick = () => { heavy300ms(); show(); };',
+              answer: 'INP (Interaction to Next Paint); the click waits 300ms before the next frame paints.',
             },
             {
-              task: 'Measure the vitals in your own code.',
-              description: 'Checks the web-vitals library. Write the setup.',
-              answer: 'import { onLCP, onINP, onCLS } from "web-vitals"; then send each metric to analytics with navigator.sendBeacon. Strong answers know values are reported at page hide.',
+              task: 'Name the metric this hurts.',
+              description: 'Checks CLS from injected content.',
+              code: 'setTimeout(() => header.prepend(banner), 2000);',
+              answer: 'CLS: inserting content above existing content shifts layout. Reserve space ahead of time.',
             },
           ],
         },
@@ -1659,18 +1761,23 @@ Show a loading state, and handle load errors (for example after a deploy).
 Strong answer: covers trade-offs and chunk error handling.`,
           exercises: [
             {
-              task: 'Load a chart library only when the user opens the chart tab.',
-              description: 'Checks dynamic import. Write the click handler.',
-              answer: 'On click, const { Chart } = await import("chart.js/auto"); then render. Strong answers add a spinner and catch errors.',
-              solution: `tab.addEventListener('click', async () => {
-  const { default: Chart } = await import('chart.js/auto');
-  new Chart(canvas, config);
-});`,
+              task: 'Rewrite to load the chart library on demand.',
+              description: 'Checks dynamic import.',
+              code: `import { Chart } from 'big-chart';
+btn.onclick = () => new Chart(el);`,
+              answer: 'Use dynamic import so the library is a separate chunk.',
+              solution: `btn.onclick = async () => {
+  const { Chart } = await import('big-chart');
+  new Chart(el);
+};`,
             },
             {
-              task: 'Users see "Failed to fetch dynamically imported module" after a deploy. Why?',
-              description: 'Checks deploy issues. Explain and propose a fix.',
-              answer: 'Old HTML references chunk files that the new deploy removed. Keep old assets for a while, or catch the error and reload the page once. Strong answers mention both.',
+              task: 'Split a React route with lazy.',
+              description: 'Checks React.lazy and Suspense.',
+              code: `import Settings from './Settings';`,
+              answer: 'Wrap a dynamic import with lazy and render inside Suspense.',
+              solution: `const Settings = lazy(() => import('./Settings'));
+<Suspense fallback={<Spinner />}><Settings /></Suspense>`,
             },
           ],
         },
@@ -1701,14 +1808,19 @@ new IntersectionObserver(([e]) => header.classList.toggle('small', !e.isIntersec
   .observe(document.querySelector('#top-sentinel'));`,
           exercises: [
             {
-              task: 'What is a passive event listener?',
-              description: 'Checks scroll performance knowledge. Explain.',
-              answer: 'With { passive: true }, the browser knows you will not call preventDefault, so it can scroll right away. It matters for touch and wheel listeners. Strong answers note scroll events themselves cannot be cancelled.',
+              task: 'Fix the bug.',
+              description: 'Checks passive scroll listeners.',
+              code: `window.addEventListener('touchmove', track);`,
+              answer: 'Mark it passive so the browser can scroll without waiting.',
+              solution: `window.addEventListener('touchmove', track, { passive: true });`,
             },
             {
-              task: 'How do you confirm the fix in DevTools?',
-              description: 'Checks profiling. Describe steps.',
-              answer: 'Record a Performance trace while scrolling, and check for purple layout blocks and "Forced reflow" warnings. They should disappear after the fix. Strong answers compare frame times.',
+              task: 'Spot the problem.',
+              description: 'Checks layout thrashing in scroll handlers.',
+              code: `onscroll = () => items.forEach(i => {
+  i.style.top = i.offsetTop + 1 + 'px';
+});`,
+              answer: 'Interleaved reads and writes force layout per item. Batch reads then writes, or use IntersectionObserver or CSS.',
             },
           ],
         },
@@ -1724,14 +1836,18 @@ Strong answer: knows the cost of overuse and checks waterfalls.`,
           follow: 'What if the site has a strict data budget for mobile users?',
           exercises: [
             {
-              task: 'Write the tag to preload a web font correctly.',
-              description: 'Checks the crossorigin rule. Write the HTML.',
-              answer: '<link rel="preload" href="/f.woff2" as="font" type="font/woff2" crossorigin>. Without crossorigin the font is fetched twice. Strong answers know this pitfall.',
+              task: 'Pick the right hint for each case.',
+              description: 'Checks preload versus prefetch.',
+              code: `// A: font used on this page
+// B: JS for the next page`,
+              answer: 'A: rel=preload as=font crossorigin (current page, high priority). B: rel=prefetch (future navigation, idle priority).',
             },
             {
-              task: 'When can preload make things slower?',
-              description: 'Checks trade-offs. Give an example.',
-              answer: 'Preloading many resources competes with the LCP image and CSS for bandwidth, delaying them. Strong answers say preload only one or two critical items and measure.',
+              task: 'Write a hint for a third-party API origin.',
+              description: 'Checks preconnect usage.',
+              code: '// app calls https://api.example.com soon',
+              answer: 'Preconnect warms DNS, TCP and TLS early.',
+              solution: '<link rel="preconnect" href="https://api.example.com" crossorigin>',
             },
           ],
         },
@@ -1764,14 +1880,17 @@ scroller.addEventListener('scroll', () => requestAnimationFrame(render), { passi
 render();`,
           exercises: [
             {
-              task: 'When is content-visibility better than virtualization?',
-              description: 'Checks tool choice. Explain.',
-              answer: 'For long pages with sections that must stay in the DOM (find-in-page, SEO, accessibility), content-visibility: auto with contain-intrinsic-size gives most of the gain. For 100k rows, virtualization is still needed. Strong answers mention both limits.',
+              task: 'Name the fix for rendering 10,000 rows.',
+              description: 'Checks list virtualization.',
+              code: 'rows.map(r => <Row key={r.id} {...r} />)',
+              answer: 'Virtualize: render only visible rows (e.g. TanStack Virtual) or paginate.',
             },
             {
-              task: 'Show the XSS in the original code.',
-              description: 'Checks security awareness. Use a name with an img onerror payload.',
-              answer: 'A name like <img src=x onerror=alert(1)> runs script when inserted via innerHTML. Use textContent or escape. Strong answers mention Trusted Types as a guard.',
+              task: 'Apply a CSS-only improvement.',
+              description: 'Checks content-visibility for offscreen rows.',
+              code: '.row { }',
+              answer: 'content-visibility: auto skips rendering offscreen rows; add contain-intrinsic-size to keep scroll height.',
+              solution: '.row { content-visibility: auto; contain-intrinsic-size: auto 40px; }',
             },
           ],
         },
@@ -1786,14 +1905,19 @@ Track size in CI (size-limit, bundlewatch) to stop regressions.
 Strong answer: has a process, not only a one-time cleanup.`,
           exercises: [
             {
-              task: 'Replace a moment.js date format with a native API.',
-              description: 'Checks Intl knowledge. Format a date as "Oct 20, 2026".',
-              answer: 'new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(d). This removes the library from the bundle. Strong answers cache the formatter.',
+              task: 'Fix the import to enable tree shaking.',
+              description: 'Checks whole-library imports.',
+              code: `import _ from 'lodash';
+_.debounce(fn, 200);`,
+              answer: 'Import only what you need from an ESM build.',
+              solution: `import debounce from 'lodash-es/debounce';
+debounce(fn, 200);`,
             },
             {
-              task: 'Why can import { debounce } from "lodash" still pull in all of lodash?',
-              description: 'Checks tree-shaking limits. Explain and fix.',
-              answer: 'lodash is CommonJS, so bundlers cannot tree-shake it. Use lodash-es or import "lodash/debounce". Strong answers verify with the analyzer.',
+              task: 'Name a tool to find large modules.',
+              description: 'Checks bundle analysis tooling.',
+              code: '// vite build output is 2 MB',
+              answer: 'rollup-plugin-visualizer or source-map-explorer show a treemap of which modules take the space.',
             },
           ],
         },
@@ -1809,20 +1933,18 @@ Strong answer: knows it matters only in hot paths and checks with profiling.`,
           ai: true,
           exercises: [
             {
-              task: 'Rewrite to keep a stable shape.',
-              description: 'Checks shape-friendly code. Edit the factory.',
-              code: `function make(a, b) {
-  const o = {};
-  if (a) o.a = a;
-  if (b) o.b = b;
-  return o;
-}`,
-              answer: 'Always create both keys in the same order: return { a: a ?? null, b: b ?? null }. Strong answers say set to undefined/null instead of delete.',
+              task: 'Spot the problem.',
+              description: 'Checks inconsistent property order.',
+              code: `const a = { x: 1, y: 2 };
+const b = { y: 2, x: 1 };
+points.forEach(p => p.x + p.y);`,
+              answer: 'Different property order creates different shapes, making the access site polymorphic and slower. Create objects consistently.',
             },
             {
-              task: 'When is this optimization worth your time?',
-              description: 'Checks judgment. Explain.',
-              answer: 'Only in hot code paths seen in a profile (parsers, render loops, big data processing). In normal UI code, readability wins. Strong answers avoid premature micro-optimizations.',
+              task: 'Spot the problem.',
+              description: 'Checks delete changing object shape.',
+              code: 'function clear(user) { delete user.token; }',
+              answer: 'delete can drop the object into slow dictionary mode. Set user.token = undefined instead.',
             },
           ],
         },
@@ -1840,14 +1962,16 @@ Strong answer: has measurable goals and communicates trade-offs to leadership.`,
           ai: true,
           exercises: [
             {
-              task: 'Write the goal statement for leadership.',
-              description: 'Checks communication. One or two sentences with numbers.',
-              answer: 'For example: "Bring p75 INP on low-end Android from 450 ms to under 200 ms and LCP under 2.5 s by end of quarter, measured in RUM." Weak answers say "make it faster". Strong answers tie it to a business metric too.',
+              task: 'Name the first step of your plan.',
+              description: 'Checks measuring on real devices.',
+              code: '// complaint: slow on cheap Android',
+              answer: 'Measure first: field RUM data by device class plus profiling on a real low-end phone with CPU throttling.',
             },
             {
-              task: 'How do you handle a third-party script owned by marketing that costs 300 ms?',
-              description: 'Checks stakeholder management. Explain your approach.',
-              answer: 'Show the data, propose delayed loading or moving it to a worker (Partytown), and agree on a budget with marketing. Strong answers find a compromise, not a ban.',
+              task: 'Name two high-impact fixes for low-end phones.',
+              description: 'Checks JS cost reduction priorities.',
+              code: '// 1.5 MB JS, long tasks on load',
+              answer: 'Cut and split JS with route-level code splitting, and break up long tasks or defer third-party scripts.',
             },
           ],
         },
@@ -1871,14 +1995,16 @@ function Greeting({ name }) {
 }`,
           exercises: [
             {
-              task: 'When is useMemo really needed?',
-              description: 'Checks judgment. Give two cases.',
-              answer: 'Expensive work (filtering 10k items) that runs often, or a value passed to a memoized child or effect where a new reference causes extra work. Strong answers say "measure first".',
+              task: 'Spot the problem.',
+              description: 'Checks useless memoization.',
+              code: 'const total = useMemo(() => a + b, [a, b]);',
+              answer: 'Memoizing trivial math costs more than recomputing. Memoize only measured expensive work or referential needs.',
             },
             {
-              task: 'Write the team guideline in three lines.',
-              description: 'Checks clear communication. Write it.',
-              answer: 'Default: no manual memo. Add it when the Profiler shows a costly render or a reference breaks memoization. Prefer the React Compiler where enabled. Strong answers keep it short.',
+              task: 'Name what removes most manual memoization in React 19.',
+              description: 'Checks React Compiler awareness.',
+              code: '// useMemo/useCallback everywhere',
+              answer: 'React Compiler auto-memoizes components and values, so manual useMemo/useCallback is rarely needed.',
             },
           ],
         },
@@ -1894,18 +2020,17 @@ Report results in plain terms: "checkout loads 1.2 seconds faster for 40 percent
 Strong answer: uses field data, percentiles and controlled rollout. Weak answer: shows a better Lighthouse score.`,
           exercises: [
             {
-              task: 'Why report the 75th percentile and not the average?',
-              description: 'Checks understanding of distributions.',
-              answer: 'Averages hide slow users, because many fast loads pull the number down. p75 shows the experience of most users, including slower ones, and is what Core Web Vitals use.',
+              task: 'Write code to collect INP from real users.',
+              description: 'Checks RUM with web-vitals library.',
+              code: `import { onINP } from 'web-vitals';`,
+              answer: 'Send field metrics to analytics, then compare before and after.',
+              solution: `onINP(m => navigator.sendBeacon('/rum', JSON.stringify(m)));`,
             },
             {
-              task: 'Send LCP and INP to your analytics endpoint.',
-              description: 'Checks practical RUM setup.',
-              answer: 'Use the web-vitals library callbacks and send each metric with navigator.sendBeacon, so it is not lost when the page closes.',
-              solution: `import { onLCP, onINP } from 'web-vitals';
-const send = (m) => navigator.sendBeacon('/rum', JSON.stringify({ name: m.name, value: m.value, id: m.id }));
-onLCP(send);
-onINP(send);`,
+              task: 'Name a way to tie speed to business impact.',
+              description: 'Checks A/B experiment validation.',
+              code: '// fix shipped, LCP improved',
+              answer: 'Run an A/B test or holdout and compare conversion or retention, using p75 field metrics, not lab scores.',
             },
           ],
         },
@@ -1924,14 +2049,16 @@ Never store auth tokens in localStorage if you can avoid it; any XSS can read it
 Strong answer: mentions sending to the server, tab scope, and security. Weak answer: "they are all the same storage".`,
           exercises: [
             {
-              task: 'Where would you keep a theme setting, a multi-step form draft, and a login session?',
-              description: 'Checks choosing the right storage.',
-              answer: 'Theme: localStorage, so it stays. Form draft: sessionStorage, so it is per tab and cleared later. Login session: an HttpOnly, Secure, SameSite cookie set by the server.',
+              task: 'Pick storage for each case.',
+              description: 'Checks storage choice by lifetime.',
+              code: '// A: auth session  B: wizard draft per tab  C: theme',
+              answer: 'A: HttpOnly Secure cookie. B: sessionStorage (per tab). C: localStorage (persists, client only).',
             },
             {
-              task: 'Why does a value change in one tab not show in sessionStorage of another tab?',
-              description: 'Checks tab scope.',
-              answer: 'sessionStorage is per tab. Use localStorage and listen to the storage event, or BroadcastChannel, to share between tabs.',
+              task: 'Spot the problem.',
+              description: 'Checks XSS risk of tokens in localStorage.',
+              code: `localStorage.setItem('token', jwt);`,
+              answer: 'Any XSS script can read localStorage. Prefer HttpOnly cookies for auth tokens.',
             },
           ],
         },
@@ -1956,14 +2083,21 @@ try {
 console.log(saved?.name);`,
           exercises: [
             {
-              task: 'What does JSON.parse(null) return?',
-              description: 'Checks the missing-key case. Run it.',
-              answer: 'It returns null, because null is converted to the string "null". So a missing key does not throw, but you must still handle null. Strong answers use optional chaining.',
+              task: 'Predict the output.',
+              description: 'Checks localStorage stores strings.',
+              code: `localStorage.setItem('n', 5);
+console.log(typeof localStorage.getItem('n'));`,
+              answer: 'string. Values are coerced to strings; parse numbers back.',
             },
             {
-              task: 'Where should you store large data in the browser?',
-              description: 'Checks storage options. Name the API.',
-              answer: 'Use IndexedDB (often through a small wrapper like idb) for large or structured data; it is async. Strong answers mention storage quotas and navigator.storage.persist().',
+              task: 'Write a safe read helper.',
+              description: 'Checks JSON.parse with fallback.',
+              code: 'function load(key, fallback) { /* ... */ }',
+              answer: 'Wrap parse in try/catch; missing or corrupt data returns the fallback.',
+              solution: `function load(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch { return fallback; }
+}`,
             },
           ],
         },
@@ -1978,14 +2112,18 @@ Using credentials needs Access-Control-Allow-Credentials and a specific origin, 
 Strong answer: knows it is a browser rule and the fix is server-side.`,
           exercises: [
             {
-              task: 'Is this request cross-origin from https://app.com: https://api.app.com?',
-              description: 'Checks the origin definition. Explain.',
-              answer: 'Yes, a different subdomain is a different origin. So the API must send CORS headers. Strong answers also mention cookies may still be same-site.',
+              task: 'Predict why this triggers a preflight.',
+              description: 'Checks non-simple request headers.',
+              code: `fetch('https://api.x.com', { method: 'POST',
+  headers: { 'Content-Type': 'application/json' } });`,
+              answer: 'JSON content type is not a simple header, so the browser sends OPTIONS first.',
             },
             {
-              task: 'Why does mode: "no-cors" not fix the problem?',
-              description: 'Checks a common mistake. Try it and read the response.',
-              answer: 'It gives an opaque response: status 0 and no readable body. The request goes out, but you cannot use the data. Strong answers say fix the server headers.',
+              task: 'Fix the cookie-based cross-origin request.',
+              description: 'Checks credentials with CORS.',
+              code: `fetch('https://api.x.com/me');`,
+              answer: 'Send credentials; the server must return a specific Allow-Origin (not *) and Allow-Credentials: true.',
+              solution: `fetch('https://api.x.com/me', { credentials: 'include' });`,
             },
           ],
         },
@@ -2016,27 +2154,19 @@ Strong answer: names the deploy cause and both client and deploy fixes. Weak ans
           follow: 'How would you avoid this on the server side during deploys?',
           exercises: [
             {
-              task: 'Write a helper that retries a dynamic import once, then reloads the page.',
-              description: 'Checks a reusable recovery pattern.',
-              answer: 'Try the import, retry once on failure, and if it fails again reload, using sessionStorage to avoid a reload loop.',
-              solution: `async function loadChunk(load) {
-  try { return await load(); }
-  catch {
-    try { return await load(); }
-    catch (e) {
-      if (!sessionStorage.getItem('reloaded')) {
-        sessionStorage.setItem('reloaded', '1');
-        location.reload();
-      }
-      throw e;
-    }
-  }
-}`,
+              task: 'Handle chunk load failure after deploy.',
+              description: 'Checks stale chunk recovery.',
+              code: `const Edit = lazy(() => import('./Edit'));`,
+              answer: 'Old HTML references deleted chunks; catch the error and reload once.',
+              solution: `const Edit = lazy(() => import('./Edit').catch(() => {
+  location.reload(); return new Promise(() => {});
+}));`,
             },
             {
-              task: 'What deploy practice prevents most chunk load errors?',
-              description: 'Checks the infrastructure side.',
-              answer: 'Keep old hashed assets on the CDN for a while (for example, a few days) instead of deleting them on each deploy. Also cache index.html for a short time only.',
+              task: 'Name a cache header fix.',
+              description: 'Checks HTML caching versus hashed assets.',
+              code: '// index.html cached 1 day',
+              answer: 'Serve index.html with no-cache and keep hashed assets long-lived, so users get fresh chunk names.',
             },
           ],
         },
@@ -2051,14 +2181,20 @@ Updates are tricky: a new worker waits until all tabs close unless you use skipW
 Strong answer: matches strategy to resource and plans updates (Workbox helps).`,
           exercises: [
             {
-              task: 'Pick a strategy for each: app.js with hash, index.html, /api/profile.',
-              description: 'Checks strategy choice. Explain each.',
-              answer: 'app.[hash].js: cache-first; index.html: network-first; /api/profile: stale-while-revalidate or network-first depending on freshness needs. Strong answers explain why cache-first HTML causes stale apps.',
+              task: 'Name the strategy for each resource.',
+              description: 'Checks caching strategy choice.',
+              code: '// A: hashed JS  B: /api/feed  C: avatar',
+              answer: 'A: cache-first. B: network-first with cache fallback. C: stale-while-revalidate.',
             },
             {
-              task: 'Why do users still see the old version after a deploy?',
-              description: 'Checks the update lifecycle. Explain and propose a fix.',
-              answer: 'The new worker is installed but waiting while old tabs are open. Show a "new version" banner that calls skipWaiting and reloads. Strong answers avoid forced reloads during user work.',
+              task: 'Write a cache-first fetch handler.',
+              description: 'Checks basic Service Worker fetch.',
+              code: `self.addEventListener('fetch', e => { /* ... */ });`,
+              answer: 'Respond from cache, else hit the network.',
+              solution: `self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request)
+    .then(r => r ?? fetch(e.request)));
+});`,
             },
           ],
         },
@@ -2073,20 +2209,19 @@ The map must load before the module scripts that use it; modern browsers support
 Strong answer: explains bare specifiers and a real use case. Weak answer: confuses import maps with source maps.`,
           exercises: [
             {
-              task: 'Write an import map so import "dayjs" loads from a CDN.',
-              description: 'Checks the syntax.',
-              answer: 'Add a script tag with type importmap and an imports object mapping the name to the URL.',
+              task: 'Write an import map for a bare specifier.',
+              description: 'Checks import map syntax.',
+              code: `import confetti from 'confetti';`,
+              answer: 'Map the bare name to a URL in a script type=importmap.',
               solution: `<script type="importmap">
-{ "imports": { "dayjs": "https://cdn.jsdelivr.net/npm/dayjs@1.11.10/+esm" } }
-</script>
-<script type="module">
-import dayjs from 'dayjs';
+{ "imports": { "confetti": "/vendor/confetti.js" } }
 </script>`,
             },
             {
-              task: 'How can import maps help two micro-frontends share one copy of React?',
-              description: 'Checks a real integration use.',
-              answer: 'Both apps import "react" by name and do not bundle it. The host page import map points "react" to one URL, so the browser loads and runs it once.',
+              task: 'Predict what happens without an import map.',
+              description: 'Checks bare specifiers in browsers.',
+              code: `<script type="module">import React from 'react';</script>`,
+              answer: 'TypeError: browsers cannot resolve bare specifiers without an import map or bundler.',
             },
           ],
         },
@@ -2103,22 +2238,18 @@ Use source maps in monitoring (Sentry or similar) but do not publish them public
 Strong answer: covers isolation, reporting and user experience.`,
           exercises: [
             {
-              task: 'Write a safeMount helper.',
-              description: 'Checks isolation pattern. Write it with a fallback and a report call.',
-              answer: 'Try to mount; on error, report with the widget name and render a small fallback message. Also catch async init errors with await. Strong answers avoid swallowing the error silently.',
-              solution: `async function safeMount(name, el, mount) {
-  try {
-    await mount(el);
-  } catch (error) {
-    report(error, { widget: name });
-    el.textContent = 'This section is unavailable.';
-  }
-}`,
+              task: 'Write a per-widget error boundary usage.',
+              description: 'Checks isolating widget failures.',
+              code: '<Dashboard><Weather /><Stocks /></Dashboard>',
+              answer: 'Wrap each widget so one crash does not blank the page.',
+              solution: `<ErrorBoundary fallback={<WidgetError />}><Weather /></ErrorBoundary>
+<ErrorBoundary fallback={<WidgetError />}><Stocks /></ErrorBoundary>`,
             },
             {
-              task: 'Why can error messages from a CDN script show only "Script error."?',
-              description: 'Checks cross-origin script errors. Explain the fix.',
-              answer: 'Browsers hide details of errors from cross-origin scripts. Add crossorigin="anonymous" to the script tag and Access-Control-Allow-Origin on the CDN. Strong answers know both are needed.',
+              task: 'Name what error boundaries do not catch.',
+              description: 'Checks boundary limits.',
+              code: 'onClick={() => { throw new Error() }}',
+              answer: 'Event handlers, async code and timers. Catch them yourself or report via window error and unhandledrejection.',
             },
           ],
         },
@@ -2147,14 +2278,22 @@ window.addEventListener('message', (e) => {
 parent.postMessage({ type: 'ready' }, PARENT);`,
           exercises: [
             {
-              task: 'How would an attacker use the original listener?',
-              description: 'Checks threat thinking. Describe the attack.',
-              answer: 'The attacker puts the iframe on their own page and sends setToken with their token, so the victim uses the attacker account (login CSRF), or worse depending on the data. Strong answers also mention frame-ancestors CSP.',
+              task: 'Fix the bug.',
+              description: 'Checks origin validation in postMessage.',
+              code: `window.addEventListener('message', e => {
+  setToken(e.data.token);
+});`,
+              answer: 'Any page can post messages; verify origin first.',
+              solution: `window.addEventListener('message', e => {
+  if (e.origin !== 'https://app.example.com') return;
+  setToken(e.data.token);
+});`,
             },
             {
-              task: 'Set up a MessageChannel between parent and iframe.',
-              description: 'Checks private channels. Write the parent side.',
-              answer: 'Create new MessageChannel(), send port2 to the iframe with postMessage(msg, origin, [port2]), and talk over port1. Strong answers still check origin on the first message.',
+              task: 'Spot the problem.',
+              description: 'Checks wildcard target origin.',
+              code: `parent.postMessage({ token }, '*');`,
+              answer: `'*' leaks the token to any embedder. Pass the exact expected target origin.`,
             },
           ],
         },
@@ -2170,14 +2309,18 @@ Strong answer: balances security, speed and vendor lock-in.`,
           ai: true,
           exercises: [
             {
-              task: 'Write a script tag with SRI.',
-              description: 'Checks SRI syntax. Write the HTML.',
-              answer: '<script src="https://cdn.x.com/sdk@2.1.0.js" integrity="sha384-..." crossorigin="anonymous" defer></script>. crossorigin is required for SRI on cross-origin scripts. Strong answers know SRI fails with "latest" URLs.',
+              task: 'Write a non-blocking SDK load.',
+              description: 'Checks async script injection.',
+              code: '<script src="https://sdk.vendor.com/v1.js"></script>',
+              answer: 'Load async (or on idle) so parsing is not blocked; pin version and add SRI.',
+              solution: `<script async src="https://sdk.vendor.com/v1.2.3.js"
+  integrity="sha384-..." crossorigin="anonymous"></script>`,
             },
             {
-              task: 'Wrap an analytics SDK behind your own interface.',
-              description: 'Checks adapter pattern. Write track(event, props).',
-              answer: 'Export track that queues events until the SDK loads, then forwards them; the app never calls the vendor directly. Strong answers add a no-op in tests and consent checks.',
+              task: 'Name two safety controls for third-party scripts.',
+              description: 'Checks CSP and isolation.',
+              code: '// vendor chat widget',
+              answer: 'A strict CSP allowlist plus SRI, and sandboxed iframes for untrusted widgets.',
             },
           ],
         },
@@ -2195,14 +2338,17 @@ Strong answer: chooses based on team size, risk and user impact, with a clear en
           ai: true,
           exercises: [
             {
-              task: 'Mount a React component into a legacy page and clean it up.',
-              description: 'Checks the island pattern. Write mount and unmount functions.',
-              answer: 'const root = createRoot(el); root.render(<Widget {...props} />); and later root.unmount() when the legacy page removes el. Strong answers make sure unmount is called to avoid leaks.',
+              task: 'Mount React inside a jQuery page.',
+              description: 'Checks incremental islands approach.',
+              code: '<div id="cart"></div>',
+              answer: 'Render React into one container and migrate widget by widget (strangler pattern).',
+              solution: `createRoot(document.getElementById('cart')).render(<Cart />);`,
             },
             {
-              task: 'List three risks of running two frameworks together.',
-              description: 'Checks risk thinking. Write a short list.',
-              answer: 'Double bundle size, CSS conflicts, and two sources of truth for state. Strong answers give a mitigation for each (shared vendor chunk, CSS scoping, one owner for state).',
+              task: 'Spot the problem.',
+              description: 'Checks DOM ownership conflicts.',
+              code: `$('#cart li').remove(); // React renders #cart`,
+              answer: 'jQuery mutating React-owned DOM breaks reconciliation. Each DOM subtree must have one owner; communicate via events.',
             },
           ],
         },
@@ -2232,14 +2378,18 @@ export const getConfig = () => config;`,
           follow: 'What is the trade-off of loading config at runtime instead of at build time?',
           exercises: [
             {
-              task: 'Why is "build once, deploy many" useful?',
-              description: 'Checks release engineering thinking.',
-              answer: 'The exact bundle you tested in staging is the one that goes to production. Only config changes, so there are no surprises from a different build.',
+              task: 'Spot the problem.',
+              description: 'Checks scattered hostname-based config.',
+              code: `const api = location.hostname.includes('stg')
+  ? 'https://stg.api' : 'https://api';`,
+              answer: 'Logic duplicates across files and breaks on new hosts. Centralize config in one typed module.',
             },
             {
-              task: 'A teammate wants to put a payment API secret in the frontend config. What do you say?',
-              description: 'Checks security awareness.',
-              answer: 'No. Anything sent to the browser is public. Keep the secret on the server and call it through a backend endpoint.',
+              task: 'Rewrite using build-time config.',
+              description: 'Checks environment variables in Vite.',
+              code: 'const API = getApiFromHost();',
+              answer: 'Read one env var in a single config module; or load runtime config.json to build once, deploy anywhere.',
+              solution: 'export const config = { apiUrl: import.meta.env.VITE_API_URL };',
             },
           ],
         },
@@ -2255,14 +2405,16 @@ Strong answer: uses a written decision record and revisits it.`,
           follow: 'What if the library you chose stops being maintained next year?',
           exercises: [
             {
-              task: 'Write a short decision record template.',
-              description: 'Checks process. List the sections.',
-              answer: 'Context, options considered, criteria, decision, consequences, review date. Strong answers keep it to one page and link it from the code.',
+              task: 'Name three criteria to evaluate a library.',
+              description: 'Checks library selection judgment.',
+              code: '// date picker: build or adopt?',
+              answer: 'Maintenance activity, bundle size, accessibility, license and API fit versus in-house cost of ownership.',
             },
             {
-              task: 'How do you reduce supply-chain risk for npm packages?',
-              description: 'Checks security practices. List concrete steps.',
-              answer: 'Lockfiles with npm ci, automated updates with review (Renovate), npm audit or Socket checks, minimal dependencies, and disabling install scripts where possible. Strong answers mention provenance and pinning.',
+              task: 'Decide: build or buy for this case.',
+              description: 'Checks complexity-driven decision.',
+              code: '// need: rich text editor with collaboration',
+              answer: 'Use a mature library: editors are complex (selection, IME, a11y); building in-house is a huge long-term burden.',
             },
           ],
         },

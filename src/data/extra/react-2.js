@@ -8,8 +8,23 @@ export default {
           long: "<Link to=\"/users\"> renders a real <a href>, so middle-click, copy link and screen readers work.\n<NavLink> knows whether its route matches and exposes isActive/isPending to className, style and children, and sets aria-current=\"page\".\nuseNavigate() returns a function: navigate('/done'), navigate(-1), navigate(to, { replace: true, state }).\nPrefer links for anything the user clicks to go somewhere; use navigate for side-effect-driven redirects.\nIn data routers, redirect() from a loader/action is often better than navigate in an effect.\nNever use onClick + window.location: it reloads the whole app and loses state.",
           follow: "A menu item uses a button with navigate. Why is a Link better?",
           exercises: [
-            { task: "Build a menu. It must highlight the current page.", description: "Checks NavLink usage. Create 3 routes and a menu in a Vite app, click around and inspect aria-current in DevTools.", answer: "Use <NavLink className={({ isActive }) => isActive ? 'active' : ''}>. NavLink sets aria-current=\"page\" automatically. Use the end prop on the root link so '/' is not active for every page." },
-            { task: "After you create an order, go to the order page.", description: "Checks imperative navigation. Write a submit handler that awaits an API mock, then navigates; test with React Testing Library and MemoryRouter.", answer: "Call const navigate = useNavigate(); after the await, navigate('/orders/' + id, { replace: true }). replace prevents the Back button from returning to the filled form. In a data router you could instead return redirect() from the action." }
+            {
+              task: "Highlight the active link.",
+              description: "Checks NavLink.",
+              code: "<Link to=\"/inbox\">Inbox</Link>",
+              answer: "NavLink gives isActive to className and sets aria-current.",
+              solution: `<NavLink to="/inbox" className={({ isActive }) => isActive ? "on" : ""}>
+  Inbox
+</NavLink>`,
+            },
+            {
+              task: "Navigate after a save.",
+              description: "Checks useNavigate.",
+              code: "async function onSave() { await save(); /* go to list */ }",
+              answer: "Call useNavigate in the component and navigate after save.",
+              solution: `const navigate = useNavigate();
+async function onSave() { await save(); navigate("/list"); }`,
+            },
           ]
         },
         {
@@ -39,8 +54,22 @@ function User() {
   return <h1>User {id}</h1>;
 }`,
           exercises: [
-            { task: "Write a test. The page for user 42 must show the text User 42.", description: "Checks route testing. Use MemoryRouter initialEntries={['/users/42']} with Vitest + RTL.", answer: "Render the Routes inside MemoryRouter with initialEntries and assert screen.getByRole('heading', { name: 'User 42' }). This isolates routing from the browser URL. Add a second case for an unknown path that expects NotFound." },
-            { task: "Check that the ID is a number. If not, show the Not Found page.", description: "Checks param handling. Add a guard in the component (or loader) and test with /users/abc.", answer: "Parse with Number(id) and check Number.isInteger. If invalid, render <NotFound /> or, in a data router, throw new Response('Not found', { status: 404 }) from the loader so the errorElement handles it." }
+            {
+              task: "Fix the param name.",
+              description: "Checks matching param names.",
+              code: `<Route path="/users/:userId" element={<User />} />
+const { id } = useParams();`,
+              answer: "The param is userId, not id.",
+              solution: "const { userId } = useParams();",
+            },
+            {
+              task: "Predict the type of the param.",
+              description: "Checks params are strings.",
+              code: `// URL: /users/42
+const { userId } = useParams();
+userId === 42`,
+              answer: "false. Params are always strings (or undefined). Use Number(userId).",
+            },
           ]
         },
         {
@@ -48,8 +77,26 @@ function User() {
           short: "Nested routes let a parent route render shared layout while a child route fills the <Outlet /> placeholder, so URL segments map to nested UI.",
           long: "A parent route (e.g. /settings) renders a layout with tabs and an <Outlet />.\nChild routes (profile, billing) render inside that outlet when their path matches.\nIndex routes render at the parent URL with no extra segment.\nLayout routes without a path group children under shared UI (e.g. an auth shell).\nThe parent stays mounted when switching children, preserving its state.\nuseOutletContext lets the parent pass data to children without prop drilling.",
           exercises: [
-            { task: "Make a settings page with two tabs. Both tabs share one header.", description: "Checks layout + Outlet. Build it in a Vite sandbox and confirm header state persists when switching tabs.", answer: "Define <Route path=\"settings\" element={<SettingsLayout/>}> with children <Route index element={<Profile/>}/> and <Route path=\"billing\" .../>. SettingsLayout renders the header, NavLinks and <Outlet/>. The layout does not unmount between tabs." },
-            { task: "Pass the current user from the layout to the child pages.", description: "Checks useOutletContext. Implement and log in the child.", answer: "Render <Outlet context={{ user }} /> in the layout and call useOutletContext() in children. Type it with a small hook like useUser() for safety. For widely shared data prefer a loader or context." }
+            {
+              task: "Render child routes inside the layout.",
+              description: "Checks Outlet.",
+              code: `function Layout() {
+  return <><Nav /><main>{/* child here */}</main></>;
+}`,
+              answer: "Put <Outlet /> where children should render.",
+              solution: `function Layout() {
+  return <><Nav /><main><Outlet /></main></>;
+}`,
+            },
+            {
+              task: "Add an index route.",
+              description: "Checks index routes.",
+              code: `<Route path="settings" element={<Settings />}>
+  <Route path="profile" element={<Profile />} />
+</Route>`,
+              answer: "Add an index route so /settings shows default content.",
+              solution: "<Route index element={<General />} />",
+            },
           ]
         }
       ],
@@ -82,8 +129,20 @@ function User() {
   );
 }`,
           exercises: [
-            { task: "Keep the page number in the URL. Reset it to one when the search text changes.", description: "Checks functional URL updates. Implement and test with MemoryRouter initialEntries=['/s?q=a&page=3'].", answer: "In the updater copy prev, set q and set page to '1'. Other params remain untouched. Asserting the location via a small LocationDisplay test component verifies the URL." },
-            { task: "Add a history entry only when the user presses Enter.", description: "Checks push vs replace semantics. Implement both behaviors and verify with the browser Back button.", answer: "Use replace: true while typing and a plain setParams on submit so Back returns to the previous committed search. This gives meaningful history entries without noise." }
+            {
+              task: "Replace history instead of pushing.",
+              description: "Checks replace option.",
+              code: "setParams({ q: e.target.value });",
+              answer: "Use replace: true while typing so Back does not step through every key.",
+              solution: "setParams({ q: e.target.value }, { replace: true });",
+            },
+            {
+              task: "Fix the input after Back.",
+              description: "Checks URL as single source.",
+              code: "const [q, setQ] = useState(params.get(\"q\"));",
+              answer: "Local state copies the URL once and goes stale. Read q from params directly.",
+              solution: "const q = params.get(\"q\") ?? \"\";",
+            },
           ]
         },
         {
@@ -91,8 +150,22 @@ function User() {
           short: "useNavigation() exposes idle/loading/submitting state for the global navigation, and useFetcher gives per-component state for non-navigating mutations.",
           long: "With loaders the old page stays visible until the next route's data resolves.\nuseNavigation().state tells you if a navigation is loading or submitting so you can show a top progress bar.\nNavLink also receives isPending for the link being navigated to.\nuseFetcher() runs a loader/action without navigating (likes, inline edits) with its own state and data.\nReturning promises from loaders lets you stream non-critical data with <Suspense>/<Await>.\nAfter actions, loaders revalidate automatically; shouldRevalidate can opt out.",
           exercises: [
-            { task: "Show a progress bar at the top while a page loads.", description: "Checks useNavigation. Add a slow loader (setTimeout) and render a bar in the root layout.", answer: "In the root layout read const nav = useNavigation() and render the bar when nav.state !== 'idle'. Add a small delay before showing to avoid flicker on fast loads." },
-            { task: "Add a Done button on a task. It must not change the page.", description: "Checks useFetcher. Wire fetcher.Form to an action and render optimistic state.", answer: "Use const fetcher = useFetcher(); render <fetcher.Form method=\"post\" action=\"/todos/1\">. Derive the optimistic value from fetcher.formData while submitting. Loaders revalidate after the action." }
+            {
+              task: "Show a spinner during navigation.",
+              description: "Checks useNavigation.",
+              code: "function Root() { return <Outlet />; }",
+              answer: "Read navigation.state; it is \"loading\" while loaders run.",
+              solution: `function Root() {
+  const nav = useNavigation();
+  return <>{nav.state === "loading" && <Bar />}<Outlet /></>;
+}`,
+            },
+            {
+              task: "Name how to keep old content visible.",
+              description: "Checks pending UI choices.",
+              code: "// page goes blank during navigation",
+              answer: "Data routers keep the old page until loaders finish; show a progress bar or dim it instead of a blank screen.",
+            },
           ]
         },
         {
@@ -101,8 +174,21 @@ function User() {
           short: "Restore scroll per history entry (ScrollRestoration in data routers) and move focus to the new page's heading or main region so keyboard and screen reader users notice the change.",
           long: "SPAs do not reset scroll or focus automatically like full page loads do.\nReact Router's <ScrollRestoration /> restores positions on Back/Forward and scrolls to top on new navigations.\ngetKey can key scroll by pathname for lists that should remember position.\nFor a11y, focus the <h1> (tabIndex=-1) or announce the title with a live region after navigation.\nDo not steal focus on search-param-only changes like filter edits.\nUpdate document.title per route (React 19 supports <title> in components).",
           exercises: [
-            { task: "Move focus to the page title after each page change.", description: "Checks a11y routing. Implement a hook using useLocation and test with keyboard + VoiceOver.", answer: "In an effect keyed on location.pathname, focus a ref attached to <h1 tabIndex={-1}>. Skip the first render so initial load does not jump. Key on pathname only so query changes do not move focus." },
-            { task: "Keep the list scroll position when the user goes back from a detail page.", description: "Checks ScrollRestoration. Add <ScrollRestoration getKey={l => l.pathname} /> and test Back.", answer: "Keying by pathname makes the list restore its own position regardless of history entry. Ensure the list data is ready (loader or cache) before restoration, otherwise height is wrong and the position is lost." }
+            {
+              task: "Restore scroll in a data router.",
+              description: "Checks ScrollRestoration.",
+              code: "// page keeps old scroll after navigation",
+              answer: "Render <ScrollRestoration /> once in the root layout.",
+            },
+            {
+              task: "Move focus to the new page heading.",
+              description: "Checks focus management on route change.",
+              code: "<h1>{title}</h1>",
+              answer: "Give the heading tabIndex={-1} and focus it on route change so screen readers announce it.",
+              solution: `const ref = useRef(null);
+useEffect(() => ref.current?.focus(), [location.pathname]);
+<h1 ref={ref} tabIndex={-1}>{title}</h1>`,
+            },
           ]
         }
       ],
@@ -139,8 +225,24 @@ function Project() {
   const { project, tasks } = useLoaderData();
 }`,
           exercises: [
-            { task: "Reproduce the bug. Make the first project load slowly.", description: "Checks race reasoning. Use MSW with delay() and click project 1 then 2 quickly.", answer: "Without the signal, project 1's tasks arrive last and overwrite state. With the loader version the router aborts the first request and only renders project 2. Assert in the network tab that the first request is cancelled." },
-            { task: "Use the loader together with TanStack Query cache.", description: "Checks loader + cache composition. Use queryClient.ensureQueryData in the loader and useQuery in the component.", answer: "The loader warms the cache and the component reads it via useQuery (or useSuspenseQuery) with the same key. Navigating back is instant from cache, and background refetch keeps it fresh." }
+            {
+              task: "Pass the abort signal.",
+              description: "Checks request.signal in loaders.",
+              code: `export async function loader({ params }) {
+  return fetch(\`/api/p/\${params.id}\`);
+}`,
+              answer: "Pass request.signal so cancelled navigations abort the fetch.",
+              solution: `export async function loader({ params, request }) {
+  return fetch(\`/api/p/\${params.id}\`, { signal: request.signal });
+}`,
+            },
+            {
+              task: "Spot the race.",
+              description: "Checks module-level caches.",
+              code: `let current;
+export async function loader({ params }) { current = await get(params.id); return current; }`,
+              answer: "A slow older call can overwrite current after a newer one. Return data directly; do not share module state.",
+            },
           ]
         },
         {
@@ -148,8 +250,20 @@ function Project() {
           short: "Use the route lazy() property so the router loads code and data in parallel, and prefetch likely next routes on hover/intent.",
           long: "React.lazy inside an element only starts loading when rendered, after the loader finished: a waterfall.\nThe route lazy() function (or v7 framework mode route modules) lets the router fetch component, loader and action chunks together.\nSplit by route, not by tiny component; too many chunks increases request overhead.\nPrefetch on hover/focus (<Link prefetch=\"intent\"> in framework mode) or idle time.\nKeep the shell and critical path in the main bundle.\nMeasure with bundle analyzer and real-user navigation timing.",
           exercises: [
-            { task: "Change a React lazy route to use the route lazy property.", description: "Checks data router lazy loading. Compare network waterfalls in DevTools before and after.", answer: "Define { path: 'reports', lazy: () => import('./reports') } where the module exports Component and loader. The router fetches the module once and runs the loader immediately, removing the serial chunk then data delay." },
-            { task: "Load the next page code when the user hovers a menu link.", description: "Checks prefetch strategy. Trigger import() on pointerenter/focus and verify chunks are cached.", answer: "Call the same dynamic import on hover; the module cache dedupes it. Avoid prefetching on slow networks (check navigator.connection.saveData). Measure the improvement in navigation latency." }
+            {
+              task: "Lazy load a route in a data router.",
+              description: "Checks route lazy.",
+              code: "{ path: \"reports\", element: <Reports /> }",
+              answer: "Use the lazy option to load the module only when needed.",
+              solution: "{ path: \"reports\", lazy: () => import(\"./reports\") }",
+            },
+            {
+              task: "Prefetch a route on hover.",
+              description: "Checks prefetching code.",
+              code: "<Link to=\"/reports\">Reports</Link>",
+              answer: "In framework mode use prefetch=\"intent\". Otherwise call the import() on mouseenter.",
+              solution: "<Link to=\"/reports\" prefetch=\"intent\">Reports</Link>",
+            },
           ]
         },
         {
@@ -158,8 +272,18 @@ function Project() {
           short: "Framework mode adds file-based route modules, SSR/pre-rendering, type-safe loaders and automatic code splitting; library mode is better when you need to embed routing in an existing SPA or custom build.",
           long: "v7 has three modes: declarative (<BrowserRouter>), data (createBrowserRouter) and framework (Vite plugin).\nFramework mode gives typegen for params/loader data, SSR, SPA mode and static pre-render.\nIt owns the build and server entry, which matters for legacy hosts or micro-frontends.\nData mode gives loaders/actions without changing the build: a good migration step.\nChoose based on SEO/first load needs, hosting, team familiarity and migration path.\nAvoid adopting SSR just for fashion: it adds server ops and hydration constraints.",
           exercises: [
-            { task: "Write a short decision for an internal admin app.", description: "Checks trade-off reasoning. List requirements (auth-only, no SEO, existing Webpack host) and decide.", answer: "For an auth-only admin with an existing host, data mode in library form usually wins: loaders/actions without owning the build. Framework SPA mode is an option if the team wants typegen and can move to Vite. SSR adds little value without SEO or first-load constraints." },
-            { task: "Plan a step by step move from simple routes to data routes.", description: "Checks migration planning. Describe steps that keep the app shippable.", answer: "Switch to createBrowserRouter with createRoutesFromElements to keep the tree, then move fetching into loaders route by route. Add errorElement per route group. Finally consider framework mode once routes are modular." }
+            {
+              task: "Pick a mode for each app.",
+              description: "Checks framework vs library mode.",
+              code: "// 1) public store with SEO  2) widget inside existing app",
+              answer: "Framework mode for SSR, SEO and file routes. Library mode for embedding in an existing app.",
+            },
+            {
+              task: "Name one cost of framework mode.",
+              description: "Checks trade-offs.",
+              code: "// switching an SPA to framework mode",
+              answer: "You adopt its build, conventions and maybe a server runtime. Migration takes effort.",
+            },
           ]
         }
       ],
@@ -188,8 +312,23 @@ function Project() {
   },
 ]);`,
           exercises: [
-            { task: "Write tests for three users: guest, normal user and admin.", description: "Checks guard testing. Use createMemoryRouter with mocked getUser in Vitest.", answer: "Anonymous should redirect to /login with next, user should render the 403 error element, admin should render the dashboard. Assert the admin loader is never called in the first two cases." },
-            { task: "Design a way to store permissions on each route.", description: "Checks scalability. Sketch a handle: { perm: 'reports.view' } convention and how menus reuse it.", answer: "Store required permissions on routes, read them in the guard loader via matched routes, and generate navigation from the same config. This keeps menus and access consistent. The server remains the authority." }
+            {
+              task: "Check access in the loader.",
+              description: "Checks guarding before render.",
+              code: "function Admin() { if (!user.isAdmin) return <Navigate to=\"/\" />; /* ... */ }",
+              answer: "Check in the loader and throw redirect, so data never loads for users without access.",
+              solution: `export async function loader() {
+  const user = await getUser();
+  if (!user.isAdmin) throw redirect("/");
+  return getAdminData();
+}`,
+            },
+            {
+              task: "Remove the copied guard.",
+              description: "Checks shared parent routes.",
+              code: "// requireAdmin() copied in 20 loaders",
+              answer: "Put the check in a parent route loader or middleware once; child routes inherit it.",
+            },
           ]
         },
         {
@@ -198,8 +337,19 @@ function Project() {
           short: "Treat URLs as a public API: define conventions (resource paths, query param naming, versioning), own a shared route registry, and lint/test for breaking changes.",
           long: "Bookmarks, emails and integrations depend on URLs, so breaking them is a breaking change.\nAgree on resource-oriented paths, kebab-case, and stable IDs over names.\nDocument which state belongs in the URL (filters, tabs) vs memory.\nKeep a route registry/typed helpers (href builders) so links are not string-concatenated.\nWhen renaming, keep redirects and measure their traffic before removal.\nReview routing changes like API changes, with contract tests.",
           exercises: [
-            { task: "Design a typed helper that builds links.", description: "Checks type-safe links. Sketch the TypeScript signature and usage.", answer: "Export routes as a const map and a function href('userDetail', { id }) whose params are inferred from the path pattern. React Router v7 framework mode offers href() typegen. Links become refactor-safe." },
-            { task: "Plan how to remove old URLs safely.", description: "Checks change management. Write rollout steps.", answer: "Add redirects from old to new URLs, log hits, notify integrators, and remove only after usage drops near zero. Keep a 410 or helpful page for stragglers. Track in a deprecation register." }
+            {
+              task: "Spot the inconsistency.",
+              description: "Checks URL conventions.",
+              code: "/userProfile/5   /orders-list   /Settings",
+              answer: "Mixed case and styles. Agree on lowercase kebab-case nouns like /users/5 and lint route files.",
+            },
+            {
+              task: "Build links safely.",
+              description: "Checks typed route helpers.",
+              code: "<Link to={\"/orders/\" + id + \"/edit\"} />",
+              answer: "Use shared typed route helpers or generatePath so typos and renamed routes fail at compile time.",
+              solution: "<Link to={generatePath(\"/orders/:id/edit\", { id })} />",
+            },
           ]
         },
         {
@@ -207,8 +357,18 @@ function Project() {
           short: "Split the route tree into lazily loaded feature modules with their own route definitions, keep a thin shell, and introduce budgets and ownership per module.",
           long: "Large eager route configs pull every page import into the main bundle.\nMove to route-level lazy modules owned by feature teams, registered through a manifest.\nOnly the shell, auth and top nav belong in the entry chunk.\nUse patchRoutesOnNavigation (data routers) to discover routes on demand for huge apps.\nSet per-route bundle budgets in CI and track LCP/INP per route in RUM.\nMigrate incrementally behind measurements, not big bang.",
           exercises: [
-            { task: "Design a list where each feature adds its own routes lazily.", description: "Checks modular architecture. Describe the manifest shape and loading flow.", answer: "Each feature exposes { path, lazy: () => import('./routes') }. The shell builds the router from the manifest; patchRoutesOnNavigation can fetch child routes when first visited. Ownership and budgets attach to each entry." },
-            { task: "Name the numbers that show the change worked.", description: "Checks measurable outcomes. List 3-4 metrics with targets.", answer: "Main bundle size (e.g. under 200 KB gzip), p75 LCP on the landing page, p75 route transition time, and the number of routes over budget. Track them before and after in RUM and CI." }
+            {
+              task: "Name the first fix for a slow first load.",
+              description: "Checks route-based splitting.",
+              code: "// all 300 route components imported eagerly",
+              answer: "Lazy load each route so the first load only ships the shell and the current page.",
+            },
+            {
+              task: "Spot the problem.",
+              description: "Checks huge route config bundles.",
+              code: "import { routes } from \"./routes\"; // imports every page",
+              answer: "The config imports every page, so splitting fails. Use lazy() in the config instead of static imports.",
+            },
           ]
         }
       ]
@@ -228,8 +388,19 @@ function Project() {
   return <p>{city ? city.toUpperCase() : "No address"}</p>;
 }`,
           exercises: [
-            { task: "Write a test for a user with no address.", description: "Checks defensive rendering. Use RTL and expect 'No address'.", answer: "render(<Profile user={{ name: 'A' }} />) and assert getByText('No address'). Before the fix the test throws a TypeError. Add a case with an address too." },
-            { task: "Add types so TypeScript finds this bug.", description: "Checks TS help. Make address optional and run tsc.", answer: "Declare address?: { city?: string }. tsc then errors on user.address.city, forcing a guard. Types document what the API can actually return." }
+            {
+              task: "Fix the crash.",
+              description: "Checks optional chaining.",
+              code: "<p>{user.address.city}</p>",
+              answer: "address may be missing. Use optional chaining and a fallback.",
+              solution: "<p>{user.address?.city ?? \"No address\"}</p>",
+            },
+            {
+              task: "Predict the output.",
+              description: "Checks undefined in JSX.",
+              code: "<p>{user.address?.city}</p> // address missing",
+              answer: "An empty <p>. Optional chaining gives undefined, which React renders as nothing.",
+            },
           ]
         },
         {
@@ -237,8 +408,24 @@ function Project() {
           short: "fetch only rejects on network failure, so check response.ok, store an error state, and render an error message with a retry.",
           long: "fetch resolves for 404/500, so you must check res.ok and throw.\nTrack status: loading, error, success (or use TanStack Query which does it for you).\nCatch inside the async function; errors in effects are not caught by Error Boundaries.\nShow user-friendly text and a retry button; log technical details.\nAbort on unmount to avoid setting state after the component is gone.\nNever swallow errors silently with an empty catch.",
           exercises: [
-            { task: "Write a hook that loads JSON. It returns data, error and loading.", description: "Checks fetch error handling. Test with MSW returning 500.", answer: "Inside an effect create AbortController, fetch with signal, throw on !res.ok, set data or error, and abort in cleanup. Ignore AbortError. The test asserts the error message appears for 500." },
-            { task: "Add a Retry button that loads the data again.", description: "Checks recovery. Increment a retry counter in the effect deps.", answer: "Keep const [attempt, setAttempt] = useState(0) and include it in the effect dependencies. Clicking Retry calls setAttempt(a => a + 1), rerunning the fetch and resetting the error." }
+            {
+              task: "Fix the error check.",
+              description: "Checks fetch not throwing on 4xx/5xx.",
+              code: "fetch(url).then(r => r.json()).then(setData).catch(setError);",
+              answer: "fetch only rejects on network errors. Check r.ok and throw otherwise.",
+              solution: `fetch(url)
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(setData).catch(setError);`,
+            },
+            {
+              task: "Render all three states.",
+              description: "Checks loading and error UI.",
+              code: "const { data, error, isPending } = useQuery(q);",
+              answer: "Return early for pending and error, then render data.",
+              solution: `if (isPending) return <Spinner />;
+if (error) return <ErrorMsg error={error} />;
+return <List items={data} />;`,
+            },
           ]
         },
         {
@@ -246,8 +433,19 @@ function Project() {
           short: "JSX only creates element objects; children render later, so a try/catch in the parent never sees their errors. Error Boundaries are the mechanism for render errors.",
           long: "return <Child /> inside try just builds an object and returns.\nReact calls Child later during reconciliation, outside your try block.\nError Boundaries (class components with getDerivedStateFromError/componentDidCatch) catch errors in rendering below them.\nLibraries like react-error-boundary give a function-friendly API.\ntry/catch is still right for event handlers and async code.\nReact 19 adds onCaughtError/onUncaughtError on the root for reporting.",
           exercises: [
-            { task: "Show that try and catch around a broken child does not work.", description: "Checks the mental model. Render a throwing child inside try and observe the crash.", answer: "The error bubbles to the root and the app unmounts (or the dev overlay shows). Wrapping in <ErrorBoundary fallback={...}> renders the fallback instead. This proves the render happens outside the parent function." },
-            { task: "Wrap a widget with the react-error-boundary library.", description: "Checks library usage. Install it and render a fallback with a reset button.", answer: "<ErrorBoundary FallbackComponent={Fallback} onReset={...}> where Fallback receives error and resetErrorBoundary. Clicking reset re-renders the children. Use resetKeys to reset automatically when inputs change." }
+            {
+              task: "Predict if the catch runs.",
+              description: "Checks try/catch and JSX.",
+              code: `try { return <Child />; }
+catch { return <p>Error</p>; }`,
+              answer: "No. <Child /> only creates an element; Child renders later, outside this try. Use an error boundary.",
+            },
+            {
+              task: "Name where try/catch does work in React.",
+              description: "Checks valid try/catch places.",
+              code: "// event handlers, effects, async functions",
+              answer: "In event handlers, effects and async code, where errors happen in your own call stack.",
+            },
           ]
         }
       ],
@@ -271,8 +469,22 @@ function Project() {
   <Chart data={data} />
 </ErrorBoundary>`,
           exercises: [
-            { task: "Connect the error boundary with TanStack Query reset.", description: "Checks library integration. Use QueryErrorResetBoundary with useSuspenseQuery.", answer: "Wrap with <QueryErrorResetBoundary>{({ reset }) => <ErrorBoundary onReset={reset} ...>}. Retry then refetches failed queries instead of rethrowing the cached error." },
-            { task: "Test that new data clears the error.", description: "Checks resetKeys. RTL: render with bad data, rerender with good data.", answer: "First render shows 'Chart failed'; rerender with valid data and assert the chart appears. Without resetKeys the fallback persists, proving the fix." }
+            {
+              task: "Reset the boundary when data changes.",
+              description: "Checks resetKeys.",
+              code: "<ErrorBoundary fallback={<Err />}><Widget id={id} /></ErrorBoundary>",
+              answer: "Pass resetKeys so a new id clears the error state.",
+              solution: `<ErrorBoundary resetKeys={[id]} fallback={<Err />}>
+  <Widget id={id} />
+</ErrorBoundary>`,
+            },
+            {
+              task: "Reset with a key instead.",
+              description: "Checks remounting boundaries.",
+              code: "<Boundary><Widget id={id} /></Boundary>",
+              answer: "Set key={id} on the boundary; it remounts with clean state.",
+              solution: "<Boundary key={id}><Widget id={id} /></Boundary>",
+            },
           ]
         },
         {
@@ -280,8 +492,20 @@ function Project() {
           short: "They do not by default; either handle them locally, or rethrow them in render (setState(() => { throw err })), or use libraries/frameworks (useSuspenseQuery, actions) that surface them during render.",
           long: "Boundaries only catch errors thrown during render, lifecycle and constructors.\nEvent handler and promise errors bypass them.\nA common trick: setState(() => { throw error }) makes the error happen during render.\nreact-error-boundary provides useErrorBoundary().showBoundary(error).\nSuspense-based data libs throw on render, so boundaries catch fetch errors.\nForm actions in React 19: errors thrown in an action passed to <form action> propagate to the nearest boundary.",
           exercises: [
-            { task: "A save fails after a click. Send the error to the nearest boundary.", description: "Checks showBoundary. Implement with react-error-boundary.", answer: "const { showBoundary } = useErrorBoundary(); in the catch call showBoundary(err). The boundary fallback renders. Prefer local inline errors for expected validation failures." },
-            { task: "The server returns a validation error. Do you show it inline or in a boundary?", description: "Checks error classification. Explain your choice.", answer: "A 422 is expected and recoverable in context, so show inline field errors. Boundaries are for unexpected failures where the UI cannot continue. Mixing them makes UX confusing." }
+            {
+              task: "Send a click error to the boundary.",
+              description: "Checks showBoundary.",
+              code: "onClick={async () => { await save(); }}",
+              answer: "Catch and call showBoundary from react-error-boundary's useErrorBoundary.",
+              solution: `const { showBoundary } = useErrorBoundary();
+onClick={async () => { try { await save(); } catch (e) { showBoundary(e); } }}`,
+            },
+            {
+              task: "Predict what happens with a transition.",
+              description: "Checks errors thrown in actions.",
+              code: "startTransition(async () => { await save(); }); // save throws",
+              answer: "In React 19, errors thrown in a transition action go to the nearest error boundary.",
+            },
           ]
         },
         {
@@ -289,8 +513,22 @@ function Project() {
           short: "Each route can define an error element rendered when its loader, action or component throws; useRouteError() returns the error and isRouteErrorResponse() detects thrown Responses like 404.",
           long: "Errors bubble to the nearest route with errorElement (or ErrorBoundary export in framework mode).\nThe parent layout stays rendered, so only the failing section shows the error.\nThrow data(..., { status: 404 }) or new Response from loaders for expected HTTP errors.\nisRouteErrorResponse(err) separates those from real exceptions.\nShow friendly 404/403 pages and a generic message plus report for crashes.\nAlways have a root errorElement as last resort.",
           exercises: [
-            { task: "Build one error page for 404, 403 and unknown errors.", description: "Checks useRouteError. Throw each type from a loader and view it.", answer: "Read err = useRouteError(); if isRouteErrorResponse(err) switch on err.status for 404/403, else log and show a generic message. Include a link home." },
-            { task: "When a page crashes, keep the sidebar on screen.", description: "Checks boundary placement. Configure nested routes.", answer: "Put errorElement on the child route (or a pathless wrapper of the content area), not only the root. The layout with the sidebar keeps rendering and only the outlet shows the error." }
+            {
+              task: "Tell a 404 from a crash.",
+              description: "Checks isRouteErrorResponse.",
+              code: "function RouteError() { const err = useRouteError(); }",
+              answer: "Check isRouteErrorResponse(err) and err.status === 404; anything else is a crash.",
+              solution: `const err = useRouteError();
+if (isRouteErrorResponse(err) && err.status === 404) return <NotFound />;
+return <Crash />;`,
+            },
+            {
+              task: "Throw a 404 from a loader.",
+              description: "Checks throwing responses.",
+              code: "const p = await getProduct(id);",
+              answer: "Throw a Response or data() with status 404 so the error element handles it.",
+              solution: "if (!p) throw data(\"Not found\", { status: 404 });",
+            },
           ]
         }
       ],
@@ -322,8 +560,23 @@ const root = createRoot(el, {
 });
 window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           exercises: [
-            { task: "Test that each error is sent only once.", description: "Checks dedup. Mock report and throw in a component under a boundary.", answer: "Render a throwing component inside a boundary on a root created with the options; assert report was called once with handled: true. Throw in a setTimeout to verify the window path." },
-            { task: "Add the page and app version to each report.", description: "Checks actionable reporting. Add tags in the reporter.", answer: "Read the current pathname, app version from build env, and a hashed user or tenant id. Group by fingerprint (message + top frame). This makes alerts triageable." }
+            {
+              task: "Spot why errors are sent twice.",
+              description: "Checks duplicate reporting paths.",
+              code: `componentDidCatch(e) { report(e); }
+window.addEventListener("error", e => report(e.error));`,
+              answer: "Some errors reach both handlers in production. Report from one place, or dedupe by error identity.",
+            },
+            {
+              task: "Use React 19 root error hooks.",
+              description: "Checks createRoot error options.",
+              code: "createRoot(el).render(<App />);",
+              answer: "Pass onCaughtError and onUncaughtError to report once at the root.",
+              solution: `createRoot(el, {
+  onUncaughtError: report,
+  onCaughtError: report,
+}).render(<App />);`,
+            },
           ]
         },
         {
@@ -332,8 +585,18 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           short: "Classify errors by who caused them and whether the user can recover, and map each class to a UI pattern, logging level and alert policy.",
           long: "Expected: validation, 404, permission, offline; show inline or page-level messages, do not page anyone.\nUnexpected: bugs, contract violations; boundary fallback + report.\nTransient: timeouts, 503; retry with backoff and keep stale data visible.\nFatal: auth expired, app version mismatch; redirect or force reload.\nModel errors as typed classes (ApiError with status, code) at the API layer.\nDocument the mapping so all teams handle errors consistently.",
           exercises: [
-            { task: "Write an ApiError class and map each error to a UI action.", description: "Checks taxonomy in code. Sketch TS classes and a switch.", answer: "class ApiError extends Error { status; code; } and a function toUi(err) returning 'inline' | 'retry' | 'login' | 'boundary'. Components call it rather than inspecting raw responses." },
-            { task: "Write alert rules for each error group.", description: "Checks operational thinking. Produce a short table.", answer: "Unexpected errors alert on spike rate per release; transient errors alert on sustained elevated rate; expected errors only appear in dashboards. This avoids alert fatigue." }
+            {
+              task: "Classify each error.",
+              description: "Checks error categories.",
+              code: "// 1) wrong password  2) null crash  3) app JS failed to load",
+              answer: "1) Expected: show inline. 2) Unexpected: boundary and report. 3) Fatal: full page with reload.",
+            },
+            {
+              task: "Spot the problem.",
+              description: "Checks reporting expected errors.",
+              code: "catch (e) { Sentry.captureException(e); } // 401 login fail",
+              answer: "Expected errors like wrong password flood the error tool. Handle them in UI; report only unexpected ones.",
+            },
           ]
         },
         {
@@ -341,8 +604,23 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           short: "A failed dynamic import rejects and is thrown to the nearest Error Boundary; detect chunk load errors and offer a reload (new version), with a one-time automatic reload guard.",
           long: "After deploy, old clients request hashed chunks that no longer exist.\nReact.lazy rethrows the rejected import, so a boundary catches it.\nRecognize ChunkLoadError / 'Failed to fetch dynamically imported module'.\nReload once (guarded by sessionStorage) to fetch the new manifest.\nKeep previous assets available for a while on the CDN to reduce failures.\nVite emits vite:preloadError on window, which you can handle globally.",
           exercises: [
-            { task: "Write a lazy helper that reloads the page once on chunk errors.", description: "Checks resilience. Simulate a 404 chunk via DevTools request blocking.", answer: "Wrap the import in catch: if it is a chunk error and no reload flag is set, set the flag and location.reload(); otherwise rethrow to the boundary. Clear the flag on successful load." },
-            { task: "Suggest a deploy plan that avoids these errors.", description: "Checks infra thinking. Describe asset retention.", answer: "Upload new assets before switching HTML, keep old hashed assets for days, and use immutable caching. Optionally poll a version endpoint and prompt users to refresh." }
+            {
+              task: "Retry a failed chunk once with reload.",
+              description: "Checks stale chunk recovery.",
+              code: "const Page = lazy(() => import(\"./Page\"));",
+              answer: "Catch the import error and reload once, using sessionStorage to avoid loops.",
+              solution: `const Page = lazy(() => import("./Page").catch(e => {
+  if (sessionStorage.getItem("r")) throw e;
+  sessionStorage.setItem("r", "1"); location.reload();
+  return new Promise(() => {});
+}));`,
+            },
+            {
+              task: "Name a deploy fix for missing chunks.",
+              description: "Checks keeping old assets.",
+              code: "// deploy deletes old JS files",
+              answer: "Keep old hashed assets for some days after deploy, so open tabs can still load them.",
+            },
           ]
         }
       ],
@@ -354,8 +632,21 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           long: `Infinite retries never surface errors to the UI, so users see endless spinners.\nA fixed short delay from thousands of clients creates a retry storm that keeps the backend down.\nClient errors (400, 401, 403, 404) will not succeed on retry; only retry network errors, 408, 429 and 5xx.\nRetrying POST can create duplicates unless the API uses idempotency keys.\nUse exponential backoff with jitter, a max attempt count, and honor Retry-After.\nPass an AbortSignal so unmounted components stop retrying.\nAt scale, add a circuit breaker per service and prefer TanStack Query retry settings over custom loops.`,
           fix: `const RETRY = new Set([408, 429, 500, 502, 503, 504]);\nexport async function request(url, { signal, retries = 3, ...opts } = {}) {\n  for (let attempt = 0; ; attempt++) {\n    let res;\n    try {\n      res = await fetch(url, { ...opts, signal });\n    } catch (e) {\n      if (signal?.aborted || attempt >= retries) throw e;\n    }\n    if (res?.ok) return res.json();\n    if (res && (!RETRY.has(res.status) || attempt >= retries)) {\n      throw new HttpError(res.status);\n    }\n    const after = Number(res?.headers.get("Retry-After")) * 1000;\n    const backoff = Math.min(8000, 2 ** attempt * 300) * (0.5 + Math.random());\n    await sleep(after || backoff, signal);\n  }\n}`,
           exercises: [
-            { task: `Why add random jitter to the backoff delay?`, description: `Checks retry storm knowledge. Explain.`, answer: `Without jitter, all clients that failed at the same moment retry at the same moments, creating waves of traffic. Jitter spreads retries over time, so the backend can recover.` },
-            { task: `How do you make sure a retried payment POST is not charged twice?`, description: `Checks idempotency. Describe the contract with the backend.`, answer: `Send an idempotency key, like a UUID made once per user action, in a header. The server stores the result per key and returns the same response for repeats. Without it, do not auto-retry non-idempotent requests.` },
+            {
+              task: "Spot what made the outage worse.",
+              description: "Checks retry storms.",
+              code: `async function req(u) {
+  for (;;) { try { return await fetch(u); } catch {} }
+}`,
+              answer: "Endless instant retries flood the failing backend. Limit retries with exponential backoff and jitter.",
+            },
+            {
+              task: "Add a timeout to the request.",
+              description: "Checks AbortSignal.timeout.",
+              code: "await fetch(url);",
+              answer: "Use AbortSignal.timeout so hung requests do not pile up.",
+              solution: "await fetch(url, { signal: AbortSignal.timeout(8000) });",
+            },
           ],
         },
         {
@@ -364,8 +655,18 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           short: "Define user-centric SLOs (e.g. crash-free sessions, successful key journeys), measure via RUM and error tracking, and use error budget to decide between reliability and features.",
           long: "Pick metrics users feel: crash-free session rate, journey success rate, error-boundary fallback rate.\nSet targets per critical journey, not for every error.\nTie errors to releases so regressions block rollout (canary + automatic rollback).\nWhen the budget burns, prioritize fixes over features.\nReview top errors weekly with owners; close noise at the source.\nShare dashboards with product so trade-offs are visible.",
           exercises: [
-            { task: "Write reliability goals for a checkout flow.", description: "Checks SLO design. Give 2-3 SLOs with targets and windows.", answer: "99.5% of checkout sessions complete without a boundary fallback over 28 days; p75 INP under 200 ms on the payment step; under 0.1% unhandled errors per session. Each has an owner and alert on burn rate." },
-            { task: "Describe a release check that uses error data.", description: "Checks rollout safety. Outline a canary process.", answer: "Ship to 5% of users, compare new-error and crash-free rates against baseline, and auto-roll back if thresholds are exceeded. Promote gradually. This catches regressions before full exposure." }
+            {
+              task: "Write one frontend SLO.",
+              description: "Checks defining SLOs.",
+              code: "// checkout page",
+              answer: "Example: 99.5% of checkout sessions have no uncaught error, and p75 INP under 200 ms, measured weekly.",
+            },
+            {
+              task: "Use error data to prioritize.",
+              description: "Checks impact-based priority.",
+              code: "// error A: 5k events, 10 users. error B: 300 events, 250 users",
+              answer: "Fix B first. Users affected matters more than event count.",
+            },
           ]
         },
         {
@@ -373,8 +674,20 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           short: "Validate data at the API boundary, add per-feature boundaries, contract tests with the backend, feature flags/kill switches, and a blameless postmortem with owners.",
           long: "Root cause is trusting unvalidated data deep in render.\nParse responses with schemas (zod/valibot) and fail at the edge with a typed error.\nContain impact with boundaries around features.\nAdd consumer-driven contract tests so backend changes fail CI.\nUse kill switches to disable a broken feature without deploy.\nFollow up with a blameless postmortem and tracked action items.",
           exercises: [
-            { task: "Add schema checks to the API client.", description: "Checks boundary validation. Implement with zod and test with a malformed payload.", answer: "Define a schema and call schema.safeParse on responses; on failure throw a ContractError with path details and report it. Components get typed data or a handled error, never undefined fields." },
-            { task: "Write the follow-up tasks after the incident.", description: "Checks leadership follow-up. List items with owners and dates.", answer: "Schema validation in the API layer, widget boundaries on the affected pages, contract tests in the backend pipeline, and a kill switch for the feature. Each gets an owner, due date and verification step." }
+            {
+              task: "Validate API data at the edge.",
+              description: "Checks runtime schema validation.",
+              code: "const user = await res.json();",
+              answer: "Parse with zod so bad data fails in one place, not deep in render.",
+              solution: `const User = z.object({ id: z.string(), name: z.string() });
+const user = User.parse(await res.json());`,
+            },
+            {
+              task: "Name a system change besides validation.",
+              description: "Checks safe rollout.",
+              code: "// API change broke all users at once",
+              answer: "Contract tests between API and frontend, plus feature flags or canary releases to limit impact.",
+            },
           ]
         }
       ]
@@ -387,8 +700,20 @@ window.addEventListener("unhandledrejection", e => reportOnce(e.reason));`,
           short: "useEffect runs after the browser paints; useLayoutEffect runs synchronously after DOM mutations but before paint, so you can measure and adjust layout without flicker.",
           long: "useEffect is the default for data fetching, subscriptions and logging.\nuseLayoutEffect blocks painting until it finishes, so keep it fast.\nUse it to read layout (getBoundingClientRect) and synchronously set state that changes position.\nIt does not run on the server; prefer useEffect there or guard.\nOveruse hurts performance because it delays paint.\nBoth have cleanup functions and the same dependency rules.",
           exercises: [
-            { task: "Show the flicker difference with a tooltip.", description: "Checks timing. Position a tooltip based on its measured height using each hook; throttle CPU in DevTools.", answer: "With useEffect you may briefly see the tooltip in the wrong place; with useLayoutEffect the correction happens before paint. The rule: measuring + adjusting visible layout needs useLayoutEffect." },
-            { task: "Log the order of render, layout effect and effect.", description: "Checks lifecycle order. Add console.log in each and observe.", answer: "Order: render, React commits DOM, layout effect, browser paint, effect. Cleanups run before the next corresponding effect. This explains when each hook sees the DOM." }
+            {
+              task: "Predict the log order.",
+              description: "Checks effect timing.",
+              code: `useLayoutEffect(() => log("layout"));
+useEffect(() => log("effect"));
+// paint`,
+              answer: "\"layout\" before paint, then \"effect\" after paint. Layout effects run sync after DOM changes.",
+            },
+            {
+              task: "Pick the hook for each task.",
+              description: "Checks choosing effect type.",
+              code: "// 1) fetch data  2) measure element before show",
+              answer: "1) useEffect. 2) useLayoutEffect, to avoid a visible flicker.",
+            },
           ]
         },
         {
@@ -418,8 +743,23 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
   return <input ref={ref} {...props} />;
 });`,
           exercises: [
-            { task: "Write a test. Clicking Focus must focus the input.", description: "Checks ref forwarding. RTL + user-event, assert document.activeElement.", answer: "Click the button with userEvent and expect(screen.getByRole('textbox')).toHaveFocus(). The test fails if the ref is not forwarded." },
-            { task: "Add a cleanup function to a callback ref in React 19.", description: "Checks callback ref cleanup. Log on attach and detach.", answer: "Pass ref={node => { console.log('attach'); return () => console.log('detach'); }}. React 19 calls the returned cleanup on unmount instead of calling the ref with null." }
+            {
+              task: "Fix the ref in React 19.",
+              description: "Checks ref as a prop.",
+              code: `function Field(props) { return <input />; }
+<Field ref={r} />`,
+              answer: "In React 19 ref is a normal prop for function components. Pass it to the input.",
+              solution: `function Field({ ref, ...props }) {
+  return <input ref={ref} {...props} />;
+}`,
+            },
+            {
+              task: "Fix it for React 18.",
+              description: "Checks forwardRef.",
+              code: "function Field(props) { return <input {...props} />; }",
+              answer: "Wrap with forwardRef; ref is not a prop in React 18.",
+              solution: "const Field = forwardRef((props, ref) => <input ref={ref} {...props} />);",
+            },
           ]
         },
         {
@@ -427,8 +767,22 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
           short: `useId returns a stable, unique id that is the same on the server and the client. Math.random gives a different value on each render and breaks hydration.`,
           long: `Labels and ARIA attributes need ids: htmlFor, aria-describedby, aria-labelledby.\nuseId() gives a unique string per component instance, stable across re-renders.\nIt matches between server rendering and hydration, so there is no mismatch.\nMath.random or a global counter changes between server and client, or between renders.\nDo not use useId for list keys. Keys must come from your data.\nFor several ids in one component, use one useId and add suffixes: id + "-email".`,
           exercises: [
-            { task: `Connect a label and a hint to an input with useId.`, description: `Checks accessible ids. Render two copies of the field and check that ids differ.`, answer: `Call const id = useId(), then use htmlFor={id} on the label, id={id} on the input, and aria-describedby={id + "-hint"} pointing to the hint. Each instance of the component gets its own id, so two fields on one page do not clash.`, solution: `function EmailField() {\n  const id = useId();\n  return (\n    <>\n      <label htmlFor={id}>Email</label>\n      <input id={id} aria-describedby={id + "-hint"} />\n      <p id={id + "-hint"}>We never share it.</p>\n    </>\n  );\n}` },
-            { task: `Why is useId a bad choice for keys in a list?`, description: `Checks the limits of useId. Explain with a map example.`, answer: `Hooks cannot be called inside a loop, and the id belongs to the component, not to each data item. Keys must be stable ids from the data, so React can match items when the list changes.` },
+            {
+              task: "Fix the id.",
+              description: "Checks random ids and hydration.",
+              code: "const id = \"f-\" + Math.random();",
+              answer: "Random ids differ between server and client and change each render. Use useId.",
+              solution: "const id = useId();",
+            },
+            {
+              task: "Use one useId for several elements.",
+              description: "Checks id suffixes.",
+              code: "// need ids for input and hint",
+              answer: "Call useId once and add suffixes.",
+              solution: `const id = useId();
+<input id={id} aria-describedby={id + "-hint"} />
+<p id={id + "-hint"}>8+ chars</p>`,
+            },
           ],
         }
       ],
@@ -453,8 +807,19 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
   return <video ref={videoRef} src={src} />;
 }`,
           exercises: [
-            { task: "Write a test for the play method.", description: "Checks handle testing. Mock HTMLMediaElement.prototype.play in jsdom.", answer: "Spy on play, render with a ref, call ref.current.play() and assert the spy was called. jsdom does not implement media playback, so mocking is required." },
-            { task: "Explain why src is now a prop and not set inside play.", description: "Checks declarative design. Short write-up.", answer: "Declarative props keep React in control and avoid stale closures. Imperative methods should only perform actions that cannot be expressed as state, like play or focus." }
+            {
+              task: "Fix the stale handle.",
+              description: "Checks useImperativeHandle deps.",
+              code: "useImperativeHandle(ref, () => ({ play: () => start(src) }), []);",
+              answer: "Empty deps freeze the first src. Add src to deps.",
+              solution: "useImperativeHandle(ref, () => ({ play: () => start(src) }), [src]);",
+            },
+            {
+              task: "Predict what omitting the deps array does.",
+              description: "Checks default handle updates.",
+              code: "useImperativeHandle(ref, () => ({ play }));",
+              answer: "Without deps, the handle is recreated every render, so it is always fresh but changes identity.",
+            },
           ]
         },
         {
@@ -462,8 +827,23 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
           short: "It subscribes components to external mutable stores (browser APIs, custom stores) safely under concurrent rendering, preventing tearing between components.",
           long: "Concurrent rendering can read a mutable store at different times, producing inconsistent UI (tearing).\nuseSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) forces consistent reads.\ngetSnapshot must return a cached/immutable value; returning a new object each time loops.\ngetServerSnapshot provides the SSR value to avoid hydration mismatch.\nUsed internally by Redux, Zustand and others.\nGreat for navigator.onLine, matchMedia, or a small custom store.",
           exercises: [
-            { task: "Write a hook that tells if the user is online.", description: "Checks the API. Toggle offline in DevTools to test.", answer: "subscribe adds online/offline listeners and returns cleanup; getSnapshot returns navigator.onLine; getServerSnapshot returns true. Components rerender on change without tearing." },
-            { task: "The snapshot function returns a new object each time. Find the bug.", description: "Checks snapshot identity. Explain the infinite loop warning for getSnapshot returning { count: store.count }.", answer: "A new object each call looks like a change every time, causing rerender loops. Return store state that only changes identity on update, or a primitive." }
+            {
+              task: "Subscribe to online status.",
+              description: "Checks useSyncExternalStore.",
+              code: "function useOnline() { /* your code */ }",
+              answer: "Subscribe to online and offline events and read navigator.onLine.",
+              solution: `const sub = cb => { addEventListener("online", cb); addEventListener("offline", cb);
+  return () => { removeEventListener("online", cb); removeEventListener("offline", cb); }; };
+function useOnline() {
+  return useSyncExternalStore(sub, () => navigator.onLine, () => true);
+}`,
+            },
+            {
+              task: "Spot the tearing risk.",
+              description: "Checks reading mutable stores in render.",
+              code: "function Price() { return <b>{store.price}</b>; }",
+              answer: "Reading mutable data directly does not re-render and may tear during concurrent renders. Use useSyncExternalStore.",
+            },
           ]
         },
         {
@@ -471,8 +851,27 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
           short: "Store the callback in a ref updated in a layout effect, or use React's useEffectEvent (stable in 19.2), so the effect does not resubscribe when the callback changes.",
           long: "Passing an inline callback into an effect's deps resubscribes on every render.\nOmitting it causes stale closures.\nThe 'latest ref' pattern: ref.current = cb in useLayoutEffect, then call ref.current() in the effect.\nReact 19.2 adds useEffectEvent for exactly this: a non-reactive event function used inside effects.\nDo not call effect events during render or pass them to children.\nKeep reactive values (like roomId) in deps; only the handler is non-reactive.",
           exercises: [
-            { task: "Write a useInterval hook.", description: "Checks latest-ref pattern. Test that changing callback does not reset the interval.", answer: "Keep savedCb ref updated on each render; set the interval in an effect depending only on ms, calling savedCb.current(). Use fake timers in Vitest to assert ticks continue after rerender." },
-            { task: "Write the same hook with useEffectEvent.", description: "Checks React 19.2 API. Compare code size.", answer: "const onTick = useEffectEvent(callback); useEffect(() => { const id = setInterval(() => onTick(), ms); return () => clearInterval(id); }, [ms]). The linter knows onTick is not a dependency." }
+            {
+              task: "Keep the latest callback in a ref.",
+              description: "Checks latest-ref pattern.",
+              code: `useEffect(() => {
+  const id = setInterval(() => onTick(), 1000);
+  return () => clearInterval(id);
+}, []);`,
+              answer: "onTick is stale. Store it in a ref updated each render, or use useEffectEvent.",
+              solution: `const tick = useEffectEvent(() => onTick());
+useEffect(() => {
+  const id = setInterval(() => tick(), 1000);
+  return () => clearInterval(id);
+}, []);`,
+            },
+            {
+              task: "Spot the misuse of useEffectEvent.",
+              description: "Checks useEffectEvent rules.",
+              code: `const onClick = useEffectEvent(save);
+<button onClick={onClick} />`,
+              answer: "Effect events are only for calling from effects, not as JSX handlers. Use a normal function here.",
+            },
           ]
         }
       ],
@@ -505,8 +904,25 @@ function useElementWidth(ref) {
   return w;
 }`,
           exercises: [
-            { task: "Use CSS container queries instead of the hook where you can.", description: "Checks CSS-first thinking. Implement a card that changes layout at 400px.", answer: "Set container-type: inline-size on the wrapper and use @container (min-width: 400px). No JS, no hydration jump. Keep JS measurement for computations like virtualization." },
-            { task: "Test the hook with a fake ResizeObserver.", description: "Checks testing strategy. Mock the global and trigger callbacks.", answer: "Mock ResizeObserver to capture the callback, render with renderHook, call the callback with a fake entry inside act, and assert the returned width updates." }
+            {
+              task: "Fix the server warning.",
+              description: "Checks isomorphic layout effect.",
+              code: "useLayoutEffect(() => setW(ref.current.offsetWidth), []);",
+              answer: "Older React warns about useLayoutEffect on the server. Use a safe wrapper that falls back to useEffect there.",
+              solution: `const useIsoLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;`,
+            },
+            {
+              task: "Track size changes.",
+              description: "Checks ResizeObserver.",
+              code: "// width changes when sidebar toggles",
+              answer: "Use a ResizeObserver on the element and disconnect in cleanup.",
+              solution: `useEffect(() => {
+  const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
+  ro.observe(ref.current);
+  return () => ro.disconnect();
+}, []);`,
+            },
           ]
         },
         {
@@ -514,8 +930,22 @@ function useElementWidth(ref) {
           short: "useActionState wraps an async action and gives state, a form action and pending; useOptimistic shows a temporary optimistic value while an async transition runs and reverts automatically.",
           long: "useActionState(action, initialState) returns [state, formAction, isPending]; action receives (prevState, formData).\nIt integrates with <form action> and progressive enhancement in RSC frameworks.\nuseOptimistic(state, updateFn) returns an optimistic value plus a setter usable inside transitions/actions.\nWhen the action settles, the optimistic value is replaced by real state.\nReturn expected failures as state; throw unexpected ones.\nuseFormStatus gives pending info to nested submit buttons.",
           exercises: [
-            { task: "Build a comment form. New comments appear before the server answers.", description: "Checks both hooks. Simulate a slow server action.", answer: "Use useOptimistic(comments, (list, c) => [...list, { ...c, pending: true }]); in the form action call addOptimistic then await save. When saving resolves, update the real list; on failure the optimistic item disappears." },
-            { task: "Return form errors from useActionState.", description: "Checks error-as-state. Render field errors.", answer: "The action returns { errors: { email: '...' } } instead of throwing. The component renders state.errors next to fields. isPending disables the submit button." }
+            {
+              task: "Wire a form with useActionState.",
+              description: "Checks action state and pending.",
+              code: "async function save(prev, fd) { /* returns error or null */ }",
+              answer: "useActionState gives state, a form action and isPending.",
+              solution: `const [error, action, isPending] = useActionState(save, null);
+<form action={action}>
+  <button disabled={isPending}>Save</button>{error && <p>{error}</p>}
+</form>`,
+            },
+            {
+              task: "Predict the optimistic value after failure.",
+              description: "Checks optimistic rollback.",
+              code: "setOptimistic(n + 1); await api.like(); // throws",
+              answer: "It returns to the real state when the action ends. useOptimistic values last only during the action.",
+            },
           ]
         },
         {
@@ -524,8 +954,22 @@ function useElementWidth(ref) {
           short: "use() reads a promise (suspending until resolved) or a context; unlike other hooks it may be called conditionally and inside loops.",
           long: "use(promise) suspends the component until resolution and throws to Error Boundaries on rejection.\nThe promise must be stable (created outside render or cached), not created in the same render.\nIn RSC apps, servers can pass promises to client components that call use().\nuse(Context) works like useContext but can be inside if statements.\nIt cannot be used inside try/catch to catch suspension.\nPair with Suspense and Error Boundaries for loading and errors.",
           exercises: [
-            { task: "The component calls use with a new fetch on each render. Find the bug.", description: "Checks promise stability. Explain the infinite suspend of use(fetch(url).then(r => r.json())).", answer: "Each render creates a new promise, so React suspends forever. Create the promise in a parent, loader or cache (or server) and pass it down." },
-            { task: "Send a slow promise from a Next.js server component to a client component.", description: "Checks RSC + use. Implement page and client component.", answer: "In the server page start const p = getStats() without await and render <Suspense><Stats promise={p} /></Suspense>. The client component calls use(p). The shell streams immediately." }
+            {
+              task: "Read a promise with use.",
+              description: "Checks use() with Suspense.",
+              code: "function Comments({ promise }) { /* render list */ }",
+              answer: "use(promise) suspends until it resolves. Wrap with Suspense.",
+              solution: `function Comments({ promise }) {
+  const items = use(promise);
+  return items.map(c => <p key={c.id}>{c.text}</p>);
+}`,
+            },
+            {
+              task: "Spot the bug.",
+              description: "Checks creating promises in render.",
+              code: "function C() { const data = use(fetch(\"/api\").then(r => r.json())); }",
+              answer: "A new promise each render suspends forever. Create it once outside, cache it, or pass it from a parent.",
+            },
           ]
         }
       ],
@@ -566,8 +1010,23 @@ export function useScrollSelector(select, serverValue) {
 // consumer
 const scrolled = useScrollSelector(p => p.y > 0, false);`,
           exercises: [
-            { task: "Measure re-renders before and after the fix with the Profiler.", description: "Checks verification. Record while scrolling a page with 20 consumers.", answer: "Before: every consumer commits per scroll event. After: consumers commit only when their selected value changes. Include the profiler screenshots in the PR." },
-            { task: "Write a review checklist for shared hooks.", description: "Checks governance. List 4-5 items.", answer: "SSR safety (server snapshot), minimal re-render surface, stable return identities, cleanup of listeners, tests with renderHook and docs on cost. Shared hooks multiply mistakes across teams." }
+            {
+              task: "Throttle scroll updates.",
+              description: "Checks reducing scroll re-renders.",
+              code: "addEventListener(\"scroll\", () => setY(scrollY));",
+              answer: "Updating state on every scroll event re-renders a lot. Use requestAnimationFrame to update once per frame.",
+              solution: `let raf;
+addEventListener("scroll", () => {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => setY(scrollY));
+}, { passive: true });`,
+            },
+            {
+              task: "Return a boolean instead of raw position.",
+              description: "Checks narrowing hook output.",
+              code: "const y = useScrollY(); const sticky = y > 100;",
+              answer: "Return only isPastThreshold so callers re-render when the boolean flips, not each pixel.",
+            },
           ]
         },
         {
@@ -576,8 +1035,18 @@ const scrolled = useScrollSelector(p => p.y > 0, false);`,
           short: "Hooks encapsulate stateful React logic tied to lifecycle, components own UI, and plain modules hold pure logic and I/O; keep the dependency direction UI -> hooks -> modules.",
           long: "Pure logic (formatting, validation) should be plain functions: easy to test, reusable outside React.\nHooks wrap React concerns: state, effects, subscriptions, context.\nComponents compose hooks and render; avoid business rules inside JSX.\nAvoid 'god hooks' that return 20 values; split by concern.\nDon't wrap a single useState in a hook just for naming.\nEnforce boundaries with folder conventions and lint rules (import restrictions).",
           exercises: [
-            { task: "Split a very large page component into layers.", description: "Checks separation. Describe resulting files and responsibilities for a 400-line page.", answer: "Extract pure calculations into a module, data fetching into useOrdersQuery, UI state into useOrderFilters, and leave the page composing them. Each piece gets focused tests." },
-            { task: "Add lint rules that protect these layers.", description: "Checks enforcement. Use eslint import restrictions.", answer: "Configure no-restricted-imports or eslint-plugin-boundaries so /lib cannot import React or /components, and hooks cannot import components. CI fails on violations." }
+            {
+              task: "Place this logic.",
+              description: "Checks hooks vs plain modules.",
+              code: "function formatPrice(n, cur) { /* no React */ }",
+              answer: "A plain module. It uses no React features, so it does not need to be a hook and is easy to test.",
+            },
+            {
+              task: "Spot the wrong hook.",
+              description: "Checks fake hooks.",
+              code: "function useFormatDate(d) { return d.toLocaleDateString(); }",
+              answer: "It calls no hooks, so the use prefix misleads and limits where it can be called. Rename to formatDate.",
+            },
           ]
         },
         {
@@ -585,8 +1054,18 @@ const scrolled = useScrollSelector(p => p.y > 0, false);`,
           short: "The compiler auto-memoizes, so manual useMemo/useCallback/memo become mostly unnecessary, but rules of React (purity, no mutation during render) become strictly important and effects/refs patterns stay the same.",
           long: "React Compiler (stable 1.0 in late 2025) memoizes components and hooks at build time.\nCode that breaks the rules (mutating props, reading refs in render) gets skipped or misbehaves.\nKeep useMemo only as an explicit escape hatch (e.g. effect dependency identity), not by default.\nuseEffect, useLayoutEffect, useImperativeHandle and refs are unaffected.\nEnable eslint-plugin-react-hooks compiler rules to find violations.\nRoll out per directory and measure, using 'use no memo' to opt out problem files.",
           exercises: [
-            { task: "Plan how to turn on the compiler in a large app.", description: "Checks rollout strategy. Write phases and metrics for a 500-component app.", answer: "Fix lint violations first, enable the compiler for a pilot directory, compare Profiler and RUM metrics, then expand. Keep an opt-out list and remove manual memoization gradually." },
-            { task: "Give three examples of code the compiler cannot optimize.", description: "Checks rules knowledge. Give 3 examples.", answer: "Mutating an object received as props during render, reading ref.current in render, and conditionally calling hooks. The compiler bails out of such components, so they need fixing." }
+            {
+              task: "Name what to remove with the compiler.",
+              description: "Checks compiler impact.",
+              code: "const onClick = useCallback(() => go(id), [id]);",
+              answer: "Manual useMemo and useCallback are no longer needed for performance in new code. Keep them where identity matters for effects.",
+            },
+            {
+              task: "Spot what the compiler cannot fix.",
+              description: "Checks compiler limits.",
+              code: "useEffect(() => { setFull(a + b); }, [a, b]);",
+              answer: "Derived state in effects is still a design bug. The compiler memoizes; it does not remove bad effects.",
+            },
           ]
         }
       ]
@@ -599,8 +1078,19 @@ const scrolled = useScrollSelector(p => p.y > 0, false);`,
           short: "Hydration is React attaching event handlers and state to server-rendered HTML in the browser, reusing the existing DOM instead of re-creating it.",
           long: "The server sends HTML so users see content early.\nThe JS bundle loads and hydrateRoot walks the DOM, matching it with the component tree.\nAfter hydration the page becomes interactive.\nIf client output differs from server HTML, React reports a mismatch and may re-render client-side.\nUntil hydration completes, clicks may do nothing.\nSelective hydration in React 18+ prioritizes areas the user interacts with.",
           exercises: [
-            { task: "Render a counter on the server. Watch when it starts to work.", description: "Checks the concept. Use a Next.js page with a client counter, throttle network to Slow 3G.", answer: "HTML appears first but clicks do nothing until the JS loads and hydrates. This gap is why bundle size matters for SSR pages." },
-            { task: "Create a hydration error on purpose and read it.", description: "Checks mismatch awareness. Render Date.now() in a component and inspect the console.", answer: "The server and client values differ, so React logs a mismatch with a diff. Fix by rendering time in an effect or passing a fixed value from the server." }
+            {
+              task: "Predict what happens before hydration.",
+              description: "Checks HTML before hydration.",
+              code: "// SSR page with <button onClick={buy}>",
+              answer: "The button shows but clicks do nothing until JS loads and hydrates, attaching handlers.",
+            },
+            {
+              task: "Hydrate a server-rendered app.",
+              description: "Checks hydrateRoot.",
+              code: "createRoot(document.getElementById(\"root\")).render(<App />);",
+              answer: "Use hydrateRoot to reuse server HTML instead of replacing it.",
+              solution: "hydrateRoot(document.getElementById(\"root\"), <App />);",
+            },
           ]
         },
         {
@@ -622,8 +1112,21 @@ export default function Theme({ children }) {
   return <div className={theme}>{children}</div>;
 }`,
           exercises: [
-            { task: "Stop the theme flash by using a cookie.", description: "Checks server-readable state. Use cookies() from next/headers in the layout.", answer: "Set a theme cookie when the user toggles. In the root layout read (await cookies()).get('theme') and render the class on <html>. No flash, and server and client agree." },
-            { task: "Explain why client components still run on the server.", description: "Checks the rendering model. Short explanation.", answer: "'use client' marks the boundary for the client bundle, but Next.js still prerenders those components to HTML for the first load. Browser-only code must therefore be in effects or guarded." }
+            {
+              task: "Fix the crash.",
+              description: "Checks window access in effects.",
+              code: "const w = window.innerWidth;",
+              answer: "window is undefined on the server. Read it in an effect after mount.",
+              solution: `const [w, setW] = useState(0);
+useEffect(() => setW(window.innerWidth), []);`,
+            },
+            {
+              task: "Load a browser-only component in Next.js.",
+              description: "Checks dynamic import with ssr false.",
+              code: "import Map from \"./Map\"; // uses window",
+              answer: "Use next/dynamic with ssr: false inside a client component.",
+              solution: "const Map = dynamic(() => import(\"./Map\"), { ssr: false });",
+            },
           ]
         },
         {
@@ -631,8 +1134,19 @@ export default function Theme({ children }) {
           short: "SSR renders HTML per request, SSG renders at build time, and ISR serves static pages that are regenerated in the background after a revalidation period or on demand.",
           long: "SSR: fresh per request, personalized, higher server cost and TTFB.\nSSG: fastest, CDN cached, but stale until rebuild.\nISR: static speed plus periodic or on-demand updates (revalidatePath/revalidateTag).\nIn the App Router these are controlled by caching and dynamic APIs rather than separate functions.\nUsing cookies() or headers() makes a route dynamic.\nChoose per route based on freshness and personalization.",
           exercises: [
-            { task: "Pick a method for a blog, a product page and a user dashboard.", description: "Checks reasoning. Justify each choice.", answer: "Blog: static/ISR. Product page: ISR with on-demand revalidation on price change. Dashboard: dynamic SSR or client fetching since it is personalized." },
-            { task: "Make a Next.js page update every sixty seconds.", description: "Checks configuration. Use export const revalidate.", answer: "Add export const revalidate = 60 to the page or use fetch(url, { next: { revalidate: 60 } }). The page is served from cache and regenerated in the background after 60 seconds." }
+            {
+              task: "Pick SSR, SSG or ISR.",
+              description: "Checks rendering strategies.",
+              code: "// 1) docs  2) user dashboard  3) product page, prices change hourly",
+              answer: "1) SSG. 2) SSR or client. 3) ISR with revalidate of about an hour.",
+            },
+            {
+              task: "Set ISR in the Next.js App Router.",
+              description: "Checks revalidate.",
+              code: "export default async function Page() { /* fetch products */ }",
+              answer: "Export revalidate in seconds so the page regenerates at most that often.",
+              solution: "export const revalidate = 3600;",
+            },
           ]
         }
       ],
@@ -652,8 +1166,19 @@ export function Price({ amount, locale, currency }) {
 }
 // server: <Price amount={p.amount} locale={user.locale} currency="EUR" />`,
           exercises: [
-            { task: "Show a date that is the same on server and client.", description: "Checks time zone handling. Use Intl.DateTimeFormat with timeZone.", answer: "Pass the user's time zone and locale from server data and format with both explicitly. Alternatively format on the server only in a Server Component." },
-            { task: "When is it OK to use suppressHydrationWarning?", description: "Checks judgment. Give an example.", answer: "Only for unavoidable differences like a timestamp intentionally updated on the client. It applies one level deep and hides bugs if overused." }
+            {
+              task: "Fix the number formatting mismatch.",
+              description: "Checks locale-dependent output.",
+              code: "<p>{price.toLocaleString()}</p>",
+              answer: "Server and browser locales differ. Pass an explicit locale and options.",
+              solution: "<p>{price.toLocaleString(\"en-US\", { style: \"currency\", currency: \"USD\" })}</p>",
+            },
+            {
+              task: "Name a tool to silence a known small mismatch.",
+              description: "Checks suppressHydrationWarning.",
+              code: "<time>{new Date().toISOString()}</time>",
+              answer: "suppressHydrationWarning on that element, for one level only. Use rarely; fix the cause if possible.",
+            },
           ]
         },
         {
@@ -661,8 +1186,24 @@ export function Price({ amount, locale, currency }) {
           short: "Server Components are async and can await data directly (DB, fetch) on the server; results are rendered to RSC payload and HTML, with caching and streaming controlled by the framework.",
           long: "Fetch close to where data is used; requests are deduped within a render with fetch or React cache().\nStart independent requests in parallel to avoid waterfalls.\nWrap slow parts in <Suspense> to stream them.\nSecrets stay on the server; protect server modules with 'server-only'.\nMutations go through Server Actions followed by revalidation.\nIn Next 15+, fetch is not cached by default; opt in with caching APIs ('use cache' in newer versions).",
           exercises: [
-            { task: "Load user and orders at the same time, not one after another.", description: "Checks parallel fetching. Rewrite two sequential awaits.", answer: "Start both promises and await Promise.all([userP, ordersP]), or move orders into a child component in Suspense. Measure TTFB difference." },
-            { task: "Stop a server-only file from being imported on the client.", description: "Checks boundaries. Use the server-only package.", answer: "Add import 'server-only' at the top of the module. Importing it into a client component then fails at build time, preventing secret leaks." }
+            {
+              task: "Fetch data in a Server Component.",
+              description: "Checks async server components.",
+              code: "export default function Page() { /* load products */ }",
+              answer: "Make the component async and await data directly.",
+              solution: `export default async function Page() {
+  const products = await db.product.findMany();
+  return <List items={products} />;
+}`,
+            },
+            {
+              task: "Fix the waterfall.",
+              description: "Checks parallel fetches.",
+              code: `const user = await getUser();
+const posts = await getPosts();`,
+              answer: "They do not depend on each other. Run in parallel with Promise.all.",
+              solution: "const [user, posts] = await Promise.all([getUser(), getPosts()]);",
+            },
           ]
         },
         {
@@ -671,8 +1212,21 @@ export function Price({ amount, locale, currency }) {
           short: "Server Actions are async server functions marked 'use server' that clients can call (often via forms); they are public HTTP endpoints, so they need authentication, authorization and input validation.",
           long: "Each action gets an ID and can be invoked by POST from the browser.\nThey support progressive enhancement with <form action>.\nNever trust arguments: validate with a schema.\nCheck session and permissions inside the action, not just in the page.\nClosed-over values are encrypted but still should not hold secrets.\nAfter mutation, call revalidatePath/revalidateTag or redirect.",
           exercises: [
-            { task: "Write a safe server action that updates a profile.", description: "Checks validation + auth. Use zod and a session helper.", answer: "Inside the action: get the session, reject if missing, parse formData with zod, ensure the user can edit that profile, update DB, revalidatePath('/profile'). Return field errors for invalid input." },
-            { task: "Explain why hiding a button is not access control.", description: "Checks security model. Short answer.", answer: "Anyone can call the action endpoint directly with crafted requests. Authorization must happen on the server inside the action." }
+            {
+              task: "Spot the security hole.",
+              description: "Checks auth in Server Actions.",
+              code: `"use server";
+export async function deletePost(id) { await db.post.delete({ where: { id } }); }`,
+              answer: "Server Actions are public endpoints. Check the session and ownership inside the action.",
+            },
+            {
+              task: "Validate action input.",
+              description: "Checks input validation.",
+              code: "export async function rename(fd) { await save(fd.get(\"name\")); }",
+              answer: "Validate with zod; the client can send anything.",
+              solution: `const name = z.string().min(1).max(80).parse(fd.get("name"));
+await save(name);`,
+            },
           ]
         }
       ],
@@ -710,8 +1264,22 @@ async function RecsSection({ id }) {
   return <Recs items={recs} />;
 }`,
           exercises: [
-            { task: "Check the streaming with curl.", description: "Checks streaming. Run curl -N against the production build and observe chunks.", answer: "The first chunk contains the shell and product; the recs HTML arrives later with an inline script that swaps the fallback. TTFB drops by about the recommendations latency." },
-            { task: "When do you use a loading file, and when an inline Suspense?", description: "Checks boundary design. Explain trade-offs.", answer: "loading.tsx gives an instant fallback for navigations to the whole segment; inline Suspense keeps fast content visible and isolates slow parts. Use both: route skeleton plus granular boundaries." }
+            {
+              task: "Stream the slow part.",
+              description: "Checks Suspense boundaries in RSC.",
+              code: `const recs = await getRecs(); // 3s
+return <><Main /><Recs items={recs} /></>;`,
+              answer: "Move the slow fetch into its own component and wrap it in Suspense.",
+              solution: `return <><Main />
+  <Suspense fallback={<Skel />}><Recs /></Suspense></>;
+// Recs is async and awaits getRecs()`,
+            },
+            {
+              task: "Add a route-level loading UI in Next.js.",
+              description: "Checks loading.js.",
+              code: "app/products/page.tsx",
+              answer: "Add app/products/loading.tsx; Next wraps the page in Suspense with it.",
+            },
           ]
         },
         {
@@ -719,8 +1287,22 @@ async function RecsSection({ id }) {
           short: "There are request memoization, the data cache, the full route cache (static rendering) and the client router cache; personalization must be dynamic or keyed per user, and mutations must revalidate the right tags.",
           long: "Request memoization dedupes identical fetches during one render.\nData cache persists fetch/'use cache' results across requests until revalidated.\nFull route cache stores prerendered HTML/RSC payload for static routes.\nRouter cache keeps visited segments in the browser for fast back/forward.\nUser-specific data must never land in a shared cache; cached functions must not read request data inside.\nUse tags (revalidateTag/updateTag) for precise invalidation after mutations.",
           exercises: [
-            { task: "A cached price function reads the user tier from a cookie. Find the leak.", description: "Checks cache safety. Explain and fix.", answer: "The first user's prices get cached for everyone. Pass tier as an argument so it becomes part of the cache key, or keep the call uncached. Never read request-scoped data inside shared cached functions." },
-            { task: "Refresh product pages after a price change.", description: "Checks tag revalidation. Write the action.", answer: "Tag the fetch or cached function with 'product:' + id and call revalidateTag for that tag in the update action. Only affected entries refresh." }
+            {
+              task: "Opt this fetch out of caching.",
+              description: "Checks no-store fetch.",
+              code: "await fetch(\"/api/cart\");",
+              answer: "Per-user data must not be cached. Use cache: \"no-store\".",
+              solution: "await fetch(\"/api/cart\", { cache: \"no-store\" });",
+            },
+            {
+              task: "Refresh cached data after a mutation.",
+              description: "Checks revalidateTag.",
+              code: "// product updated in admin",
+              answer: "Tag the fetch and call revalidateTag in the Server Action after the update.",
+              solution: `fetch(url, { next: { tags: ["products"] } });
+// in the action:
+revalidateTag("products");`,
+            },
           ]
         },
         {
@@ -729,8 +1311,22 @@ async function RecsSection({ id }) {
           short: "On the server use renderToPipeableStream with onShellReady to start piping HTML and bootstrapScripts for hydration; on the client call hydrateRoot with the same tree and data.",
           long: "renderToPipeableStream(<App/>, { bootstrapScripts, onShellReady, onShellError, onAllReady, onError }).\nPipe on onShellReady for users, onAllReady for crawlers that need full HTML.\nSuspense boundaries stream later with inline swap scripts.\nSerialize initial data into the HTML (escaped) so the client renders the same output.\nSet the status code before piping; shell errors should send a fallback page.\nOn the edge/Web streams use renderToReadableStream.",
           exercises: [
-            { task: "Build a small Express server that renders React.", description: "Checks the API. Render App with a Suspense child that resolves after 1s.", answer: "In the handler call renderToPipeableStream and in onShellReady set content-type and pipe(res). The client entry runs hydrateRoot(document, <App />). The slow section appears after 1s without blocking the shell." },
-            { task: "Put the first data into the HTML in a safe way.", description: "Checks XSS awareness. Explain escaping.", answer: "JSON.stringify can contain </script>, so escape < as \\u003c before injecting. Or use a framework that serializes safely. Never interpolate raw user strings into HTML." }
+            {
+              task: "Send headers only when the shell is ready.",
+              description: "Checks onShellReady.",
+              code: "renderToPipeableStream(<App />, { /* ? */ });",
+              answer: "Pipe in onShellReady; handle onShellError with a 500 page.",
+              solution: `const s = renderToPipeableStream(<App />, {
+  onShellReady() { res.statusCode = 200; s.pipe(res); },
+  onShellError() { res.statusCode = 500; res.end("Error"); },
+});`,
+            },
+            {
+              task: "Name what to do for bots.",
+              description: "Checks onAllReady.",
+              code: "// crawler requests the page",
+              answer: "Wait for onAllReady before piping, so bots get the full HTML in one go.",
+            },
           ]
         }
       ],
@@ -779,8 +1375,22 @@ export default function RootLayout({ children }) {
   );
 }`,
           exercises: [
-            { task: "Measure the client code size before and after.", description: "Checks verification. Use @next/bundle-analyzer on a production build.", answer: "Compare First Load JS per route. Pages using only server components should shrink significantly. Record numbers in the PR as evidence." },
-            { task: "Write team rules for where to put use client.", description: "Checks governance. 3-5 rules.", answer: "Default to Server Components; add 'use client' only to components using state, effects or browser APIs; pass server content as children; never import server-only modules into client files; review in PRs with bundle checks." }
+            {
+              task: "Fix the root layout.",
+              description: "Checks keeping layouts server-side.",
+              code: `"use client";
+export default function RootLayout({ children }) { const [o, setO] = useState(false); /* ... */ }`,
+              answer: "Move the state into a small client component; keep the layout a Server Component.",
+              solution: `export default function RootLayout({ children }) {
+  return <html><body><MenuToggle />{children}</body></html>;
+}`,
+            },
+            {
+              task: "Spot the problem.",
+              description: "Checks client boundary spread.",
+              code: "\"use client\"; // in providers.tsx wrapping everything",
+              answer: "Providers as client is fine if children are passed through. Importing pages into it would make them client code.",
+            },
           ]
         },
         {
@@ -789,8 +1399,18 @@ export default function RootLayout({ children }) {
           short: "Decide per surface based on SEO, personalization, interactivity, freshness and infra cost; standardize on a framework that supports mixing them per route.",
           long: "Marketing and docs: static with ISR, best for SEO and cost.\nLogged-in apps: CSR or SSR shell with client data; RSC can reduce JS for heavy read pages.\nCommerce: hybrid; static product content plus dynamic prices/cart.\nConsider ops: SSR needs scalable servers, caching and observability.\nTeam skills and migration risk matter as much as performance.\nMeasure with Core Web Vitals per surface and revisit.",
           exercises: [
-            { task: "Make a decision table for four product areas.", description: "Checks structured reasoning. Columns: SEO, personalization, freshness, choice.", answer: "Fill rows like marketing (high SEO, low personalization: SSG), catalog (high SEO, medium: ISR + dynamic islands), account (none: CSR/SSR), admin (none: CSR). Record assumptions." },
-            { task: "Estimate the server cost of moving the catalog to SSR.", description: "Checks cost thinking. List cost drivers.", answer: "Requests per second, render time per request, cache hit ratio and edge vs region placement. Good caching keeps cost close to static; poor caching multiplies server load." }
+            {
+              task: "Pick a strategy for each product.",
+              description: "Checks matching rendering to needs.",
+              code: "// 1) blog  2) analytics app  3) e-commerce",
+              answer: "Blog: SSG. Analytics behind login: client or RSC. E-commerce: SSR or ISR with streaming.",
+            },
+            {
+              task: "Name the main question for the choice.",
+              description: "Checks decision criteria.",
+              code: "// SSR vs CSR",
+              answer: "How fresh and personal is the data, and do anonymous users need fast first paint and SEO?",
+            },
           ]
         },
         {
@@ -798,8 +1418,18 @@ export default function RootLayout({ children }) {
           short: "Treat the SSR tier as a backend service: set render and data timeouts, fall back to a client-rendered shell on failure, cache aggressively, and monitor render latency, errors and memory.",
           long: "Slow downstream APIs directly increase TTFB; use timeouts and Suspense so slow parts stream or fall back.\nOn shell errors, serve a minimal CSR shell instead of 500 when possible.\nWatch for memory leaks from module-level state (it is shared across requests).\nTrace requests with OpenTelemetry (Next.js has instrumentation.ts).\nCDN-cache public pages; vary only on what matters.\nLoad test before launches and set autoscaling on CPU/latency.",
           exercises: [
-            { task: "A server file keeps the current user in a module variable. What is the problem?", description: "Checks request isolation. Explain impact.", answer: "Module state is shared across concurrent requests, so one user's data can leak into another's response. Use request-scoped storage (cookies, headers, AsyncLocalStorage) instead." },
-            { task: "Design dashboards and alerts for the SSR servers.", description: "Checks observability. List metrics.", answer: "p50/p95 render time per route, error rate, downstream latency, cache hit ratio, memory and event loop lag. Alert on p95 TTFB and error-rate burn, linked to traces." }
+            {
+              task: "Name two production SSR safeguards.",
+              description: "Checks SSR reliability.",
+              code: "// Node SSR server",
+              answer: "Render timeouts with a client fallback, and health checks plus autoscaling. Cache public pages at the CDN.",
+            },
+            {
+              task: "Spot the memory leak.",
+              description: "Checks shared server state.",
+              code: "const cache = {}; // module level, filled per request",
+              answer: "Module state is shared by all requests, so it grows and can leak data between users. Scope per request.",
+            },
           ]
         }
       ]
@@ -814,8 +1444,19 @@ export default function RootLayout({ children }) {
           long: `Any re-render, for example a theme change, runs all code in the component again.\nuseMemo caches a result until its dependencies change.\nsorted depends on rows and sortDir; stats depends only on rows.\nMeasure first with the Profiler or console.time; small arrays do not need memoization.\nIf the React Compiler is enabled, it can add this memoization automatically.\nDo not memoize everything; memoize slow work and values passed to memoized children.`,
           fix: `function Report({ rows, theme }) {\n  const [sortDir, setSortDir] = useState("asc");\n  const sorted = useMemo(\n    () => [...rows].sort((a, b) =>\n      sortDir === "asc" ? a.total - b.total : b.total - a.total),\n    [rows, sortDir]\n  );\n  const stats = useMemo(() => calculateStats(rows), [rows]);\n  return <Table rows={sorted} stats={stats} theme={theme} onSort={setSortDir} />;\n}`,
           exercises: [
-            { task: `Prove that calculateStats is slow enough to memoize.`, description: `Checks measuring before optimizing. Use the browser tools.`, answer: `Wrap the call in console.time and console.timeEnd, or record with the React DevTools Profiler, and use CPU throttling. If it takes more than about 1 ms, memoizing is worth it.` },
-            { task: `The parent creates rows with rows={data.filter(r => r.active)}. Does useMemo in Report still help?`, description: `Checks dependency identity. Explain.`, answer: `No. filter makes a new array on each parent render, so the rows dependency always changes and useMemo recalculates every time. Memoize the filter in the parent too, or move the filter into Report.` },
+            {
+              task: "Memoize the slow work.",
+              description: "Checks useMemo.",
+              code: "const sorted = bigList.toSorted(compare);",
+              answer: "Wrap it in useMemo with its inputs so it reruns only when they change.",
+              solution: "const sorted = useMemo(() => bigList.toSorted(compare), [bigList]);",
+            },
+            {
+              task: "Spot the wasted memo.",
+              description: "Checks unnecessary useMemo.",
+              code: "const label = useMemo(() => \"Hi \" + name, [name]);",
+              answer: "String concat is cheap; memo adds overhead. Use useMemo only for expensive work or stable identity.",
+            },
           ],
         },
         {
@@ -823,8 +1464,21 @@ export default function RootLayout({ children }) {
           short: "React.memo skips re-rendering a component when its props are shallowly equal to the previous ones; use it for expensive components that receive the same props often.",
           long: "By default a parent re-render re-renders all children.\nmemo compares props shallowly with Object.is.\nNew object/function props each render defeat memo, so stabilize them (useMemo/useCallback) or let React Compiler do it.\nDon't wrap everything: the comparison has a cost and adds complexity.\nMeasure with the Profiler first.\nState or context changes inside the memoized component still re-render it.",
           exercises: [
-            { task: "Measure a list item before and after memo.", description: "Checks profiling. Use React DevTools 'Highlight updates' and Profiler.", answer: "Before, every item re-renders on parent state changes. After memo with stable props, only changed items render. Record commit times." },
-            { task: "You pass an inline style object. Why does memo not help?", description: "Checks referential equality. Explain style={{ color: 'red' }}.", answer: "The inline object is new every render, so shallow comparison fails. Hoist it to a constant or memoize it." }
+            {
+              task: "Predict if the memo component re-renders.",
+              description: "Checks memo shallow compare.",
+              code: `const Row = memo(RowImpl);
+<Row data={{ id: 1 }} />`,
+              answer: "Yes, every time. The inline object is a new reference, so the shallow compare fails.",
+            },
+            {
+              task: "Write a custom compare for memo.",
+              description: "Checks memo arePropsEqual.",
+              code: "const Row = memo(RowImpl);",
+              answer: "Pass a second argument that returns true when props are equal.",
+              solution: `const Row = memo(RowImpl, (a, b) => a.item.id === b.item.id
+  && a.item.version === b.item.version);`,
+            },
           ]
         },
         {
@@ -832,8 +1486,22 @@ export default function RootLayout({ children }) {
           short: "Code splitting loads parts of the bundle on demand; in React use React.lazy with dynamic import() and <Suspense> for a loading fallback.",
           long: "Big bundles delay first load and interactivity.\nconst Page = lazy(() => import('./Page')) creates a separate chunk.\nWrap lazy components in <Suspense fallback={<Spinner/>}>.\nSplit by routes and heavy features (editors, charts), not tiny components.\nlazy needs a default export (or map named exports).\nUse a bundle analyzer to find big dependencies.",
           exercises: [
-            { task: "Load a heavy chart only when the user opens its tab.", description: "Checks lazy + Suspense. Check the network tab for the new chunk.", answer: "Declare const Chart = lazy(() => import('./Chart')) at module level and render it inside Suspense when the tab is active. The chunk downloads only when needed." },
-            { task: "Lazy is called inside the component. What goes wrong?", description: "Checks lazy placement. Explain behavior.", answer: "Calling lazy in render creates a new component type each render, causing remounts and state loss. Always declare lazy components at module scope." }
+            {
+              task: "Split a heavy modal.",
+              description: "Checks lazy for rare UI.",
+              code: "import Editor from \"./Editor\"; // 400 KB, opened rarely",
+              answer: "Lazy load it and render inside Suspense only when open.",
+              solution: `const Editor = lazy(() => import("./Editor"));
+{open && <Suspense fallback={<Spin />}><Editor /></Suspense>}`,
+            },
+            {
+              task: "Lazy load a named export.",
+              description: "Checks lazy default export rule.",
+              code: "export function Chart() {} // in charts.js",
+              answer: "lazy needs a default export. Map it in the import.",
+              solution: `const Chart = lazy(() =>
+  import("./charts").then(m => ({ default: m.Chart })));`,
+            },
           ]
         }
       ],
@@ -845,8 +1513,22 @@ export default function RootLayout({ children }) {
           long: `lazy calls the import function only on first render of Charts, so the network wait starts at the click.\nKeep the import function in a variable and call it early: on pointerenter, on focus, or in requestIdleCallback after the page loads.\nThe module cache means the second call reuses the same request.\nWrap setTab in startTransition: React keeps showing the table while Charts loads, instead of replacing it with the fallback.\nUse isPending to show a small loading hint on the tab.\nCheck the chunk size too; a big chart library may need its own split.`,
           fix: `const loadCharts = () => import("./Charts");\nconst Charts = lazy(loadCharts);\n\nfunction Tabs() {\n  const [tab, setTab] = useState("table");\n  const [isPending, startTransition] = useTransition();\n  return (\n    <>\n      <button\n        onPointerEnter={loadCharts}\n        onFocus={loadCharts}\n        onClick={() => startTransition(() => setTab("charts"))}\n      >\n        Charts {isPending && "…"}\n      </button>\n      <Suspense fallback={<Spinner />}>\n        {tab === "charts" ? <Charts /> : <Table />}\n      </Suspense>\n    </>\n  );\n}`,
           exercises: [
-            { task: `Preload the chart chunk after the page is idle, without hurting first load.`, description: `Checks idle preloading. Write the effect.`, answer: `In an effect on mount, call requestIdleCallback(() => loadCharts()), with a setTimeout fallback where it is not supported. Cancel it in cleanup. The chunk loads when the main thread is free.` },
-            { task: `Why does startTransition stop the spinner from flashing?`, description: `Checks transitions with Suspense. Explain.`, answer: `In a transition, React does not replace already visible content with a fallback. It keeps the old UI until the new content is ready, and isPending tells you it is waiting.` },
+            {
+              task: "Preload the chart chunk.",
+              description: "Checks preloading lazy modules.",
+              code: "const Charts = lazy(() => import(\"./Charts\"));",
+              answer: "Start the import on hover or idle so it is ready on click.",
+              solution: `const load = () => import("./Charts");
+const Charts = lazy(load);
+<Tab onMouseEnter={load}>Charts</Tab>`,
+            },
+            {
+              task: "Keep the old tab visible while loading.",
+              description: "Checks transitions with Suspense.",
+              code: "onClick={() => setTab(\"charts\")}",
+              answer: "Wrap the change in startTransition so React keeps the old UI instead of the fallback.",
+              solution: "onClick={() => startTransition(() => setTab(\"charts\"))}",
+            },
           ],
         },
         {
@@ -854,8 +1536,21 @@ export default function RootLayout({ children }) {
           short: "Virtualize the list so only visible rows (plus overscan) are in the DOM, using libraries like TanStack Virtual or react-window.",
           long: "Rendering 10k DOM nodes costs memory, layout and render time.\nVirtualization renders a window of rows and positions them in a scroll container.\nKnown row heights are simplest; dynamic heights need measurement.\nKeep row components memoized and keys stable.\nConsider pagination or server-side filtering when users cannot use 10k rows anyway.\nMind accessibility: ARIA row counts and keyboard navigation.",
           exercises: [
-            { task: "Use TanStack Virtual to show a long table.", description: "Checks implementation. Count DOM rows in DevTools while scrolling.", answer: "Use useVirtualizer with count, getScrollElement and estimateSize, render only virtualItems with absolute translateY. DOM row count stays around visible + overscan." },
-            { task: "The browser search cannot find hidden rows. What do you do?", description: "Checks trade-offs. Explain the Ctrl+F limitation and mitigation.", answer: "Off-screen rows are not in the DOM, so browser search cannot find them. Provide in-app search/filter, or use content-visibility: auto for medium lists instead." }
+            {
+              task: "Virtualize a long list.",
+              description: "Checks TanStack Virtual basics.",
+              code: "rows.map(r => <Row key={r.id} row={r} />) // 10,000 rows",
+              answer: "Render only visible rows with useVirtualizer.",
+              solution: `const v = useVirtualizer({ count: rows.length,
+  getScrollElement: () => ref.current, estimateSize: () => 36 });
+v.getVirtualItems().map(i => <Row key={i.key} row={rows[i.index]} />)`,
+            },
+            {
+              task: "Name a CSS-only option.",
+              description: "Checks content-visibility.",
+              code: ".row { }",
+              answer: "content-visibility: auto with contain-intrinsic-size lets the browser skip off-screen rows. React still renders them.",
+            },
           ]
         },
         {
@@ -864,8 +1559,21 @@ export default function RootLayout({ children }) {
           short: "Reproduce on realistic devices, measure with React DevTools Profiler and the Chrome Performance panel, identify the costly component or task, then fix and re-measure.",
           long: "Start from a user-visible metric: INP, LCP, or a slow interaction.\nRecord a Profiler session to see which components rendered and why (enable 'record why').\nUse the Performance panel for long tasks, layout thrash and network.\nCheck production builds; dev mode is much slower.\nFix the biggest cost first and verify improvement.\nAdd RUM (web-vitals) to see real users.",
           exercises: [
-            { task: "A modal opens slowly. Profile it and write what you find.", description: "Checks profiling workflow. Record and write findings.", answer: "Record opening the modal, sort commits by duration, inspect the heaviest components and their render reasons. Typical finding: the whole page re-renders because modal state lives at the top." },
-            { task: "Send Web Vitals numbers from real users to a server.", description: "Checks RUM. Send INP/LCP to an endpoint.", answer: "Import onINP, onLCP, onCLS from web-vitals and send metrics with navigator.sendBeacon including route. Aggregate p75 per route in your analytics." }
+            {
+              task: "Name the tool for each question.",
+              description: "Checks profiling tools.",
+              code: "// 1) which component renders a lot  2) long JS tasks",
+              answer: "1) React DevTools Profiler. 2) Chrome Performance panel for long tasks and INP.",
+            },
+            {
+              task: "Measure a render in code.",
+              description: "Checks the Profiler component.",
+              code: "<Dashboard />",
+              answer: "Wrap with <Profiler id onRender> to log actualDuration.",
+              solution: `<Profiler id="dash" onRender={(id, phase, ms) => log(id, phase, ms)}>
+  <Dashboard />
+</Profiler>`,
+            },
           ]
         }
       ],
@@ -900,8 +1608,21 @@ function Dashboard() {
   return <Suspense fallback={<StatsSkeleton />}><Stats teamIds={teams.map(t => t.id)} /></Suspense>;
 }`,
           exercises: [
-            { task: "Measure the request chain in DevTools.", description: "Checks diagnosis. Throttle to Fast 4G and screenshot the network timeline.", answer: "Before, three sequential bars that start only after renders. After loader prefetching or a BFF, requests start before rendering or become one. Report the time to content difference." },
-            { task: "Argue for one backend endpoint for this dashboard.", description: "Checks architecture reasoning. List pros and cons of a BFF.", answer: "Pros: one round trip, tailored payload, server-side joins. Cons: another service to maintain and coupling to UI. Worth it for critical dashboards on high-latency clients." }
+            {
+              task: "Fix the waterfall.",
+              description: "Checks Promise.all.",
+              code: `const a = await getA();
+const b = await getB();
+const c = await getC();`,
+              answer: "Requests do not depend on each other. Start them together.",
+              solution: "const [a, b, c] = await Promise.all([getA(), getB(), getC()]);",
+            },
+            {
+              task: "Spot the hidden waterfall.",
+              description: "Checks fetch-on-render in children.",
+              code: "function Page() { const u = useUser(); return u && <Orders userId={u.id} />; }",
+              answer: "Orders fetches only after user loads. Fetch both in a loader or prefetch orders in parallel if possible.",
+            },
           ]
         },
         {
@@ -909,8 +1630,18 @@ function Dashboard() {
           short: "Transitions mark updates as interruptible so urgent input stays responsive, and Suspense lets you show stable fallbacks; pitfalls include unexpected fallback flashes and work that cannot be interrupted.",
           long: "startTransition/useTransition keeps the old UI on screen while the new one renders.\nIf a transition suspends, React keeps showing old content instead of replacing it with a fallback.\nisPending lets you show subtle indicators.\nTransitions do not make slow code faster; a single heavy component still blocks.\nNon-transition updates that suspend show the nearest fallback, causing flashes.\nControlled input values cannot be updated in a transition.",
           exercises: [
-            { task: "Switch tabs without showing the loading fallback.", description: "Checks transitions + Suspense. Implement with useTransition.", answer: "Wrap setTab in startTransition; React keeps the old tab visible while the new one suspends. Show isPending on the tab button." },
-            { task: "A transition still feels slow with one heavy loop. Why?", description: "Checks limits. Explain with a 300ms synchronous loop.", answer: "React yields between components, not inside one component's render. A single 300ms render blocks the main thread; split the work or move it to a worker." }
+            {
+              task: "Predict what the user sees.",
+              description: "Checks transition keeps old UI.",
+              code: "startTransition(() => setPage(2)); // page 2 suspends",
+              answer: "Page 1 stays on screen until page 2 is ready, instead of a fallback. Use isPending to show progress.",
+            },
+            {
+              task: "Name a risk of transitions.",
+              description: "Checks transition trade-offs.",
+              code: "// user clicks, nothing seems to happen",
+              answer: "Old UI stays without feedback, so it feels frozen. Always show isPending state.",
+            },
           ]
         },
         {
@@ -919,8 +1650,20 @@ function Dashboard() {
           short: "Analyze the bundle, remove or replace heavy dependencies, split by route and feature, ensure tree shaking works, and move non-interactive rendering to the server where possible.",
           long: "Start with a visual bundle analyzer and source-map-explorer.\nCommon culprits: moment/lodash full imports, icon libraries, charting, polyfills.\nCheck sideEffects and ESM to keep tree shaking working.\nLazy load rarely used features; prefetch likely ones.\nRSC can keep heavy rendering libraries (markdown, syntax highlight) off the client.\nAdd size budgets in CI (size-limit) to prevent regressions.",
           exercises: [
-            { task: "Add a bundle size limit to CI.", description: "Checks prevention. Configure size-limit with a budget for the main chunk.", answer: "Add size-limit config with path and limit, run it in CI and fail when exceeded. Include its report in PR comments for visibility." },
-            { task: "Icon imports make the bundle big. Fix it.", description: "Checks tree shaking. Compare root vs deep imports.", answer: "Barrel imports may pull every icon in dev or non-ESM builds; use per-icon imports or a plugin that rewrites them. Verify with the analyzer that only used icons remain." }
+            {
+              task: "Fix the import.",
+              description: "Checks tree-shaking imports.",
+              code: `import _ from "lodash";
+_.debounce(fn, 300);`,
+              answer: "This pulls all of lodash. Import the single function or use lodash-es.",
+              solution: "import debounce from \"lodash/debounce\";",
+            },
+            {
+              task: "Name a replacement for moment.",
+              description: "Checks heavy dependencies.",
+              code: "import moment from \"moment\";",
+              answer: "Use Intl.DateTimeFormat or date-fns. moment is large and not tree-shakable.",
+            },
           ]
         }
       ],
@@ -932,8 +1675,18 @@ function Dashboard() {
           long: `import _ from "lodash" pulls the whole CommonJS build; use lodash-es named imports or native code.\nmoment is large and not tree-shakeable; use Intl.DateTimeFormat or date-fns.\nimport * as Icons with a dynamic lookup forces the bundler to include every icon.\nchart.js/auto registers all chart types; import only what you need, and only in a lazy-loaded chart route.\nFind these with a bundle analyzer (rollup-plugin-visualizer, source-map-explorer).\nPrevent regressions: size-limit in CI, ESLint no-restricted-imports for known heavy paths, and review of new dependencies.`,
           fix: `import { CheckCircle, Schedule, Cancel } from "@mui/icons-material";\n\nconst statusIcons = { done: CheckCircle, pending: Schedule, cancelled: Cancel };\nconst dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "long" });\nconst capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);\n\nexport function OrderRow({ order }) {\n  const Icon = statusIcons[order.status];\n  return (\n    <tr>\n      <td>{capitalize(order.name)}</td>\n      <td>{dateFmt.format(new Date(order.date))}</td>\n      <td>{Icon && <Icon />}</td>\n    </tr>\n  );\n}`,
           exercises: [
-            { task: `Write a lint rule that stops new full lodash and moment imports.`, description: `Checks prevention. Write the ESLint config.`, answer: `Use no-restricted-imports with paths for lodash and moment and a message that points to the approved alternative.`, solution: `"no-restricted-imports": ["error", {\n  "paths": [\n    { "name": "lodash", "message": "Use lodash-es named imports or native code." },\n    { "name": "moment", "message": "Use Intl or date-fns." }\n  ]\n}]` },
-            { task: `How do you decide if a new dependency is allowed?`, description: `Checks dependency governance. List the criteria.`, answer: `Check its compressed size and tree-shaking support on bundlephobia, maintenance and license, and whether a native API or an existing dependency already does the job. Large packages need approval and should load lazily.` },
+            {
+              task: "Spot the problem.",
+              description: "Checks barrel imports.",
+              code: "import { Button } from \"@/components\"; // index re-exports 300 files",
+              answer: "Barrels can pull many modules and slow builds and tests. Import from the file or ensure sideEffects: false.",
+            },
+            {
+              task: "Stop bundle growth in CI.",
+              description: "Checks size budgets.",
+              code: "// main bundle grew 200 KB unnoticed",
+              answer: "Add size-limit or bundlesize checks that fail PRs over budget, and post the size diff on PRs.",
+            },
           ],
         },
         {
@@ -941,8 +1694,20 @@ function Dashboard() {
           short: `Pick a few user-centered metrics (LCP, INP, CLS, plus JavaScript size), set targets per page type, collect real user data with the web-vitals library, and show it per release and per team. Use lab checks in CI to stop regressions early.`,
           long: `Field data shows what users feel: collect LCP, INP and CLS with web-vitals and send them to your analytics with route and release tags.\nGood thresholds at the 75th percentile: LCP under 2.5 s, INP under 200 ms, CLS under 0.1.\nAdd budgets the team controls directly: JavaScript per route, number of requests, image weight.\nLab tools (Lighthouse CI, size-limit) catch regressions in pull requests; field data confirms the effect.\nGive each budget an owner; a dashboard by route makes it clear which team acts.\nWhen a budget is broken, the fix goes to the next sprint, like a bug.\nReview targets every quarter as devices and features change.`,
           exercises: [
-            { task: `Field INP got worse after a release, but Lighthouse scores did not change. Why, and what do you do?`, description: `Checks lab versus field. Explain the gap.`, answer: `Lighthouse does not measure real interactions well; INP comes from real users clicking on real devices. Use the web-vitals attribution build to find which element and script caused slow interactions, then profile that flow with CPU throttling.` },
-            { task: `Write a JavaScript budget rule for a route.`, description: `Checks concrete budgets. Give an example config.`, answer: `For example: the checkout route may ship at most 170 KB of compressed JavaScript. A size-limit check in CI fails the pull request if a change goes over it, and the owner must approve any raise.`, solution: `[\n  { "path": "dist/assets/checkout-*.js", "limit": "170 KB" }\n]` },
+            {
+              task: "Report Web Vitals from real users.",
+              description: "Checks the web-vitals library.",
+              code: "import { onINP, onLCP } from \"web-vitals\";",
+              answer: "Send each metric to your analytics with page and app tags.",
+              solution: `onINP(m => send({ name: m.name, value: m.value, app: "admin" }));
+onLCP(m => send({ name: m.name, value: m.value, app: "admin" }));`,
+            },
+            {
+              task: "Name the good thresholds.",
+              description: "Checks Core Web Vitals targets.",
+              code: "// LCP, INP, CLS at p75",
+              answer: "LCP 2.5 s or less, INP 200 ms or less, CLS 0.1 or less, at the 75th percentile.",
+            },
           ],
         },
         {
@@ -950,8 +1715,22 @@ function Dashboard() {
           short: "Reduce main-thread work per interaction: break long tasks, render less (virtualization, deferral), ship less JS, move work to workers or the server, and test on real low-end devices.",
           long: "INP measures the slowest interactions; low-end CPUs amplify long tasks.\nIdentify slow interactions with RUM attribution (web-vitals attribution build).\nYield to the main thread (scheduler.yield, transitions) and split heavy handlers.\nAvoid layout thrashing and large re-render trees on input.\nCut hydration cost: less client JS, RSC, partial hydration.\nTest on a real low-end device lab or CPU throttling, validated by field data.",
           exercises: [
-            { task: "Find the slowest click with web-vitals attribution.", description: "Checks diagnosis. Log interaction target and phases.", answer: "Use onINP from web-vitals/attribution and log interactionTarget plus input delay, processing and presentation times. Group by target to find the worst handlers." },
-            { task: "A click handler takes 400 milliseconds. Split it up.", description: "Checks long task mitigation. Show the approach.", answer: "Update the visible state first, then yield (await scheduler.yield() or setTimeout) before heavy work, or move computation to a Web Worker. The next paint happens quickly, lowering INP." }
+            {
+              task: "Name the first step.",
+              description: "Checks measuring on real devices.",
+              code: "// slow clicks on cheap Android phones",
+              answer: "Measure INP from real users and profile with CPU throttling or a real device to find long tasks.",
+            },
+            {
+              task: "Break up a long task.",
+              description: "Checks yielding to the main thread.",
+              code: "items.forEach(process); // 300ms",
+              answer: "Process in chunks and yield with scheduler.yield or setTimeout so input can run.",
+              solution: `for (const chunk of chunks(items, 100)) {
+  chunk.forEach(process);
+  await scheduler.yield();
+}`,
+            },
           ]
         }
       ]
@@ -979,8 +1758,26 @@ function Dashboard() {
   return <span>{price}</span>;
 }`,
           exercises: [
-            { task: "Count the open connections in DevTools.", description: "Checks the leak. Open the Network WS tab before and after the fix.", answer: "Before, connections multiply with each message. After, one connection exists (two briefly in Strict Mode dev, then one). Unmounting closes it." },
-            { task: "Let the parent choose which price to follow.", description: "Checks dependencies. Add a symbol prop.", answer: "Include the URL/symbol in deps so the effect closes the old socket and opens a new one when it changes. The cleanup prevents leaks." }
+            {
+              task: "Fix the connection.",
+              description: "Checks sockets in effects.",
+              code: `function Chat() {
+  const ws = new WebSocket(url);
+  ws.onmessage = e => add(e.data);
+}`,
+              answer: "Creating the socket in render opens one per render. Use an effect with cleanup.",
+              solution: `useEffect(() => {
+  const ws = new WebSocket(url);
+  ws.onmessage = e => add(e.data);
+  return () => ws.close();
+}, [url]);`,
+            },
+            {
+              task: "Predict StrictMode behavior.",
+              description: "Checks double effects with sockets.",
+              code: "// effect opens socket, cleanup closes it",
+              answer: "In development it opens, closes, and opens again. With proper cleanup that is harmless.",
+            },
           ]
         },
         {
@@ -988,8 +1785,21 @@ function Dashboard() {
           short: "Put HTTP calls in a small API layer, use a data-fetching library (TanStack Query) for caching and loading/error states, and keep components focused on rendering.",
           long: "Components should not build URLs and parse responses everywhere.\nAn API module centralizes base URL, auth headers and error handling.\nTanStack Query handles caching, deduping, retries and refetching.\nMutations invalidate related queries to refresh data.\nType responses with TypeScript and validate if the backend is not trusted.\nKeep secrets on the server; the browser bundle is public.",
           exercises: [
-            { task: "Write a hook that loads todos with TanStack Query.", description: "Checks basics. Use useQuery with queryKey ['todos'].", answer: "Write api.getTodos() and useQuery({ queryKey: ['todos'], queryFn: api.getTodos }). Components read data, isPending and error. Refetching and caching come for free." },
-            { task: "Add a todo, then refresh the list.", description: "Checks invalidation. Use useMutation.", answer: "useMutation({ mutationFn: api.addTodo, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['todos'] }) }). The list refetches after adding." }
+            {
+              task: "Move fetch logic out of the component.",
+              description: "Checks API layer.",
+              code: "useEffect(() => { fetch(\"/api/users?page=\" + p).then(...) }, [p]);",
+              answer: "Put requests in an api module and call them through a query hook.",
+              solution: `export const getUsers = p => http.get(\`/users?page=\${p}\`);
+export const useUsers = p =>
+  useQuery({ queryKey: ["users", p], queryFn: () => getUsers(p) });`,
+            },
+            {
+              task: "Spot the problem.",
+              description: "Checks base URL duplication.",
+              code: "fetch(\"https://api.prod.com/users\")",
+              answer: "Hardcoded hosts break other environments. Use a configured base URL from env.",
+            },
           ]
         },
         {
@@ -997,8 +1807,19 @@ function Dashboard() {
           short: "Vite exposes variables prefixed VITE_ via import.meta.env at build time; they end up in the public bundle, so never put secrets there.",
           long: "Only VITE_-prefixed variables are exposed to client code.\nValues are inlined at build time, not read at runtime.\nAnyone can read them in the bundle, so API keys with privileges must stay on a server.\nNext.js uses NEXT_PUBLIC_ for client-exposed variables.\nFor runtime config per environment, fetch a config file or inject it in HTML.\nCommit .env.example, not real .env files.",
           exercises: [
-            { task: "Show that a Vite variable appears in the built files.", description: "Checks understanding. Build and grep the dist folder.", answer: "Run the build and search dist for the value; it is in plain text. This demonstrates why secrets cannot live there." },
-            { task: "Move a call with a private key behind your own server.", description: "Checks secure integration. Describe the change.", answer: "Create a server endpoint that holds the key and calls the third-party API; the React app calls your endpoint. Add auth and rate limiting to that endpoint." }
+            {
+              task: "Read an env variable in Vite.",
+              description: "Checks import.meta.env.",
+              code: "const url = process.env.API_URL;",
+              answer: "Vite uses import.meta.env and exposes only VITE_ prefixed vars.",
+              solution: "const url = import.meta.env.VITE_API_URL;",
+            },
+            {
+              task: "Spot the problem.",
+              description: "Checks secrets in client env.",
+              code: "VITE_STRIPE_SECRET_KEY=sk_live_...",
+              answer: "Every VITE_ var is in the public bundle. Secrets must stay on the server.",
+            },
           ]
         }
       ],
@@ -1034,8 +1855,23 @@ async function api(url, init = {}) {
   return res;
 }`,
           exercises: [
-            { task: "Test that three failed requests cause only one refresh.", description: "Checks dedup. Use MSW returning 401 and count refresh calls.", answer: "Fire three api() calls with Promise.all; MSW returns 401 for the first attempts. Assert the refresh handler ran once and all three succeed on retry." },
-            { task: "Handle the case when the refresh fails.", description: "Checks failure path. Implement logout.", answer: "If refreshOnce rejects, clear session state and redirect to /login once (guard with a flag). Do not retry endlessly." }
+            {
+              task: "Share one refresh between requests.",
+              description: "Checks single-flight refresh.",
+              code: "async function refresh() { return api.post(\"/refresh\"); }",
+              answer: "Store the pending promise and reuse it until it settles.",
+              solution: `let pending = null;
+function refresh() {
+  pending ??= api.post("/refresh").finally(() => { pending = null; });
+  return pending;
+}`,
+            },
+            {
+              task: "Name what to do when refresh fails.",
+              description: "Checks refresh failure handling.",
+              code: "// refresh returns 401",
+              answer: "Stop retrying, clear the session, and send the user to login, keeping the return URL.",
+            },
           ]
         },
         {
@@ -1043,8 +1879,23 @@ async function api(url, init = {}) {
           short: `Wrap the script loading in a module-level promise so it runs once, start it only on the pages or actions that need it, and expose it through a hook or Suspense. Clean up widgets, not the script, on unmount.`,
           long: `Adding a script tag in every component that needs it loads it many times and causes race bugs.\nKeep one cached promise per script URL at module level; every caller awaits the same promise.\nLoad it when needed: on the checkout route, or when the user opens the map.\nIn React 19 you can render <script async src="..." /> in a component; React dedupes it and can hoist it.\nUse a hook that returns the loading status, or use() with the promise inside Suspense.\nAdd a timeout and error state; ad blockers and network issues are common.\nCheck the Content Security Policy and use the vendor official loader if there is one.`,
           exercises: [
-            { task: `Write a loadScript function that loads each URL only once.`, description: `Checks promise caching. Call it from two components at the same time.`, answer: `Keep a Map from URL to promise. If the URL is in the map, return the stored promise. Otherwise create a script element, resolve on load, reject on error and remove the entry so it can retry.`, solution: `const cache = new Map();\nexport function loadScript(src) {\n  if (!cache.has(src)) {\n    cache.set(src, new Promise((resolve, reject) => {\n      const s = document.createElement("script");\n      s.src = src;\n      s.async = true;\n      s.onload = () => resolve();\n      s.onerror = () => { cache.delete(src); reject(new Error("Failed: " + src)); };\n      document.head.appendChild(s);\n    }));\n  }\n  return cache.get(src);\n}` },
-            { task: `The maps SDK is blocked by an ad blocker. What should the user see?`, description: `Checks graceful failure. Describe the UI.`, answer: `Show a clear fallback: a static address or a link to open the map elsewhere, plus a retry button. Log the failure with the reason, but do not crash the page or show an endless spinner.` },
+            {
+              task: "Load a script only once.",
+              description: "Checks memoized script loading.",
+              code: "function loadMaps() { /* add <script> */ }",
+              answer: "Cache the promise so all callers share one script tag.",
+              solution: `let p;
+export const loadMaps = () => p ??= new Promise((ok, fail) => {
+  const s = Object.assign(document.createElement("script"), { src: URL, async: true, onload: ok, onerror: fail });
+  document.head.append(s);
+});`,
+            },
+            {
+              task: "Load it only when needed.",
+              description: "Checks on-demand loading.",
+              code: "// payment SDK on every page",
+              answer: "Call the loader when the user opens checkout, not at app start. Preload on hover to hide latency.",
+            },
           ],
         },
         {
@@ -1053,8 +1904,19 @@ async function api(url, init = {}) {
           short: "Use explicit integration contracts: props/callbacks for embedded components, custom events or a small pub/sub for non-React code, and postMessage with origin checks for iframes.",
           long: "Treat the widget as an external system; React should not reach into its internals.\nWrap it in a component that syncs props to its API in effects.\nListen to its events and update React state via callbacks.\nFor iframes, use postMessage with strict targetOrigin and event.origin checks.\nDefine message schemas and version them.\nClean up listeners on unmount.",
           exercises: [
-            { task: "Write a safe message bridge for an iframe.", description: "Checks secure messaging. Write typed send and listen helpers with postMessage.", answer: "send(msg) calls iframe.contentWindow.postMessage(msg, ALLOWED_ORIGIN). The listener checks event.origin and validates msg.type before handling. Remove listeners in cleanup." },
-            { task: "Why is a star as the target origin dangerous?", description: "Checks security. Short answer about '*'.", answer: "If the iframe navigates to another origin, your data goes to whoever loaded it. Always pass the exact expected origin." }
+            {
+              task: "Send data to an iframe safely.",
+              description: "Checks postMessage target origin.",
+              code: "frame.contentWindow.postMessage(data, \"*\");",
+              answer: "\"*\" sends to any origin. Use the exact origin.",
+              solution: "frame.contentWindow.postMessage(data, \"https://widget.example.com\");",
+            },
+            {
+              task: "Spot the security bug.",
+              description: "Checks checking message origin.",
+              code: "window.addEventListener(\"message\", e => setState(e.data));",
+              answer: "Any page can post messages. Check e.origin before trusting e.data.",
+            },
           ]
         }
       ],
@@ -1083,8 +1945,22 @@ new ModuleFederationPlugin({ name: "host", remotes: { billing: "billing@/billing
 new ModuleFederationPlugin({ name: "billing", filename: "remoteEntry.js", exposes: { "./App": "./src/App" }, shared });
 // index.js in both apps: import("./bootstrap");`,
           exercises: [
-            { task: "Find out at runtime if two React copies are loaded.", description: "Checks diagnosis. Compare React identities.", answer: "Log the React version and compare module identity in host and remote, or inspect loaded chunks for two react-dom copies. After the fix only one exists." },
-            { task: "Write a React version rule for all teams.", description: "Checks governance. Write rules.", answer: "Same React major across all apps, upgraded together; shared deps declared in a common config package; CI fails on mismatch. Breaking upgrades coordinated by a platform team." }
+            {
+              task: "Share React as a singleton.",
+              description: "Checks Module Federation shared config.",
+              code: "shared: [\"react\", \"react-dom\"]",
+              answer: "Mark them singleton so all remotes use one copy.",
+              solution: `shared: {
+  react: { singleton: true, requiredVersion: "^19.0.0" },
+  "react-dom": { singleton: true, requiredVersion: "^19.0.0" },
+}`,
+            },
+            {
+              task: "Predict the error with two React copies.",
+              description: "Checks duplicate React symptoms.",
+              code: "// remote uses its own React",
+              answer: "\"Invalid hook call\" errors, because hooks look up the dispatcher in a different React copy.",
+            },
           ]
         },
         {
@@ -1092,8 +1968,22 @@ new ModuleFederationPlugin({ name: "billing", filename: "remoteEntry.js", expose
           short: "Keep the connection in a single external store, batch and throttle updates, normalize data, and subscribe components to narrow slices.",
           long: "High-frequency messages can trigger hundreds of renders per second.\nOne connection per app, managed outside components.\nBuffer messages and flush on animation frames or intervals.\nNormalize entities by id so updates touch only affected rows.\nComponents subscribe via selectors (useSyncExternalStore, Zustand).\nHandle reconnection, backoff and resync of missed messages.",
           exercises: [
-            { task: "Group incoming messages and apply them once per frame.", description: "Checks throttling. Implement a buffer flushed with requestAnimationFrame.", answer: "Push messages into a map keyed by id; schedule a rAF flush if not scheduled; in the flush apply all updates to the store once. Rendering happens at most once per frame." },
-            { task: "Design reconnect logic that also loads missed data.", description: "Checks reliability. Outline steps.", answer: "On disconnect, retry with exponential backoff and jitter; on reconnect send the last sequence number or refetch a snapshot. Show a 'reconnecting' indicator." }
+            {
+              task: "Batch live updates.",
+              description: "Checks throttling socket updates.",
+              code: "ws.onmessage = e => setPrices(p => ({ ...p, ...JSON.parse(e.data) }));",
+              answer: "Hundreds of messages a second re-render too often. Buffer and flush once per frame or interval.",
+              solution: `let buf = {};
+ws.onmessage = e => Object.assign(buf, JSON.parse(e.data));
+setInterval(() => { setPrices(p => ({ ...p, ...buf })); buf = {}; }, 250);`,
+            },
+            {
+              task: "Update only the changed row.",
+              description: "Checks fine-grained subscriptions.",
+              code: "const prices = usePrices(); // whole map",
+              answer: "Subscribe each row to its own symbol with a store selector, so one update re-renders one row.",
+              solution: "const price = usePriceStore(s => s.prices[symbol]);",
+            },
           ]
         },
         {
@@ -1102,8 +1992,25 @@ new ModuleFederationPlugin({ name: "billing", filename: "remoteEntry.js", expose
           short: "Upgrade incrementally: get on the latest minor with no warnings, enable Strict Mode, fix deprecated APIs with codemods, and convert components opportunistically when touched, backed by tests.",
           long: "First upgrade React to the latest 18.x and fix all deprecation warnings.\nRun official codemods (react-codemod, types-react-codemod) for 19 changes like removed propTypes and string refs.\nEnable Strict Mode per subtree to find unsafe effects.\nClass components still work; convert when modifying, not as a rewrite.\nAdd tests around risky areas before refactoring.\nTrack progress with metrics (warnings count, class component count).",
           exercises: [
-            { task: "Name four React 19 breaking changes that affect old code.", description: "Checks upgrade knowledge. Name 4.", answer: "Removed: propTypes checks and defaultProps for function components, string refs, legacy context, ReactDOM.render/hydrate (use createRoot/hydrateRoot), and the UMD builds. Render errors are also no longer re-thrown the same way." },
-            { task: "Plan the order of steps for the upgrade.", description: "Checks sequencing. Outline phases.", answer: "Clean warnings on 18.3, run codemods, upgrade dependencies that peer-depend on React, then upgrade to 19 behind thorough tests. Finally adopt new features gradually." }
+            {
+              task: "Convert this class to a function.",
+              description: "Checks class to hooks migration.",
+              code: `class Clock extends Component {
+  componentDidMount() { this.id = setInterval(this.tick, 1000); }
+  componentWillUnmount() { clearInterval(this.id); }
+}`,
+              answer: "Use one effect with cleanup.",
+              solution: `useEffect(() => {
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);
+}, []);`,
+            },
+            {
+              task: "Name a React 19 removal to check.",
+              description: "Checks React 19 breaking changes.",
+              code: "Comp.propTypes = { ... }; ReactDOM.render(<App />, el);",
+              answer: "propTypes checks and ReactDOM.render are removed. Use TypeScript and createRoot; run the official codemods.",
+            },
           ]
         }
       ],
@@ -1139,8 +2046,25 @@ Card.Footer = function CardFooter({ children }) { return <footer>{children}</foo
   <Card.Actions><Button>Upgrade</Button></Card.Actions>
 </Card>`,
           exercises: [
-            { task: "Plan the move away from the old props.", description: "Checks change management. Outline steps.", answer: "Ship the compound API alongside, mark old props deprecated with dev warnings, provide a codemod, and remove in the next major after usage hits zero. Track usage via code search." },
-            { task: "Describe how teams can add changes to the design system.", description: "Checks governance. Describe how teams propose changes.", answer: "RFC or issue template, design + a11y review, Storybook story and tests required, release with changelog. Office hours help teams contribute rather than fork." }
+            {
+              task: "Make the component accept custom content.",
+              description: "Checks slots over config props.",
+              code: "<Card title=\"Hi\" icon=\"star\" footerText=\"More\" />",
+              answer: "Accept nodes or children for parts, so teams compose instead of copying.",
+              solution: `<Card header={<Title icon={<Star />}>Hi</Title>}
+  footer={<Link to="/more">More</Link>}>
+  ...
+</Card>`,
+            },
+            {
+              task: "Pass extra attributes through.",
+              description: "Checks rest props spreading.",
+              code: "function Input({ label }) { return <input />; }",
+              answer: "Spread remaining props onto the input so teams can add aria, data and events.",
+              solution: `function Input({ label, ...rest }) {
+  return <label>{label}<input {...rest} /></label>;
+}`,
+            },
           ]
         },
         {
@@ -1149,8 +2073,18 @@ Card.Footer = function CardFooter({ children }) { return <footer>{children}</foo
           short: "Start from a concrete problem, run a time-boxed spike with success criteria, pilot on one product, document trade-offs in an ADR, and plan support, training and exit costs.",
           long: "Technology should solve a measured problem, not follow hype.\nDefine success metrics (performance, DX, defects) before the spike.\nPilot with one team in a real but low-risk area.\nWrite an ADR with alternatives, risks and migration/exit plan.\nInvest in docs, examples and lint rules so adoption is consistent.\nRevisit the decision after a fixed period with data.",
           exercises: [
-            { task: "Write the outline of a decision record for TanStack Query.", description: "Checks decision documentation. List ADR sections.", answer: "Context and problem, options considered, decision, consequences (positive and negative), migration plan, and review date. Include metrics from the pilot." },
-            { task: "When do you stop a pilot? Give examples.", description: "Checks risk management. Give exit criteria.", answer: "Abort if bundle grows over a threshold, if bugs increase, or if the team cannot onboard within two weeks. Exit criteria prevent sunk-cost adoption." }
+            {
+              task: "Name the steps to adopt a new tool.",
+              description: "Checks evaluation process.",
+              code: "// team proposes switching to Biome",
+              answer: "Write a short RFC with goals, run a pilot in one repo with metrics, then roll out with docs and codemods.",
+            },
+            {
+              task: "Spot the red flag.",
+              description: "Checks risk in adoption.",
+              code: "// tool v0.3, one maintainer, no releases in 8 months",
+              answer: "Low maturity and bus factor of one. It may be abandoned; prefer stable tools for core workflows.",
+            },
           ]
         },
         {
@@ -1158,8 +2092,18 @@ Card.Footer = function CardFooter({ children }) { return <footer>{children}</foo
           short: "Use a workspace tool (pnpm + Turborepo/Nx) with apps and packages folders, clear ownership, enforced dependency boundaries, shared configs, and affected-only CI.",
           long: "apps/ for deployables, packages/ for UI, utils, API clients and configs.\nShare ESLint, TypeScript and test configs as packages.\nEnforce boundaries (apps cannot import other apps) with lint rules or Nx tags.\nUse CODEOWNERS for ownership.\nCache builds and run only affected tasks in CI.\nVersion shared packages internally (workspace protocol) or with changesets if published.",
           exercises: [
-            { task: "Draw the folders for three apps and a design system.", description: "Checks organization. Provide a tree.", answer: "apps/admin, apps/portal, apps/marketing; packages/ui, packages/api-client, packages/config-eslint, packages/config-ts. Each package has an owner and README." },
-            { task: "Make CI run only for the changed packages.", description: "Checks scalability. Describe with Turborepo.", answer: "Run turbo run test lint build --filter=...[origin/main] so only changed packages and dependents run, with remote caching enabled. CI time scales with the change, not repo size." }
+            {
+              task: "Run only affected tests.",
+              description: "Checks monorepo task runners.",
+              code: "// 12 apps, CI runs all tests on every PR",
+              answer: "Use Turborepo or Nx affected commands with caching, so CI tests only changed packages and their dependents.",
+            },
+            {
+              task: "Spot the dependency problem.",
+              description: "Checks version drift.",
+              code: "// app A: react 18, app B: react 19, shared ui uses hooks",
+              answer: "Shared packages break across React versions. Align versions with one root version policy and peerDependencies.",
+            },
           ]
         }
       ]

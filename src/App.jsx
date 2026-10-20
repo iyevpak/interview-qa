@@ -79,23 +79,24 @@ function Score({ value, onChange }) {
 function Exercise({ n, ex }) {
   const [show, setShow] = useState(false);
   return (
-    <Box sx={{ mb: 2, p: 2, border: `1px solid ${C.rule}`, borderRadius: 1, bgcolor: '#fbf8f1' }}>
-      <Typography sx={{ fontWeight: 600, mb: .5 }}>
-        <Box component="span" sx={{ fontFamily: fonts.mono, color: C.accent, mr: 1 }}>EX {n}</Box><Gloss>{ex.task}</Gloss>
-      </Typography>
-      {ex.description && <Typography sx={{ fontSize: 14, color: C.muted, lineHeight: 1.55, mb: 1 }}><Gloss>{ex.description}</Gloss></Typography>}
+    <Box sx={{ mb: 1.25, px: 1.75, py: 1.25, border: `1px solid ${C.rule}`, borderRadius: 1, bgcolor: '#fbf8f1' }}>
+      <Stack direction="row" spacing={1} alignItems="baseline" justifyContent="space-between">
+        <Typography sx={{ fontWeight: 600, fontSize: 15 }}>
+          <Box component="span" sx={{ fontFamily: fonts.mono, color: C.accent, mr: 1, fontSize: 12 }}>EX{n}</Box>
+          <Gloss>{ex.task}</Gloss>
+        </Typography>
+        <Button size="small" onClick={(e) => { e.stopPropagation(); setShow((v) => !v); }}
+          sx={{ color: C.moss, minWidth: 0, px: .5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {show ? 'Hide' : 'Answer'}
+        </Button>
+      </Stack>
+      {ex.description && <Typography sx={{ fontSize: 12.5, color: C.muted }}><Gloss>{ex.description}</Gloss></Typography>}
       {ex.code && <Code>{ex.code}</Code>}
-      <Button size="small" onClick={(e) => { e.stopPropagation(); setShow((v) => !v); }} sx={{ color: C.moss, px: 0 }}>
-        {show ? '− Hide solution' : '+ Show solution'}
-      </Button>
       <Collapse in={show} unmountOnExit>
-        {ex.answer && (
-          <Box sx={{ mt: 1, pl: 1.5, borderLeft: `2px solid ${C.moss}` }}>
-            <Typography sx={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: '.08em', color: C.moss, mb: .5 }}>ANSWER</Typography>
-            <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}><Gloss>{ex.answer}</Gloss></Typography>
-          </Box>
-        )}
-        {ex.solution && <Code tone="light" title="Solution">{ex.solution}</Code>}
+        <Box sx={{ mt: 1, pl: 1.5, borderLeft: `2px solid ${C.moss}` }}>
+          <Typography sx={{ whiteSpace: 'pre-line', lineHeight: 1.55, fontSize: 14.5 }}><Gloss>{ex.answer}</Gloss></Typography>
+          {ex.solution && <Code tone="light">{ex.solution}</Code>}
+        </Box>
       </Collapse>
     </Box>
   );
