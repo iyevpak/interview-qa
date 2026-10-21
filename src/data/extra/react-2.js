@@ -25,6 +25,21 @@ export default {
               solution: `const navigate = useNavigate();
 async function onSave() { await save(); navigate("/list"); }`,
             },
+            {
+              easy: true,
+              task: "Name the component that knows if it is active.",
+              description: "Checks NavLink.",
+              code: "<NavLink to=\"/home\" className={({ isActive }) => ?} />",
+              answer: "NavLink, which passes isActive to className.",
+            },
+            {
+              easy: true,
+              task: "Predict what navigate(-1) does.",
+              description: "Checks history navigation.",
+              code: `const navigate = useNavigate();
+navigate(-1);`,
+              answer: "It goes back one page in history.",
+            },
           ]
         },
         {
@@ -70,6 +85,21 @@ const { userId } = useParams();
 userId === 42`,
               answer: "false. Params are always strings (or undefined). Use Number(userId).",
             },
+            {
+              easy: true,
+              task: "Fix the path to include the id.",
+              description: "Checks dynamic segments.",
+              code: "<Route path=\"/user\" element={<User />} />",
+              answer: "Add a :id segment to the path.",
+              solution: "<Route path=\"/user/:id\" element={<User />} />",
+            },
+            {
+              easy: true,
+              task: "Name the hook that reads the id.",
+              description: "Checks useParams.",
+              code: "const { id } = ?();",
+              answer: "useParams, which returns { id }.",
+            },
           ]
         },
         {
@@ -96,6 +126,22 @@ userId === 42`,
 </Route>`,
               answer: "Add an index route so /settings shows default content.",
               solution: "<Route index element={<General />} />",
+            },
+            {
+              easy: true,
+              task: "Name where child routes render.",
+              description: "Checks Outlet.",
+              code: "function Layout() { return <main>?</main>; }",
+              answer: "In the parent's <Outlet />.",
+            },
+            {
+              easy: true,
+              task: "Predict the URL for this nested route.",
+              description: "Checks nested paths.",
+              code: `<Route path="settings">
+  <Route path="profile" />
+</Route>`,
+              answer: "/settings/profile, since child paths are relative.",
             },
           ]
         }
@@ -143,6 +189,20 @@ userId === 42`,
               answer: "Local state copies the URL once and goes stale. Read q from params directly.",
               solution: "const q = params.get(\"q\") ?? \"\";",
             },
+            {
+              easy: true,
+              task: "Spot the two sources of truth.",
+              description: "Checks copying params to state.",
+              code: "const [q, setQ] = useState(params.get(\"q\"));",
+              answer: "q is copied into state, so Back changes the URL but not q.",
+            },
+            {
+              easy: true,
+              task: "Name the option that avoids extra history entries.",
+              description: "Checks replace option.",
+              code: "setParams({ q }, { replace: true });",
+              answer: "{ replace: true }, so each key does not add history.",
+            },
           ]
         },
         {
@@ -166,6 +226,20 @@ userId === 42`,
               code: "// page goes blank during navigation",
               answer: "Data routers keep the old page until loaders finish; show a progress bar or dim it instead of a blank screen.",
             },
+            {
+              easy: true,
+              task: "Name the hook for navigation state.",
+              description: "Checks useNavigation.",
+              code: "const { state } = useNavigation();",
+              answer: "useNavigation, whose state is \"loading\" during navigation.",
+            },
+            {
+              easy: true,
+              task: "Predict state while a loader runs.",
+              description: "Checks loading state.",
+              code: "loader: async () => await getUsers()",
+              answer: "\"loading\", then \"idle\" when done.",
+            },
           ]
         },
         {
@@ -188,6 +262,19 @@ userId === 42`,
               solution: `const ref = useRef(null);
 useEffect(() => ref.current?.focus(), [location.pathname]);
 <h1 ref={ref} tabIndex={-1}>{title}</h1>`,
+            },
+            {
+              easy: true,
+              task: "Name the component that restores scroll.",
+              description: "Checks ScrollRestoration.",
+              code: "<ScrollRestoration />",
+              answer: "ScrollRestoration from React Router.",
+            },
+            {
+              easy: true,
+              task: "Name where focus should go after navigation.",
+              description: "Checks focus management.",
+              answer: "To the main heading or main content of the new page.",
             },
           ]
         }
@@ -243,6 +330,20 @@ function Project() {
 export async function loader({ params }) { current = await get(params.id); return current; }`,
               answer: "A slow older call can overwrite current after a newer one. Return data directly; do not share module state.",
             },
+            {
+              easy: true,
+              task: "Name the loader argument that cancels requests.",
+              description: "Checks request.signal.",
+              code: "loader: ({ request, params }) => fetch(url, { signal: ? })",
+              answer: "request.signal; pass it to fetch.",
+            },
+            {
+              easy: true,
+              task: "True or false: React Router aborts stale loaders.",
+              description: "Checks loader abort.",
+              code: "User clicks Project A, then Project B quickly.",
+              answer: "True. It aborts the signal when a newer navigation starts.",
+            },
           ]
         },
         {
@@ -264,6 +365,20 @@ export async function loader({ params }) { current = await get(params.id); retur
               answer: "In framework mode use prefetch=\"intent\". Otherwise call the import() on mouseenter.",
               solution: "<Link to=\"/reports\" prefetch=\"intent\">Reports</Link>",
             },
+            {
+              easy: true,
+              task: "Name the property to lazy load a route.",
+              description: "Checks route lazy.",
+              code: "{ path: \"/reports\", lazy: () => import(\"./reports\") }",
+              answer: "The lazy property in the route object.",
+            },
+            {
+              easy: true,
+              task: "Name a way to keep navigation fast.",
+              description: "Checks prefetching.",
+              code: "<Link to=\"/reports\" prefetch=\"intent\" />",
+              answer: "Prefetch route code on hover or when the link is visible.",
+            },
           ]
         },
         {
@@ -283,6 +398,20 @@ export async function loader({ params }) { current = await get(params.id); retur
               description: "Checks trade-offs.",
               code: "// switching an SPA to framework mode",
               answer: "You adopt its build, conventions and maybe a server runtime. Migration takes effort.",
+            },
+            {
+              easy: true,
+              task: "Pick a mode for a full-stack app with SSR.",
+              description: "Checks framework mode.",
+              code: "Public site, SEO needed, server data loading.",
+              answer: "Framework mode, which adds SSR and file routes.",
+            },
+            {
+              easy: true,
+              task: "Pick a mode for adding routing to an existing SPA.",
+              description: "Checks library mode.",
+              code: "Existing Vite app, client only.",
+              answer: "Library mode, which is just the router in your app.",
             },
           ]
         }
@@ -329,6 +458,20 @@ export async function loader({ params }) { current = await get(params.id); retur
               code: "// requireAdmin() copied in 20 loaders",
               answer: "Put the check in a parent route loader or middleware once; child routes inherit it.",
             },
+            {
+              easy: true,
+              task: "Name where the guard should run.",
+              description: "Checks loader guards.",
+              code: "loader: async () => { if (!user) throw redirect(\"/login\"); }",
+              answer: "In a loader, before the page renders any data.",
+            },
+            {
+              easy: true,
+              task: "Name the function a loader throws to redirect.",
+              description: "Checks redirect.",
+              code: "loader: () => { if (!user) throw ?(\"/login\"); }",
+              answer: "redirect, e.g. throw redirect(\"/login\").",
+            },
           ]
         },
         {
@@ -350,6 +493,20 @@ export async function loader({ params }) { current = await get(params.id); retur
               answer: "Use shared typed route helpers or generatePath so typos and renamed routes fail at compile time.",
               solution: "<Link to={generatePath(\"/orders/:id/edit\", { id })} />",
             },
+            {
+              easy: true,
+              task: "Name one shared URL rule.",
+              description: "Checks URL conventions.",
+              code: "/order-items/42",
+              answer: "Use kebab-case paths and plural resource names.",
+            },
+            {
+              easy: true,
+              task: "Name a tool to enforce route rules.",
+              description: "Checks typed routes.",
+              code: "paths.order(42) // \"/orders/42\"",
+              answer: "A shared typed route helper, so no one hand-writes paths.",
+            },
           ]
         },
         {
@@ -368,6 +525,19 @@ export async function loader({ params }) { current = await get(params.id); retur
               description: "Checks huge route config bundles.",
               code: "import { routes } from \"./routes\"; // imports every page",
               answer: "The config imports every page, so splitting fails. Use lazy() in the config instead of static imports.",
+            },
+            {
+              easy: true,
+              task: "Name the main fix for slow first load.",
+              description: "Checks route code splitting.",
+              code: "const Reports = lazy(() => import(\"./Reports\"));",
+              answer: "Lazy load routes, so the first load ships only needed code.",
+            },
+            {
+              easy: true,
+              task: "True or false: all 300 routes belong in one bundle.",
+              description: "Checks bundle splitting.",
+              answer: "False. Split by route or area.",
             },
           ]
         }
@@ -401,6 +571,22 @@ export async function loader({ params }) { current = await get(params.id); retur
               code: "<p>{user.address?.city}</p> // address missing",
               answer: "An empty <p>. Optional chaining gives undefined, which React renders as nothing.",
             },
+            {
+              easy: true,
+              task: "Fix the crash with optional chaining.",
+              description: "Checks safe property access.",
+              code: "user.address.city",
+              answer: "Use ?. so a missing address gives undefined.",
+              solution: "user.address?.city",
+            },
+            {
+              easy: true,
+              task: "Predict the value here.",
+              description: "Checks nullish coalescing.",
+              code: `const user = {};
+user.address?.city ?? "N/A"`,
+              answer: "\"N/A\", because the city is undefined.",
+            },
           ]
         },
         {
@@ -426,6 +612,22 @@ export async function loader({ params }) { current = await get(params.id); retur
 if (error) return <ErrorMsg error={error} />;
 return <List items={data} />;`,
             },
+            {
+              easy: true,
+              task: "Spot the missing check.",
+              description: "Checks res.ok.",
+              code: `const res = await fetch(url);
+const data = await res.json();`,
+              answer: "fetch does not throw on 404 or 500; check res.ok.",
+            },
+            {
+              easy: true,
+              task: "Name the three UI states to track.",
+              description: "Checks loading/error/data.",
+              code: `const [data, setData] = useState(null);
+// what other two states?`,
+              answer: "Loading, error and data.",
+            },
           ]
         },
         {
@@ -445,6 +647,20 @@ catch { return <p>Error</p>; }`,
               description: "Checks valid try/catch places.",
               code: "// event handlers, effects, async functions",
               answer: "In event handlers, effects and async code, where errors happen in your own call stack.",
+            },
+            {
+              easy: true,
+              task: "True or false: try/catch catches child render errors.",
+              description: "Checks try/catch and JSX.",
+              code: "try { return <Child />; } catch { return null; }",
+              answer: "False. JSX just creates objects; children render later.",
+            },
+            {
+              easy: true,
+              task: "Name the tool that catches child render errors.",
+              description: "Checks error boundaries.",
+              code: "<?><Child /></?>",
+              answer: "An error boundary.",
             },
           ]
         }
@@ -485,6 +701,19 @@ catch { return <p>Error</p>; }`,
               answer: "Set key={id} on the boundary; it remounts with clean state.",
               solution: "<Boundary key={id}><Widget id={id} /></Boundary>",
             },
+            {
+              easy: true,
+              task: "Name what resets the boundary.",
+              description: "Checks reset on change.",
+              code: "<ErrorBoundary key={dataVersion}>",
+              answer: "Change its key or resetKeys when data changes.",
+            },
+            {
+              easy: true,
+              task: "Predict the boundary without a reset.",
+              description: "Checks sticky error state.",
+              answer: "It keeps showing the fallback even after data is fixed.",
+            },
           ]
         },
         {
@@ -505,6 +734,20 @@ onClick={async () => { try { await save(); } catch (e) { showBoundary(e); } }}`,
               description: "Checks errors thrown in actions.",
               code: "startTransition(async () => { await save(); }); // save throws",
               answer: "In React 19, errors thrown in a transition action go to the nearest error boundary.",
+            },
+            {
+              easy: true,
+              task: "Name the trick to send async errors to a boundary.",
+              description: "Checks setState throw.",
+              code: "setState(() => { throw err; });",
+              answer: "Set state with an updater that throws, so it throws in render.",
+            },
+            {
+              easy: true,
+              task: "Name the react-error-boundary hook for this.",
+              description: "Checks useErrorBoundary.",
+              code: "const { showBoundary } = useErrorBoundary();",
+              answer: "useErrorBoundary, which gives showBoundary(error).",
             },
           ]
         },
@@ -528,6 +771,20 @@ return <Crash />;`,
               code: "const p = await getProduct(id);",
               answer: "Throw a Response or data() with status 404 so the error element handles it.",
               solution: "if (!p) throw data(\"Not found\", { status: 404 });",
+            },
+            {
+              easy: true,
+              task: "Name the route prop for errors.",
+              description: "Checks errorElement.",
+              code: "{ path: \"/users/:id\", element: <User />, ?: <Oops /> }",
+              answer: "errorElement, rendered when the route throws.",
+            },
+            {
+              easy: true,
+              task: "Name the helper to detect a 404 response.",
+              description: "Checks isRouteErrorResponse.",
+              code: "if (isRouteErrorResponse(e) && e.status === 404)",
+              answer: "isRouteErrorResponse, then check error.status.",
             },
           ]
         }
@@ -577,6 +834,20 @@ window.addEventListener("error", e => report(e.error));`,
   onCaughtError: report,
 }).render(<App />);`,
             },
+            {
+              easy: true,
+              task: "Name a reason errors are sent twice.",
+              description: "Checks duplicate reporting.",
+              answer: "Both a boundary and a global handler report the same error.",
+            },
+            {
+              easy: true,
+              task: "Name a simple dedupe idea.",
+              description: "Checks marking reported errors.",
+              code: `if (err.__reported) return;
+err.__reported = true;`,
+              answer: "Mark the error object as reported and skip it next time.",
+            },
           ]
         },
         {
@@ -596,6 +867,20 @@ window.addEventListener("error", e => report(e.error));`,
               description: "Checks reporting expected errors.",
               code: "catch (e) { Sentry.captureException(e); } // 401 login fail",
               answer: "Expected errors like wrong password flood the error tool. Handle them in UI; report only unexpected ones.",
+            },
+            {
+              easy: true,
+              task: "Pick the group for a failed form validation.",
+              description: "Checks expected errors.",
+              code: "Email is already taken.",
+              answer: "Expected: show it inline, do not page anyone.",
+            },
+            {
+              easy: true,
+              task: "Pick the group for a crash on app start.",
+              description: "Checks fatal errors.",
+              code: "Main bundle throws on load.",
+              answer: "Fatal: show a full page and alert the team.",
             },
           ]
         },
@@ -620,6 +905,20 @@ window.addEventListener("error", e => report(e.error));`,
               description: "Checks keeping old assets.",
               code: "// deploy deletes old JS files",
               answer: "Keep old hashed assets for some days after deploy, so open tabs can still load them.",
+            },
+            {
+              easy: true,
+              task: "Name the error type users see.",
+              description: "Checks chunk load errors.",
+              code: "import(\"./Chart.abc123.js\") // file deleted after deploy",
+              answer: "A ChunkLoadError or failed dynamic import.",
+            },
+            {
+              easy: true,
+              task: "Name a common fix.",
+              description: "Checks reload on chunk error.",
+              code: "window.addEventListener(\"vite:preloadError\", () => location.reload());",
+              answer: "Catch it and reload the page once to get new files.",
             },
           ]
         }
@@ -647,6 +946,20 @@ window.addEventListener("error", e => report(e.error));`,
               answer: "Use AbortSignal.timeout so hung requests do not pile up.",
               solution: "await fetch(url, { signal: AbortSignal.timeout(8000) });",
             },
+            {
+              easy: true,
+              task: "Name the retry problem in outages.",
+              description: "Checks retry storms.",
+              code: "for (;;) { try { return await fetch(url); } catch {} }",
+              answer: "Instant retries multiply load on a failing backend.",
+            },
+            {
+              easy: true,
+              task: "Name a safer retry strategy.",
+              description: "Checks exponential backoff.",
+              code: "delay = base * 2 ** attempt + random()",
+              answer: "Exponential backoff with jitter and a retry limit.",
+            },
           ],
         },
         {
@@ -666,6 +979,18 @@ window.addEventListener("error", e => report(e.error));`,
               description: "Checks impact-based priority.",
               code: "// error A: 5k events, 10 users. error B: 300 events, 250 users",
               answer: "Fix B first. Users affected matters more than event count.",
+            },
+            {
+              easy: true,
+              task: "Name a frontend reliability metric.",
+              description: "Checks error-free sessions.",
+              answer: "Percent of error-free sessions.",
+            },
+            {
+              easy: true,
+              task: "True or false: fix the most frequent error first.",
+              description: "Checks impact priority.",
+              answer: "Mostly true, but weigh frequency by user impact.",
             },
           ]
         },
@@ -687,6 +1012,19 @@ const user = User.parse(await res.json());`,
               description: "Checks safe rollout.",
               code: "// API change broke all users at once",
               answer: "Contract tests between API and frontend, plus feature flags or canary releases to limit impact.",
+            },
+            {
+              easy: true,
+              task: "Name a tool to validate API data.",
+              description: "Checks runtime validation.",
+              code: "const user = User.parse(await res.json());",
+              answer: "zod, which parses data at runtime.",
+            },
+            {
+              easy: true,
+              task: "Name the UI fix to limit damage.",
+              description: "Checks local boundaries.",
+              answer: "Error boundaries around features, so one bad response stays local.",
             },
           ]
         }
@@ -713,6 +1051,20 @@ useEffect(() => log("effect"));
               description: "Checks choosing effect type.",
               code: "// 1) fetch data  2) measure element before show",
               answer: "1) useEffect. 2) useLayoutEffect, to avoid a visible flicker.",
+            },
+            {
+              easy: true,
+              task: "Pick which runs before paint.",
+              description: "Checks useLayoutEffect timing.",
+              code: "useEffect(fn) vs useLayoutEffect(fn)",
+              answer: "useLayoutEffect runs before paint; useEffect runs after.",
+            },
+            {
+              easy: true,
+              task: "Pick the hook for a data fetch.",
+              description: "Checks default to useEffect.",
+              code: "useEffect(() => { load(); }, []);",
+              answer: "useEffect, since fetching does not need to block paint.",
             },
           ]
         },
@@ -760,6 +1112,21 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
               answer: "Wrap with forwardRef; ref is not a prop in React 18.",
               solution: "const Field = forwardRef((props, ref) => <input ref={ref} {...props} />);",
             },
+            {
+              easy: true,
+              task: "Name what the custom input must do.",
+              description: "Checks forwarding refs.",
+              code: "<FancyInput ref={inputRef} /> // ref is null",
+              answer: "Pass the ref to the inner input element.",
+            },
+            {
+              easy: true,
+              task: "Rewrite for React 19.",
+              description: "Checks ref as a prop.",
+              code: "const Input = forwardRef((p, ref) => <input ref={ref} />);",
+              answer: "In React 19, ref is a normal prop for function components.",
+              solution: "function Input({ ref }) { return <input ref={ref} />; }",
+            },
           ]
         },
         {
@@ -782,6 +1149,21 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
               solution: `const id = useId();
 <input id={id} aria-describedby={id + "-hint"} />
 <p id={id + "-hint"}>8+ chars</p>`,
+            },
+            {
+              easy: true,
+              task: "Name the problem with Math.random ids.",
+              description: "Checks SSR id mismatch.",
+              code: "<input id={Math.random()} />",
+              answer: "Server and client get different ids, causing hydration errors.",
+            },
+            {
+              easy: true,
+              task: "Fill in the label link.",
+              description: "Checks useId usage.",
+              code: `const id = useId();
+<label htmlFor={?}>Name</label><input id={id} />`,
+              answer: "Use the same id in htmlFor and id.",
             },
           ],
         }
@@ -820,6 +1202,21 @@ const TextInput18 = forwardRef(function TextInput(props, ref) {
               code: "useImperativeHandle(ref, () => ({ play }));",
               answer: "Without deps, the handle is recreated every render, so it is always fresh but changes identity.",
             },
+            {
+              easy: true,
+              task: "Spot why play uses old props.",
+              description: "Checks stale handle.",
+              code: "useImperativeHandle(ref, () => ({ play: () => start(src) }), []);",
+              answer: "The handle is created once with empty deps.",
+            },
+            {
+              easy: true,
+              task: "Fix the dependency list.",
+              description: "Checks handle deps.",
+              code: "}), []);",
+              answer: "Add src to the deps, or omit the array.",
+              solution: "}), [src]);",
+            },
           ]
         },
         {
@@ -843,6 +1240,20 @@ function useOnline() {
               description: "Checks reading mutable stores in render.",
               code: "function Price() { return <b>{store.price}</b>; }",
               answer: "Reading mutable data directly does not re-render and may tear during concurrent renders. Use useSyncExternalStore.",
+            },
+            {
+              easy: true,
+              task: "Name the problem it solves.",
+              description: "Checks tearing.",
+              code: "Store value changes mid-render; two parts show different values.",
+              answer: "Tearing: parts of the UI showing different store values.",
+            },
+            {
+              easy: true,
+              task: "Name the two main arguments.",
+              description: "Checks subscribe and getSnapshot.",
+              code: "useSyncExternalStore(subscribe, getSnapshot)",
+              answer: "subscribe and getSnapshot.",
             },
           ]
         },
@@ -871,6 +1282,25 @@ useEffect(() => {
               code: `const onClick = useEffectEvent(save);
 <button onClick={onClick} />`,
               answer: "Effect events are only for calling from effects, not as JSX handlers. Use a normal function here.",
+            },
+            {
+              easy: true,
+              task: "Name the hook to keep the latest callback.",
+              description: "Checks useEffectEvent.",
+              code: `useEffect(() => {
+  const id = setInterval(() => onTick(), 1000);
+  return () => clearInterval(id);
+}, []);`,
+              answer: "useEffectEvent, or a ref updated each render.",
+            },
+            {
+              easy: true,
+              task: "Fill in the ref update.",
+              description: "Checks latest ref pattern.",
+              code: `const cbRef = useRef(cb);
+?`,
+              answer: "Store the newest callback in the ref each render.",
+              solution: "useLayoutEffect(() => { cbRef.current = cb; });",
             },
           ]
         }
@@ -923,6 +1353,20 @@ function useElementWidth(ref) {
   return () => ro.disconnect();
 }, []);`,
             },
+            {
+              easy: true,
+              task: "Name why it warns on the server.",
+              description: "Checks useLayoutEffect SSR.",
+              code: "useLayoutEffect(() => measure(), []); // on the server",
+              answer: "useLayoutEffect does nothing on the server, so React warns.",
+            },
+            {
+              easy: true,
+              task: "Name the browser API for size changes.",
+              description: "Checks ResizeObserver.",
+              code: "new ResizeObserver(([e]) => setW(e.contentRect.width))",
+              answer: "ResizeObserver.",
+            },
           ]
         },
         {
@@ -945,6 +1389,20 @@ function useElementWidth(ref) {
               description: "Checks optimistic rollback.",
               code: "setOptimistic(n + 1); await api.like(); // throws",
               answer: "It returns to the real state when the action ends. useOptimistic values last only during the action.",
+            },
+            {
+              easy: true,
+              task: "Name the hook for form action state.",
+              description: "Checks useActionState.",
+              code: "const [state, action, pending] = useActionState(fn, null);",
+              answer: "useActionState, which returns state, action and isPending.",
+            },
+            {
+              easy: true,
+              task: "Name what useOptimistic shows.",
+              description: "Checks optimistic value.",
+              code: "const [optimistic, addOptimistic] = useOptimistic(todos);",
+              answer: "A temporary value until the action finishes.",
             },
           ]
         },
@@ -969,6 +1427,20 @@ function useElementWidth(ref) {
               description: "Checks creating promises in render.",
               code: "function C() { const data = use(fetch(\"/api\").then(r => r.json())); }",
               answer: "A new promise each render suspends forever. Create it once outside, cache it, or pass it from a parent.",
+            },
+            {
+              easy: true,
+              task: "True or false: use() can run inside an if.",
+              description: "Checks use flexibility.",
+              code: "if (show) { const v = use(Ctx); }",
+              answer: "True. Unlike other hooks, use can be called conditionally.",
+            },
+            {
+              easy: true,
+              task: "Name what use() does with a promise.",
+              description: "Checks use and Suspense.",
+              code: "const user = use(fetchUser(id));",
+              answer: "It suspends until the promise resolves, then returns the value.",
             },
           ]
         }
@@ -1027,6 +1499,20 @@ addEventListener("scroll", () => {
               code: "const y = useScrollY(); const sticky = y > 100;",
               answer: "Return only isPastThreshold so callers re-render when the boolean flips, not each pixel.",
             },
+            {
+              easy: true,
+              task: "Spot why everyone re-renders.",
+              description: "Checks high-frequency state.",
+              code: "window.addEventListener(\"scroll\", () => setY(scrollY));",
+              answer: "Each scroll sets state in every hook user.",
+            },
+            {
+              easy: true,
+              task: "Name a fix for scroll updates.",
+              description: "Checks derived boolean.",
+              code: "setScrolled(scrollY > 100);",
+              answer: "Store only what matters, like isScrolled, so updates are rare.",
+            },
           ]
         },
         {
@@ -1047,6 +1533,20 @@ addEventListener("scroll", () => {
               code: "function useFormatDate(d) { return d.toLocaleDateString(); }",
               answer: "It calls no hooks, so the use prefix misleads and limits where it can be called. Rename to formatDate.",
             },
+            {
+              easy: true,
+              task: "Pick where a date format helper goes.",
+              description: "Checks plain modules.",
+              code: "export const fmt = d => d.toLocaleDateString();",
+              answer: "A plain module; it needs no React.",
+            },
+            {
+              easy: true,
+              task: "Pick where window size logic goes.",
+              description: "Checks custom hooks.",
+              code: "function useWindowSize() { const [s, set] = useState(...); }",
+              answer: "A custom hook, since it uses state and effects.",
+            },
           ]
         },
         {
@@ -1065,6 +1565,18 @@ addEventListener("scroll", () => {
               description: "Checks compiler limits.",
               code: "useEffect(() => { setFull(a + b); }, [a, b]);",
               answer: "Derived state in effects is still a design bug. The compiler memoizes; it does not remove bad effects.",
+            },
+            {
+              easy: true,
+              task: "Name hooks the compiler makes less needed.",
+              description: "Checks auto memoization.",
+              answer: "useMemo, useCallback and memo.",
+            },
+            {
+              easy: true,
+              task: "True or false: remove all memo calls at once.",
+              description: "Checks careful cleanup.",
+              answer: "False. Remove them slowly, with profiling and tests.",
             },
           ]
         }
@@ -1090,6 +1602,19 @@ addEventListener("scroll", () => {
               code: "createRoot(document.getElementById(\"root\")).render(<App />);",
               answer: "Use hydrateRoot to reuse server HTML instead of replacing it.",
               solution: "hydrateRoot(document.getElementById(\"root\"), <App />);",
+            },
+            {
+              easy: true,
+              task: "Name the function that hydrates in React 18+.",
+              description: "Checks hydrateRoot.",
+              code: "hydrateRoot(document.getElementById(\"root\"), <App />);",
+              answer: "hydrateRoot from react-dom/client.",
+            },
+            {
+              easy: true,
+              task: "Name what hydration attaches.",
+              description: "Checks hydration purpose.",
+              answer: "Event handlers and state to the server HTML.",
             },
           ]
         },
@@ -1127,6 +1652,20 @@ useEffect(() => setW(window.innerWidth), []);`,
               answer: "Use next/dynamic with ssr: false inside a client component.",
               solution: "const Map = dynamic(() => import(\"./Map\"), { ssr: false });",
             },
+            {
+              easy: true,
+              task: "Spot why it crashes on the server.",
+              description: "Checks window in render.",
+              code: "const w = window.innerWidth;",
+              answer: "window does not exist on the server.",
+            },
+            {
+              easy: true,
+              task: "Name a safe place to read window.",
+              description: "Checks effect for browser APIs.",
+              code: "useEffect(() => setW(window.innerWidth), []);",
+              answer: "Inside useEffect, which only runs in the browser.",
+            },
           ]
         },
         {
@@ -1146,6 +1685,19 @@ useEffect(() => setW(window.innerWidth), []);`,
               code: "export default async function Page() { /* fetch products */ }",
               answer: "Export revalidate in seconds so the page regenerates at most that often.",
               solution: "export const revalidate = 3600;",
+            },
+            {
+              easy: true,
+              task: "Pick SSR, SSG or ISR for a blog.",
+              description: "Checks SSG fit.",
+              code: "Marketing blog, updated weekly.",
+              answer: "SSG, since posts rarely change.",
+            },
+            {
+              easy: true,
+              task: "Name what ISR adds to SSG.",
+              description: "Checks revalidation.",
+              answer: "Rebuilding pages in the background after a set time.",
             },
           ]
         }
@@ -1179,6 +1731,21 @@ export function Price({ amount, locale, currency }) {
               code: "<time>{new Date().toISOString()}</time>",
               answer: "suppressHydrationWarning on that element, for one level only. Use rarely; fix the cause if possible.",
             },
+            {
+              easy: true,
+              task: "Spot why numbers differ.",
+              description: "Checks locale mismatch.",
+              code: "n.toLocaleString()",
+              answer: "Server and browser locales differ, so formatting differs.",
+            },
+            {
+              easy: true,
+              task: "Fix it with a fixed locale.",
+              description: "Checks explicit locale.",
+              code: "n.toLocaleString()",
+              answer: "Pass an explicit locale so both sides match.",
+              solution: "n.toLocaleString(\"en-US\")",
+            },
           ]
         },
         {
@@ -1204,6 +1771,21 @@ const posts = await getPosts();`,
               answer: "They do not depend on each other. Run in parallel with Promise.all.",
               solution: "const [user, posts] = await Promise.all([getUser(), getPosts()]);",
             },
+            {
+              easy: true,
+              task: "True or false: Server Components can be async.",
+              description: "Checks async components.",
+              code: `export default async function Page() {
+  const data = await getData();
+}`,
+              answer: "True. They can await data directly.",
+            },
+            {
+              easy: true,
+              task: "Name where the fetch runs here.",
+              description: "Checks server data fetching.",
+              answer: "On the server, so no data code goes to the browser.",
+            },
           ]
         },
         {
@@ -1226,6 +1808,20 @@ export async function deletePost(id) { await db.post.delete({ where: { id } }); 
               answer: "Validate with zod; the client can send anything.",
               solution: `const name = z.string().min(1).max(80).parse(fd.get("name"));
 await save(name);`,
+            },
+            {
+              easy: true,
+              task: "Name the directive for a Server Action.",
+              description: "Checks use server.",
+              answer: "\"use server\" at the top of the function or file.",
+            },
+            {
+              easy: true,
+              task: "Spot the security gap.",
+              description: "Checks auth in actions.",
+              code: `"use server";
+export async function del(id) { await db.delete(id); }`,
+              answer: "No auth check; anyone can call this action.",
             },
           ]
         }
@@ -1280,6 +1876,19 @@ return <><Main /><Recs items={recs} /></>;`,
               code: "app/products/page.tsx",
               answer: "Add app/products/loading.tsx; Next wraps the page in Suspense with it.",
             },
+            {
+              easy: true,
+              task: "Name what lets the page show without the slow part.",
+              description: "Checks Suspense streaming.",
+              code: "<Suspense fallback={<Skeleton />}><Recs /></Suspense>",
+              answer: "A Suspense boundary around recommendations.",
+            },
+            {
+              easy: true,
+              task: "Predict the page without Suspense.",
+              description: "Checks blocking await.",
+              answer: "The whole page waits for the slowest request.",
+            },
           ]
         },
         {
@@ -1302,6 +1911,19 @@ return <><Main /><Recs items={recs} /></>;`,
               solution: `fetch(url, { next: { tags: ["products"] } });
 // in the action:
 revalidateTag("products");`,
+            },
+            {
+              easy: true,
+              task: "Name one Next.js cache layer.",
+              description: "Checks data cache.",
+              answer: "The data cache for fetch results.",
+            },
+            {
+              easy: true,
+              task: "Name how to avoid caching user data.",
+              description: "Checks no-store.",
+              code: "fetch(url, { cache: \"no-store\" })",
+              answer: "Use cache: \"no-store\" for per-user fetches.",
             },
           ]
         },
@@ -1326,6 +1948,19 @@ revalidateTag("products");`,
               description: "Checks onAllReady.",
               code: "// crawler requests the page",
               answer: "Wait for onAllReady before piping, so bots get the full HTML in one go.",
+            },
+            {
+              easy: true,
+              task: "Name the server API for streaming in Node.",
+              description: "Checks renderToPipeableStream.",
+              answer: "renderToPipeableStream, piped to the response.",
+            },
+            {
+              easy: true,
+              task: "Name the callback when the shell is ready.",
+              description: "Checks onShellReady.",
+              code: "renderToPipeableStream(<App />, { onShellReady() { s.pipe(res); } })",
+              answer: "onShellReady, where you start piping.",
             },
           ]
         }
@@ -1391,6 +2026,20 @@ export default function RootLayout({ children }) { const [o, setO] = useState(fa
               code: "\"use client\"; // in providers.tsx wrapping everything",
               answer: "Providers as client is fine if children are passed through. Importing pages into it would make them client code.",
             },
+            {
+              easy: true,
+              task: "Spot the problem.",
+              description: "Checks client root layout.",
+              code: `"use client";
+export default function RootLayout({ children }) {}`,
+              answer: "\"use client\" at the root makes all children client code.",
+            },
+            {
+              easy: true,
+              task: "Name the fix.",
+              description: "Checks small client islands.",
+              answer: "Move client parts into small client components.",
+            },
           ]
         },
         {
@@ -1411,6 +2060,19 @@ export default function RootLayout({ children }) { const [o, setO] = useState(fa
               code: "// SSR vs CSR",
               answer: "How fresh and personal is the data, and do anonymous users need fast first paint and SEO?",
             },
+            {
+              easy: true,
+              task: "Pick a mode for a logged-in dashboard.",
+              description: "Checks client rendering fit.",
+              code: "Internal analytics app behind login.",
+              answer: "Client rendering, since SEO does not matter.",
+            },
+            {
+              easy: true,
+              task: "Pick a mode for a docs site.",
+              description: "Checks static generation.",
+              answer: "SSG, since content rarely changes.",
+            },
           ]
         },
         {
@@ -1429,6 +2091,18 @@ export default function RootLayout({ children }) { const [o, setO] = useState(fa
               description: "Checks shared server state.",
               code: "const cache = {}; // module level, filled per request",
               answer: "Module state is shared by all requests, so it grows and can leak data between users. Scope per request.",
+            },
+            {
+              easy: true,
+              task: "Name a must-have for SSR servers.",
+              description: "Checks timeouts.",
+              answer: "Timeouts on data calls so one slow API does not hang requests.",
+            },
+            {
+              easy: true,
+              task: "Name a fallback when SSR fails.",
+              description: "Checks CSR fallback.",
+              answer: "Serve the client-rendered shell instead of an error.",
             },
           ]
         }
@@ -1457,6 +2131,20 @@ export default function RootLayout({ children }) { const [o, setO] = useState(fa
               code: "const label = useMemo(() => \"Hi \" + name, [name]);",
               answer: "String concat is cheap; memo adds overhead. Use useMemo only for expensive work or stable identity.",
             },
+            {
+              easy: true,
+              task: "Name the hook to cache slow work.",
+              description: "Checks useMemo.",
+              code: "const r = useMemo(() => heavy(data), [data]);",
+              answer: "useMemo, which recomputes only when deps change.",
+            },
+            {
+              easy: true,
+              task: "Predict when useMemo recomputes.",
+              description: "Checks deps.",
+              code: "useMemo(() => sort(items), [items])",
+              answer: "Only when items changes.",
+            },
           ],
         },
         {
@@ -1478,6 +2166,20 @@ export default function RootLayout({ children }) { const [o, setO] = useState(fa
               answer: "Pass a second argument that returns true when props are equal.",
               solution: `const Row = memo(RowImpl, (a, b) => a.item.id === b.item.id
   && a.item.version === b.item.version);`,
+            },
+            {
+              easy: true,
+              task: "Name what memo skips.",
+              description: "Checks memo behavior.",
+              answer: "Re-renders when props are shallowly equal.",
+            },
+            {
+              easy: true,
+              task: "Predict if memo helps here.",
+              description: "Checks inline props break memo.",
+              code: `const Row = memo(R);
+<Row style={{}} />`,
+              answer: "No. The inline object is new each render.",
             },
           ]
         },
@@ -1501,6 +2203,19 @@ export default function RootLayout({ children }) { const [o, setO] = useState(fa
               answer: "lazy needs a default export. Map it in the import.",
               solution: `const Chart = lazy(() =>
   import("./charts").then(m => ({ default: m.Chart })));`,
+            },
+            {
+              easy: true,
+              task: "Name the syntax that splits code.",
+              description: "Checks dynamic import.",
+              code: "const m = await import(\"./chart\");",
+              answer: "Dynamic import(), which makes a separate chunk.",
+            },
+            {
+              easy: true,
+              task: "Name the React helper for lazy components.",
+              description: "Checks React.lazy.",
+              answer: "React.lazy, used with Suspense.",
             },
           ]
         }
@@ -1529,6 +2244,19 @@ const Charts = lazy(load);
               answer: "Wrap the change in startTransition so React keeps the old UI instead of the fallback.",
               solution: "onClick={() => startTransition(() => setTab(\"charts\"))}",
             },
+            {
+              easy: true,
+              task: "Name a way to make the tab feel instant.",
+              description: "Checks prefetch on hover.",
+              code: "onMouseEnter={() => import(\"./Charts\")}",
+              answer: "Preload the chunk on hover or idle time.",
+            },
+            {
+              easy: true,
+              task: "True or false: lazy chunks load before the click.",
+              description: "Checks lazy timing.",
+              answer: "False. They load on first render unless you preload them.",
+            },
           ],
         },
         {
@@ -1550,6 +2278,18 @@ v.getVirtualItems().map(i => <Row key={i.key} row={rows[i.index]} />)`,
               description: "Checks content-visibility.",
               code: ".row { }",
               answer: "content-visibility: auto with contain-intrinsic-size lets the browser skip off-screen rows. React still renders them.",
+            },
+            {
+              easy: true,
+              task: "Name the technique for long lists.",
+              description: "Checks virtualization.",
+              answer: "Virtualization: render only visible rows.",
+            },
+            {
+              easy: true,
+              task: "Name a library for it.",
+              description: "Checks virtualization libraries.",
+              answer: "TanStack Virtual or react-window.",
             },
           ]
         },
@@ -1573,6 +2313,18 @@ v.getVirtualItems().map(i => <Row key={i.key} row={rows[i.index]} />)`,
               solution: `<Profiler id="dash" onRender={(id, phase, ms) => log(id, phase, ms)}>
   <Dashboard />
 </Profiler>`,
+            },
+            {
+              easy: true,
+              task: "Name the React tool for render timing.",
+              description: "Checks Profiler.",
+              answer: "The React DevTools Profiler.",
+            },
+            {
+              easy: true,
+              task: "Name the browser tool for long tasks.",
+              description: "Checks Performance panel.",
+              answer: "Chrome DevTools Performance panel.",
             },
           ]
         }
@@ -1623,6 +2375,21 @@ const c = await getC();`,
               code: "function Page() { const u = useUser(); return u && <Orders userId={u.id} />; }",
               answer: "Orders fetches only after user loads. Fetch both in a loader or prefetch orders in parallel if possible.",
             },
+            {
+              easy: true,
+              task: "Name the API to run requests in parallel.",
+              description: "Checks Promise.all.",
+              code: "const [a, b, c] = await Promise.all([fa(), fb(), fc()]);",
+              answer: "Promise.all, which waits for all at once.",
+            },
+            {
+              easy: true,
+              task: "Spot the waterfall.",
+              description: "Checks sequential awaits.",
+              code: `const a = await fa();
+const b = await fb();`,
+              answer: "Each await waits for the one before it.",
+            },
           ]
         },
         {
@@ -1641,6 +2408,18 @@ const c = await getC();`,
               description: "Checks transition trade-offs.",
               code: "// user clicks, nothing seems to happen",
               answer: "Old UI stays without feedback, so it feels frozen. Always show isPending state.",
+            },
+            {
+              easy: true,
+              task: "Name what a transition keeps on screen.",
+              description: "Checks old UI in transitions.",
+              answer: "The old UI, instead of a fallback spinner.",
+            },
+            {
+              easy: true,
+              task: "Name one risk of transitions.",
+              description: "Checks stale UI risk.",
+              answer: "Users may see old content without knowing it is updating.",
             },
           ]
         },
@@ -1663,6 +2442,20 @@ _.debounce(fn, 300);`,
               description: "Checks heavy dependencies.",
               code: "import moment from \"moment\";",
               answer: "Use Intl.DateTimeFormat or date-fns. moment is large and not tree-shakable.",
+            },
+            {
+              easy: true,
+              task: "Name a fix for a big library import.",
+              description: "Checks tree shaking.",
+              code: "import _ from \"lodash\";",
+              answer: "Import only what you need, or use a smaller library.",
+              solution: "import debounce from \"lodash/debounce\";",
+            },
+            {
+              easy: true,
+              task: "Name a tool to see big modules.",
+              description: "Checks bundle analyzer.",
+              answer: "A bundle analyzer like rollup-plugin-visualizer.",
             },
           ]
         }
@@ -1687,6 +2480,19 @@ _.debounce(fn, 300);`,
               code: "// main bundle grew 200 KB unnoticed",
               answer: "Add size-limit or bundlesize checks that fail PRs over budget, and post the size diff on PRs.",
             },
+            {
+              easy: true,
+              task: "Spot the heavy import.",
+              description: "Checks full library imports.",
+              code: "import * as Icons from \"icons\";",
+              answer: "It pulls the whole icon library into the bundle.",
+            },
+            {
+              easy: true,
+              task: "Name a guard against regressions.",
+              description: "Checks size limits in CI.",
+              answer: "A bundle size check in CI, like size-limit.",
+            },
           ],
         },
         {
@@ -1707,6 +2513,19 @@ onLCP(m => send({ name: m.name, value: m.value, app: "admin" }));`,
               description: "Checks Core Web Vitals targets.",
               code: "// LCP, INP, CLS at p75",
               answer: "LCP 2.5 s or less, INP 200 ms or less, CLS 0.1 or less, at the 75th percentile.",
+            },
+            {
+              easy: true,
+              task: "Name one Core Web Vital.",
+              description: "Checks CWV names.",
+              answer: "LCP, INP or CLS.",
+            },
+            {
+              easy: true,
+              task: "Name a way to collect real user data.",
+              description: "Checks RUM.",
+              code: "onINP(m => send(m.value));",
+              answer: "The web-vitals library sending data to analytics.",
             },
           ],
         },
@@ -1730,6 +2549,18 @@ onLCP(m => send({ name: m.name, value: m.value, app: "admin" }));`,
   chunk.forEach(process);
   await scheduler.yield();
 }`,
+            },
+            {
+              easy: true,
+              task: "Name the metric for click response.",
+              description: "Checks INP.",
+              answer: "INP, Interaction to Next Paint.",
+            },
+            {
+              easy: true,
+              task: "Name one quick fix for slow clicks.",
+              description: "Checks splitting long tasks.",
+              answer: "Split long tasks or move work out of the click handler.",
             },
           ]
         }
@@ -1778,6 +2609,22 @@ onLCP(m => send({ name: m.name, value: m.value, app: "admin" }));`,
               code: "// effect opens socket, cleanup closes it",
               answer: "In development it opens, closes, and opens again. With proper cleanup that is harmless.",
             },
+            {
+              easy: true,
+              task: "Spot why it reconnects.",
+              description: "Checks missing deps array.",
+              code: `useEffect(() => {
+  const ws = new WebSocket(url);
+});`,
+              answer: "No dependency array, so it runs after every render.",
+            },
+            {
+              easy: true,
+              task: "Name what the cleanup must do.",
+              description: "Checks closing sockets.",
+              code: "return () => ws.close();",
+              answer: "Call ws.close().",
+            },
           ]
         },
         {
@@ -1800,6 +2647,19 @@ export const useUsers = p =>
               code: "fetch(\"https://api.prod.com/users\")",
               answer: "Hardcoded hosts break other environments. Use a configured base URL from env.",
             },
+            {
+              easy: true,
+              task: "Name a clean place for API calls.",
+              description: "Checks API layer.",
+              code: "export const getUser = id => http.get(`/users/${id}`);",
+              answer: "A separate API module, not inside components.",
+            },
+            {
+              easy: true,
+              task: "Name a library for server data in components.",
+              description: "Checks TanStack Query.",
+              answer: "TanStack Query, with useQuery.",
+            },
           ]
         },
         {
@@ -1819,6 +2679,19 @@ export const useUsers = p =>
               description: "Checks secrets in client env.",
               code: "VITE_STRIPE_SECRET_KEY=sk_live_...",
               answer: "Every VITE_ var is in the public bundle. Secrets must stay on the server.",
+            },
+            {
+              easy: true,
+              task: "Name the prefix Vite exposes to the client.",
+              description: "Checks VITE_ prefix.",
+              code: "import.meta.env.VITE_API_URL",
+              answer: "VITE_; only those vars reach the client.",
+            },
+            {
+              easy: true,
+              task: "True or false: secrets are safe in VITE_ vars.",
+              description: "Checks env var exposure.",
+              answer: "False. They ship in the bundle, so anyone can read them.",
             },
           ]
         }
@@ -1872,6 +2745,19 @@ function refresh() {
               code: "// refresh returns 401",
               answer: "Stop retrying, clear the session, and send the user to login, keeping the return URL.",
             },
+            {
+              easy: true,
+              task: "Name the trick to share one refresh.",
+              description: "Checks shared promise.",
+              code: "refreshing ??= refresh().finally(() => (refreshing = null));",
+              answer: "Store the refresh promise and reuse it while pending.",
+            },
+            {
+              easy: true,
+              task: "Name the status that triggers refresh.",
+              description: "Checks 401 handling.",
+              answer: "401 Unauthorized.",
+            },
           ]
         },
         {
@@ -1896,6 +2782,20 @@ export const loadMaps = () => p ??= new Promise((ok, fail) => {
               code: "// payment SDK on every page",
               answer: "Call the loader when the user opens checkout, not at app start. Preload on hover to hide latency.",
             },
+            {
+              easy: true,
+              task: "Name a way to load a script once.",
+              description: "Checks cached loader promise.",
+              answer: "Cache the load promise in a module variable.",
+            },
+            {
+              easy: true,
+              task: "Fill in the script attribute for no blocking.",
+              description: "Checks async scripts.",
+              code: `const s = document.createElement("script");
+s.src = url; s.? = true;`,
+              answer: "async, so it does not block parsing.",
+            },
           ],
         },
         {
@@ -1916,6 +2816,20 @@ export const loadMaps = () => p ??= new Promise((ok, fail) => {
               description: "Checks checking message origin.",
               code: "window.addEventListener(\"message\", e => setState(e.data));",
               answer: "Any page can post messages. Check e.origin before trusting e.data.",
+            },
+            {
+              easy: true,
+              task: "Name the API to talk to an iframe.",
+              description: "Checks postMessage.",
+              code: "frame.contentWindow.postMessage(data, origin);",
+              answer: "postMessage, with a checked origin.",
+            },
+            {
+              easy: true,
+              task: "Spot the security gap.",
+              description: "Checks origin check.",
+              code: "window.onmessage = e => apply(e.data);",
+              answer: "It trusts any sender; check e.origin.",
             },
           ]
         }
@@ -1961,6 +2875,19 @@ new ModuleFederationPlugin({ name: "billing", filename: "remoteEntry.js", expose
               code: "// remote uses its own React",
               answer: "\"Invalid hook call\" errors, because hooks look up the dispatcher in a different React copy.",
             },
+            {
+              easy: true,
+              task: "Name why two Reacts break hooks.",
+              description: "Checks duplicate React.",
+              answer: "Hooks rely on one shared React dispatcher.",
+            },
+            {
+              easy: true,
+              task: "Name the Module Federation option to fix it.",
+              description: "Checks singleton.",
+              code: "shared: { react: { singleton: true } }",
+              answer: "singleton: true for react and react-dom.",
+            },
           ]
         },
         {
@@ -1983,6 +2910,18 @@ setInterval(() => { setPrices(p => ({ ...p, ...buf })); buf = {}; }, 250);`,
               code: "const prices = usePrices(); // whole map",
               answer: "Subscribe each row to its own symbol with a store selector, so one update re-renders one row.",
               solution: "const price = usePriceStore(s => s.prices[symbol]);",
+            },
+            {
+              easy: true,
+              task: "Name a way to reduce live update renders.",
+              description: "Checks batching updates.",
+              answer: "Batch updates, e.g. once per animation frame.",
+            },
+            {
+              easy: true,
+              task: "Name a store pattern for live data.",
+              description: "Checks selective subscriptions.",
+              answer: "An external store with selectors, so only affected parts update.",
             },
           ]
         },
@@ -2010,6 +2949,18 @@ setInterval(() => { setPrices(p => ({ ...p, ...buf })); buf = {}; }, 250);`,
               description: "Checks React 19 breaking changes.",
               code: "Comp.propTypes = { ... }; ReactDOM.render(<App />, el);",
               answer: "propTypes checks and ReactDOM.render are removed. Use TypeScript and createRoot; run the official codemods.",
+            },
+            {
+              easy: true,
+              task: "Name a safe first step.",
+              description: "Checks incremental upgrade.",
+              answer: "Upgrade React first, then convert classes slowly.",
+            },
+            {
+              easy: true,
+              task: "True or false: class components still work in React 19.",
+              description: "Checks class support.",
+              answer: "True. Classes are still supported.",
             },
           ]
         }
@@ -2065,6 +3016,20 @@ Card.Footer = function CardFooter({ children }) { return <footer>{children}</foo
   return <label>{label}<input {...rest} /></label>;
 }`,
             },
+            {
+              easy: true,
+              task: "Name a pattern for flexible components.",
+              description: "Checks composition.",
+              code: "<Card><Card.Header /><Card.Body /></Card>",
+              answer: "Composition: accept children or slots instead of many props.",
+            },
+            {
+              easy: true,
+              task: "Name the prop to change the rendered tag.",
+              description: "Checks as prop.",
+              code: "<Button as=\"a\" href=\"/x\" />",
+              answer: "An as prop, like as=\"a\".",
+            },
           ]
         },
         {
@@ -2085,6 +3050,18 @@ Card.Footer = function CardFooter({ children }) { return <footer>{children}</foo
               code: "// tool v0.3, one maintainer, no releases in 8 months",
               answer: "Low maturity and bus factor of one. It may be abandoned; prefer stable tools for core workflows.",
             },
+            {
+              easy: true,
+              task: "Name a low-risk first step.",
+              description: "Checks pilot projects.",
+              answer: "A pilot with one team on a real project.",
+            },
+            {
+              easy: true,
+              task: "True or false: measure success before rollout.",
+              description: "Checks success criteria.",
+              answer: "True. Define metrics first, like build time or bugs.",
+            },
           ]
         },
         {
@@ -2103,6 +3080,19 @@ Card.Footer = function CardFooter({ children }) { return <footer>{children}</foo
               description: "Checks version drift.",
               code: "// app A: react 18, app B: react 19, shared ui uses hooks",
               answer: "Shared packages break across React versions. Align versions with one root version policy and peerDependencies.",
+            },
+            {
+              easy: true,
+              task: "Name a tool for monorepos.",
+              description: "Checks monorepo tools.",
+              answer: "Nx, Turborepo or pnpm workspaces.",
+            },
+            {
+              easy: true,
+              task: "Name where shared UI code lives.",
+              description: "Checks shared packages.",
+              code: "packages/ui  apps/admin  apps/store",
+              answer: "In a shared package, like packages/ui.",
             },
           ]
         }

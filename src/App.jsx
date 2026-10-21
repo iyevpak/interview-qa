@@ -83,6 +83,7 @@ function Exercise({ n, ex }) {
       <Stack direction="row" spacing={1} alignItems="baseline" justifyContent="space-between">
         <Typography sx={{ fontWeight: 600, fontSize: 15 }}>
           <Box component="span" sx={{ fontFamily: fonts.mono, color: C.accent, mr: 1, fontSize: 12 }}>EX{n}</Box>
+          {ex.easy && <Box component="span" sx={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: '.06em', color: C.moss, border: `1px solid ${C.moss}`, borderRadius: .5, px: .5, mr: 1, verticalAlign: 'middle' }}>EASY</Box>}
           <Gloss>{ex.task}</Gloss>
         </Typography>
         <Button size="small" onClick={(e) => { e.stopPropagation(); setShow((v) => !v); }}

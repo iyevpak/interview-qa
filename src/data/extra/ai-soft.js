@@ -34,6 +34,20 @@ if (!answer) throw new Error('No text in response, stop_reason=' + msg.stop_reas
   msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');`),
             ex("Predict what this logs.", "Checks the usage field in responses.", "It logs input and output token counts, for example { input_tokens: 12, output_tokens: 40 }. Log it to track cost.", `const msg = await client.messages.create({ model, max_tokens: 100, messages });
 console.log(msg.usage);`),
+            {
+              easy: true,
+              task: "Predict the type of msg.content.",
+              description: "Checks content is an array.",
+              code: "typeof msg.content; Array.isArray(msg.content)",
+              answer: "\"object\" and true: content is an array of blocks."
+            },
+            {
+              easy: true,
+              task: "Name the field with the text.",
+              description: "Checks text block shape.",
+              code: "{ type: 'text', ???: 'Hi!' }",
+              answer: "text: a text block stores its string in b.text."
+            },
           ],
         },
         {
@@ -48,6 +62,20 @@ Bonus: keeps the model id in config so it is easy to change.`,
           exercises: [
             ex("Pick a model for each feature.", "Checks model trade-offs.", "Haiku for fast tagging, Sonnet for summaries, Opus for hard multi-step reasoning. Confirm with a small eval.", "// a) tag 1M tickets  b) summarize a review  c) deep architecture analysis"),
             ex("Fix the hardcoded model name.", "Checks config hygiene for model ids.", "Read the model id from config so you can change it per feature or environment without code changes.", "await client.messages.create({ model: 'claude-opus-5-5', max_tokens: 50, messages });", "await client.messages.create({ model: config.classifierModel, max_tokens: 50, messages });"),
+            {
+              easy: true,
+              task: "Pick the cheapest fast model family.",
+              description: "Checks model tiers.",
+              code: "Opus, Sonnet, or Haiku?",
+              answer: "Haiku: fastest and cheapest, fine for simple classifying."
+            },
+            {
+              easy: true,
+              task: "True or false: hardcode the model id.",
+              description: "Checks config for model ids.",
+              code: "model: 'claude-haiku-5-5' // in 12 files",
+              answer: "False: keep it in one config so switching is easy."
+            },
           ],
         },
         {
@@ -75,6 +103,20 @@ Red flag: puts secrets in the system prompt and thinks users can never see them.
   messages: [{ role: 'user', content: q }],
 });`),
             ex("Say what goes in system vs the user message.", "Checks separating rules from data.", "Stable rules, role and format go in system. Per-request data like the user question or document goes in the user message."),
+            {
+              easy: true,
+              task: "Name where system goes.",
+              description: "Checks system parameter.",
+              code: "{ model, max_tokens, ???: 'You are terse.', messages }",
+              answer: "A top-level system field, not a message role."
+            },
+            {
+              easy: true,
+              task: "True or false: role 'system' is valid.",
+              description: "Checks message roles.",
+              code: "messages: [{ role: 'system', content: '...' }]",
+              answer: "False: messages accept only user and assistant roles."
+            },
           ],
         },
       ],
@@ -112,6 +154,20 @@ req.on('close', () => stream.abort());
 stream.on('text', (t) => res.write(t));`),
             ex("Name the SDK method that returns the full final message.", "Checks the SDK streaming helpers.", "await stream.finalMessage() gives the full message with usage and stop_reason after the stream ends.", `const stream = client.messages.stream({ model, max_tokens: 1024, messages });
 const msg = await stream./* ? */();`, "const msg = await stream.finalMessage();"),
+            {
+              easy: true,
+              task: "Name the request flag for streaming.",
+              description: "Checks stream option.",
+              code: "client.messages.create({ ..., ???: true })",
+              answer: "stream: true returns server-sent events."
+            },
+            {
+              easy: true,
+              task: "Name the text delta event.",
+              description: "Checks stream events.",
+              code: "event.type === 'content_block_delta'",
+              answer: "It carries new text in event.delta.text."
+            },
           ],
         },
         {
@@ -159,6 +215,20 @@ messages.push({ role: 'user', content: [
   await runTools(r, messages);
 }
 throw new Error('Too many tool steps');`),
+            {
+              easy: true,
+              task: "Name the block you send back.",
+              description: "Checks tool_result.",
+              code: "{ type: '???', tool_use_id, content }",
+              answer: "tool_result, with the matching tool_use_id."
+            },
+            {
+              easy: true,
+              task: "Name the role for tool results.",
+              description: "Checks tool result role.",
+              code: "messages.push({ role: '???', content: [result] })",
+              answer: "user: tool results go in a user message."
+            },
           ],
         },
         {
@@ -180,6 +250,20 @@ Red flag: thinks caching stores answers. It caches the input prefix, not the out
 ],`),
             ex("Spot why the cache never hits.", "Checks that cached prefixes must be identical.", "The timestamp changes the prefix every request, so the cache misses. Move changing data after the cached part.", `system: [{ type: 'text', cache_control: { type: 'ephemeral' },
   text: \`Now: \${new Date().toISOString()}\\n\${LONG_RULES}\` }],`),
+            {
+              easy: true,
+              task: "Name the caching field.",
+              description: "Checks cache_control.",
+              code: "{ type: 'text', text: bigPrompt, ???: { type: 'ephemeral' } }",
+              answer: "cache_control marks the end of the cached prefix."
+            },
+            {
+              easy: true,
+              task: "True or false: changing the prefix keeps the cache.",
+              description: "Checks exact prefix match.",
+              code: "system: `Time: ${Date.now()}\\n` + rules",
+              answer: "False: any change in the prefix misses the cache."
+            },
           ],
         },
       ],
@@ -221,6 +305,20 @@ async function ask(p, attempts = 5) {
   catch (e) { if (![429, 529].includes(e.status)) throw e;
     await sleep(2 ** i * 500 + Math.random() * 250); }
 }`),
+            {
+              easy: true,
+              task: "Name the HTTP code for rate limit.",
+              description: "Checks 429.",
+              code: "res.status === ???",
+              answer: "429: too many requests, retry with backoff."
+            },
+            {
+              easy: true,
+              task: "True or false: retry a 400.",
+              description: "Checks non-retryable errors.",
+              code: "400 invalid_request_error",
+              answer: "False: fix the request; retrying will fail again."
+            },
           ],
         },
         {
@@ -236,6 +334,20 @@ Red flag: "just use a bigger model" with no thought about cost.`,
 // context window: 200k tokens`),
             ex("Write the call to count tokens before sending.", "Checks the token counting endpoint.", "Use client.messages.countTokens with the same model, system and messages. It returns input_tokens.", "// how many input tokens will this request use?", `const { input_tokens } = await client.messages.countTokens({ model, system, messages });
 if (input_tokens > LIMIT) messages = await summarizeOld(messages);`),
+            {
+              easy: true,
+              task: "Name the token-count endpoint method.",
+              description: "Checks countTokens.",
+              code: "await client.messages.???({ model, messages })",
+              answer: "countTokens returns input_tokens before you send."
+            },
+            {
+              easy: true,
+              task: "Name one way to shrink history.",
+              description: "Checks summarizing history.",
+              code: "messages.length === 200",
+              answer: "Summarize old turns into a short recap."
+            },
           ],
         },
         {
@@ -261,6 +373,20 @@ if (input_tokens > LIMIT) messages = await summarizeOld(messages);`),
   { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } },
   { type: 'text', text: 'Summarize.' },
 ]`),
+            {
+              easy: true,
+              task: "Name the block type for images.",
+              description: "Checks image blocks.",
+              code: "{ type: '???', source: { type: 'base64', ... } }",
+              answer: "image, with a base64 or url source."
+            },
+            {
+              easy: true,
+              task: "Name the block type for PDFs.",
+              description: "Checks document blocks.",
+              code: "{ type: '???', source: { media_type: 'application/pdf', ... } }",
+              answer: "document is the block type for PDFs."
+            },
           ],
         },
       ],
@@ -278,6 +404,20 @@ Red flag: no per-feature attribution, so nobody owns cost.`,
 // avg 2,000 input + 500 output tokens per request`),
             ex("Name two controls for team API spend.", "Checks cost guardrails.", "Per-feature budgets with alerts on usage, and separate API keys or workspaces per team. Add caching and model tiering.", `// month 1: $800   month 2: $6,400
 // nobody knows which feature caused it`),
+            {
+              easy: true,
+              task: "Name the usage fields.",
+              description: "Checks token usage.",
+              code: "msg.usage.??? / msg.usage.???",
+              answer: "input_tokens and output_tokens drive the cost."
+            },
+            {
+              easy: true,
+              task: "True or false: output tokens cost more.",
+              description: "Checks pricing basics.",
+              code: "// per-token price: input vs output",
+              answer: "True: output tokens cost more than input tokens."
+            },
           ],
         },
         {
@@ -294,6 +434,20 @@ Red flag: no eval suite at all, so customers find the regressions.`,
             ex("Fix this so a switch is safe.", "Checks feature-flagged model rollout.", "Changing one constant switches everyone at once. Use config or a flag to roll out gradually.", "const MODEL = 'claude-sonnet-5-5'; // just bump it", `const model = flags.isOn('new-model', user)
   ? 'claude-sonnet-5-5'
   : config.currentModel;`),
+            {
+              easy: true,
+              task: "Name what you run before switching.",
+              description: "Checks evals.",
+              code: "// new model released",
+              answer: "Run your eval set on the new model."
+            },
+            {
+              easy: true,
+              task: "True or false: switch all traffic at once.",
+              description: "Checks gradual rollout.",
+              code: "model = NEW for 100% today",
+              answer: "False: roll out gradually and watch metrics."
+            },
           ],
         },
         {
@@ -311,6 +465,20 @@ Red flag: tools that use an admin service account for every user.`,
   return askUserToConfirm(call);
 }`),
             ex("Name two layers for action guardrails.", "Checks defense in depth.", "Server-side permission checks with the user scope, and confirmation for irreversible actions. Plus audit logs."),
+            {
+              easy: true,
+              task: "Spot the missing guardrail.",
+              description: "Checks confirmation for actions.",
+              code: "if (toolName === 'refund') await refund(input.amount);",
+              answer: "No limit or user confirm before money moves."
+            },
+            {
+              easy: true,
+              task: "True or false: the prompt is enough guardrail.",
+              description: "Checks code-level checks.",
+              code: "system: 'Never refund over $100.'",
+              answer: "False: enforce limits in code, not only the prompt."
+            },
           ],
         },
       ],
@@ -328,6 +496,20 @@ Red flag: uses full auto mode on a task they do not understand.`,
           exercises: [
             ex("Pick tasks that need plan mode first.", "Checks when planning pays off.", "The auth refactor and the new feature: multi-file, risky changes. A typo fix does not need a plan.", "// a) fix a typo  b) refactor auth across 12 files  c) add a new checkout step"),
             ex("Name what plan mode stops the agent from doing.", "Checks plan mode behavior.", "It explores and proposes a plan without editing files or running changing commands until you approve."),
+            {
+              easy: true,
+              task: "Name the key that cycles modes.",
+              description: "Checks plan mode toggle.",
+              code: "// Claude Code: switch to plan mode",
+              answer: "Shift+Tab cycles modes, including plan mode."
+            },
+            {
+              easy: true,
+              task: "True or false: plan mode edits files.",
+              description: "Checks plan mode limits.",
+              code: "// plan mode active",
+              answer: "False: it reads and plans but does not edit."
+            },
           ],
         },
         {
@@ -340,6 +522,20 @@ Red flag: approves rm -rf, git push --force or curl piped to sh without thinking
           exercises: [
             ex("Explain what this command does before allowing it.", "Checks reading commands before approving.", "It deletes files in the parent folder and the home folder without asking. Deny it and ask why.", "rm -rf ../* ~/project-old"),
             ex("Name two things to do with a command you do not understand.", "Checks safe approval habits.", "Ask the agent to explain it, and check docs or man pages. Deny if unsure; never approve blindly."),
+            {
+              easy: true,
+              task: "Explain this command.",
+              description: "Checks reading commands.",
+              code: "git clean -fdx",
+              answer: "It deletes all untracked and ignored files."
+            },
+            {
+              easy: true,
+              task: "True or false: approve if unsure.",
+              description: "Checks caution.",
+              code: "Agent asks: run unknown script?",
+              answer: "False: ask the agent to explain it first."
+            },
           ],
         },
         {
@@ -353,6 +549,20 @@ Red flag: commits without reading the diff.`,
             ex("Spot the problem with this agent report.", "Checks verifying agent claims.", "It skipped a test, so \"all pass\" is not real proof. Run the tests yourself and check the diff.", `Agent: "Done! All tests pass."
 diff: + it.skip('handles empty cart', ...)`),
             ex("Name two checks that prove the task is done.", "Checks evidence-based completion.", "Run tests, lint and build yourself, and check the feature in the app against the acceptance criteria."),
+            {
+              easy: true,
+              task: "Name proof the task is done.",
+              description: "Checks evidence.",
+              code: "Agent: \"All done!\"",
+              answer: "Passing tests and a diff you reviewed."
+            },
+            {
+              easy: true,
+              task: "Spot the problem.",
+              description: "Checks skipped tests.",
+              code: "it.skip('saves order', ...)",
+              answer: "The agent skipped a test instead of fixing it."
+            },
           ],
         },
       ],
@@ -371,6 +581,20 @@ Red flag: slow hooks on every tool call that freeze the session.`,
             ex("Say when this hook runs.", "Checks Claude Code hook events.", "PostToolUse runs after the Edit or Write tool, so it formats every edited file automatically.", `{ "hooks": { "PostToolUse": [{ "matcher": "Edit|Write",
   "hooks": [{ "type": "command", "command": "npx prettier --write ." }] }] } }`),
             ex("Name two useful hooks for a team.", "Checks practical hook use cases.", "A PreToolUse hook that blocks edits to .env or lock files, and a PostToolUse hook that runs the formatter."),
+            {
+              easy: true,
+              task: "Name the hook before a tool runs.",
+              description: "Checks PreToolUse.",
+              code: "\"hooks\": { \"???\": [...] }",
+              answer: "PreToolUse runs before a tool call and can block it."
+            },
+            {
+              easy: true,
+              task: "Name the hook after an edit.",
+              description: "Checks PostToolUse.",
+              code: "// run prettier after each file edit",
+              answer: "PostToolUse runs after a tool finishes."
+            },
           ],
         },
         {
@@ -385,6 +609,20 @@ Red flag: no tests or checks between steps.`,
             ex("Split this feature into agent tasks.", "Checks task decomposition.", "API endpoint with tests, then UI form, then wiring and e2e test. Each task is small and testable.", "Feature: users can export their orders to CSV."),
             ex("Improve this task for an agent.", "Checks clear done criteria.", "Add scope, files and a check the agent can run. Vague tasks produce vague results.", "Add CSV export.", `Add GET /api/orders/export returning CSV for the current user.
 Files: orders.controller.ts + test. Done when: npm test passes.`),
+            {
+              easy: true,
+              task: "Split this into tasks.",
+              description: "Checks task splitting.",
+              code: "Feature: CSV export with filters.",
+              answer: "API endpoint, UI button, then tests, one at a time."
+            },
+            {
+              easy: true,
+              task: "True or false: one big task is best.",
+              description: "Checks small tasks.",
+              code: "\"Build the whole feature.\"",
+              answer: "False: small tasks are easier to check."
+            },
           ],
         },
         {
@@ -400,6 +638,20 @@ Files: orders.controller.ts + test. Done when: npm test passes.`),
             ex("Name when to write a custom slash command.", "Checks reusable prompts.", "When the team repeats the same prompt often, like \"review this PR with our checklist\". Save it as a command file."),
             ex("Say where this project command lives and how to run it.", "Checks custom command location.", "Project commands live in .claude/commands/. This file runs as /review in Claude Code.", `# .claude/commands/review.md
 Review the current diff for bugs and missing tests.`),
+            {
+              easy: true,
+              task: "Name the custom command folder.",
+              description: "Checks command location.",
+              code: ".claude/???/deploy.md",
+              answer: "commands: run it as /deploy."
+            },
+            {
+              easy: true,
+              task: "Name the skill file.",
+              description: "Checks skill structure.",
+              code: ".claude/skills/review/???",
+              answer: "SKILL.md holds the skill's instructions."
+            },
           ],
         },
       ],
@@ -416,6 +668,20 @@ Review the current diff for bugs and missing tests.`),
           exercises: [
             ex("Pick the tasks you would do yourself.", "Checks judgment on agent delegation.", "The one-line fix and the production incident: faster by hand, or too risky. The test boilerplate suits an agent.", "// a) one-line typo  b) write 20 similar unit tests  c) live prod incident"),
             ex("Name two signs a task is wrong for an agent.", "Checks limits of agent usefulness.", "Unclear requirements that need human decisions, and no way to verify the result with tests."),
+            {
+              easy: true,
+              task: "Pick the task to do yourself.",
+              description: "Checks agent fit.",
+              code: "A) rename var  B) tricky security fix",
+              answer: "B: high-risk, subtle work needs your own care."
+            },
+            {
+              easy: true,
+              task: "True or false: agents suit vague tasks.",
+              description: "Checks clear requirements.",
+              code: "\"Make it better somehow.\"",
+              answer: "False: vague goals give random results."
+            },
           ],
         },
         {
@@ -429,6 +695,20 @@ Red flag: auto-merging agent branches without review.`,
             ex("Name the git feature that isolates parallel agents.", "Checks parallel agent setup.", "git worktree gives each agent its own folder and branch, so their edits do not clash.", "git worktree add ../app-auth -b feature/auth"),
             ex("Spot the conflict risk.", "Checks task overlap between agents.", "Both agents edit the same file, so their changes will conflict. Split work by area or run them in sequence.", `Agent A: add validation to UserForm.tsx
 Agent B: restyle UserForm.tsx`),
+            {
+              easy: true,
+              task: "Name the git command for parallel work.",
+              description: "Checks worktrees.",
+              code: "git ??? add ../feature-b",
+              answer: "git worktree gives each agent its own folder."
+            },
+            {
+              easy: true,
+              task: "Spot the conflict risk.",
+              description: "Checks shared files.",
+              code: "Agent A and B both edit package.json",
+              answer: "Both change one file, so their edits conflict."
+            },
           ],
         },
         {
@@ -442,6 +722,21 @@ Red flag: lets it "fix" the problem by deleting or skipping the test.`,
             ex("Name two ways to break a fix-fail loop.", "Checks recovering a stuck agent.", "Stop it and ask it to explain the root cause first, or start a fresh session with a clearer task and hints."),
             ex("Spot the bad fix.", "Checks agents gaming tests.", "The agent changed the test to match the bug. Reject it and make it fix the code instead.", `- expect(total(cart)).toBe(30);
 + expect(total(cart)).toBe(25);`),
+            {
+              easy: true,
+              task: "Name a way to break the loop.",
+              description: "Checks resetting context.",
+              code: "Fix, fail, fix, fail...",
+              answer: "Stop, clear context, and give a new plan."
+            },
+            {
+              easy: true,
+              task: "Spot the bad fix.",
+              description: "Checks test tampering.",
+              code: `- expect(sum(2,2)).toBe(4)
++ expect(sum(2,2)).toBe(5)`,
+              answer: "It changed the test to match the bug."
+            },
           ],
         },
       ],
@@ -460,6 +755,20 @@ Red flag: lets it "fix" the problem by deleting or skipping the test.`,
   "env": { "GITHUB_TOKEN": "ghp_realTokenHere" } } } }`, `{ "mcpServers": { "github": { "command": "github-mcp",
   "env": { "GITHUB_TOKEN": "\${GITHUB_TOKEN}" } } } }`),
             ex("Name two checks before approving an MCP server.", "Checks MCP supply-chain review.", "Trusted source with a pinned version, and minimal scopes for its token. Review which tools it exposes."),
+            {
+              easy: true,
+              task: "Name the shared MCP config file.",
+              description: "Checks project MCP config.",
+              code: "project-root/???",
+              answer: ".mcp.json in the repo root."
+            },
+            {
+              easy: true,
+              task: "Spot the problem.",
+              description: "Checks secrets in config.",
+              code: "\"env\": { \"TOKEN\": \"ghp_abc123\" }",
+              answer: "A real token is committed; use an env var."
+            },
           ],
         },
         {
@@ -472,6 +781,20 @@ Red flag: using the metrics to rank individuals.`,
           exercises: [
             ex("Name two metrics for agent value.", "Checks outcome-based metrics.", "Cycle time from ticket to merge, and defect or revert rate. Pair with developer surveys."),
             ex("Spot the problem with this goal.", "Checks vanity metrics.", "Agent sessions show usage, not value. Measure delivery speed and quality instead.", "OKR: every engineer runs 20+ agent sessions per week."),
+            {
+              easy: true,
+              task: "Spot the bad metric.",
+              description: "Checks vanity metrics.",
+              code: "Goal: 100 agent sessions per week",
+              answer: "Usage is not value; measure cycle time and bugs."
+            },
+            {
+              easy: true,
+              task: "Name a good metric.",
+              description: "Checks outcome metrics.",
+              code: "// does the agent help?",
+              answer: "Lead time from ticket to merged PR."
+            },
           ],
         },
         {
@@ -485,6 +808,20 @@ Red flag: the agent can read deploy credentials while it processes public issues
             ex("Spot the risk in this CI job.", "Checks unsupervised agent permissions.", "The agent can push straight to main with no review. Let it open a PR instead.", `- run: claude -p "fix lint errors" --dangerously-skip-permissions
 - run: git push origin main`),
             ex("Name two rules for agents in CI.", "Checks CI agent guardrails.", "Least-privilege tokens with no secrets, and output only as a PR that a human approves."),
+            {
+              easy: true,
+              task: "Spot the CI risk.",
+              description: "Checks unattended permissions.",
+              code: "claude -p \"fix it\" --dangerously-skip-permissions",
+              answer: "No checks, so any command can run in CI."
+            },
+            {
+              easy: true,
+              task: "True or false: CI agents may push to main.",
+              description: "Checks PR gates.",
+              code: "agent: git push origin main",
+              answer: "False: agents should open PRs for review."
+            },
           ],
         },
       ],
@@ -501,6 +838,20 @@ Red flag: installs a package with install scripts from an unknown author.`,
           exercises: [
             ex("Name three things to check about a new package.", "Checks dependency vetting.", "It exists with the exact name, it is maintained with real downloads, and its license and advisories are fine."),
             ex("Spot the risk in this AI suggestion.", "Checks typosquatting and hallucinated packages.", "The name is close to a real package and may be fake or malicious. Check npm before installing.", "npm install react-dom-utilz"),
+            {
+              easy: true,
+              task: "Name one package check.",
+              description: "Checks package trust.",
+              code: "npm i super-fast-json-x",
+              answer: "Check downloads, maintainers, and that it exists."
+            },
+            {
+              easy: true,
+              task: "Name this attack.",
+              description: "Checks slopsquatting.",
+              code: "AI suggests a package that does not exist.",
+              answer: "Slopsquatting: attackers register hallucinated names."
+            },
           ],
         },
         {
@@ -533,6 +884,20 @@ const user = await res.json();`),
 }, []);`, `useEffect(() => {
   getUser().then(setUser);
 }, []);`),
+            {
+              easy: true,
+              task: "Spot the missing check.",
+              description: "Checks fetch errors.",
+              code: "const data = await (await fetch(url)).json();",
+              answer: "No res.ok check, so HTTP errors are missed."
+            },
+            {
+              easy: true,
+              task: "Name the stale-response fix.",
+              description: "Checks AbortController.",
+              code: "useEffect(() => { fetch(url) }, [url]);",
+              answer: "Abort with AbortController in the cleanup."
+            },
           ],
         },
         {
@@ -546,6 +911,20 @@ Red flag: cannot explain the code they committed.`,
             ex("Improve this learning prompt.", "Checks using AI to learn, not copy.", "Ask for an explanation and a small example you will type yourself. Then check the docs.", "Write the whole TanStack Query setup for my app.", `Explain how useQuery caching works, with one small example.
 Then give me a short exercise to try myself.`),
             ex("Name two ways to check AI explanations of a library.", "Checks verification habits.", "Read the official docs for the version you use, and run a small example to test the claim."),
+            {
+              easy: true,
+              task: "Improve this prompt.",
+              description: "Checks learning prompts.",
+              code: "\"Write me a Zod schema.\"",
+              answer: "Ask it to explain each line, then try yourself."
+            },
+            {
+              easy: true,
+              task: "Name a source to check AI.",
+              description: "Checks official docs.",
+              code: "AI explains a library API.",
+              answer: "The library's official docs."
+            },
           ],
         },
       ],
@@ -568,6 +947,20 @@ Red flag: does not know which array methods mutate.`,
   [items, filter],
 );`),
             ex("Say if this useMemo is worth it.", "Checks unnecessary memoization.", "No. Adding two numbers is cheaper than the memo bookkeeping. Memo only expensive work or for stable references.", "const total = useMemo(() => a + b, [a, b]);"),
+            {
+              easy: true,
+              task: "Predict if memo updates.",
+              description: "Checks memo deps.",
+              code: "useMemo(() => filter(list, q), [list]);",
+              answer: "Not when q changes: q is missing from deps."
+            },
+            {
+              easy: true,
+              task: "True or false: memo everything.",
+              description: "Checks memo cost.",
+              code: "useMemo(() => a + b, [a, b]);",
+              answer: "False: cheap math does not need memo."
+            },
           ],
         },
         {
@@ -583,6 +976,20 @@ Red flag: does not know which array methods mutate.`,
             ex("Predict if these two calls return the same text.", "Checks LLM non-determinism.", "Not guaranteed. Outputs can vary between runs, so validate results instead of expecting identical text.", `const a = await ask('Name a sorting algorithm.');
 const b = await ask('Name a sorting algorithm.');
 console.log(a === b);`),
+            {
+              easy: true,
+              task: "Name the param for less randomness.",
+              description: "Checks temperature.",
+              code: "{ ..., ???: 0 }",
+              answer: "temperature: lower means more consistent output."
+            },
+            {
+              easy: true,
+              task: "True or false: temperature 0 is fully stable.",
+              description: "Checks determinism.",
+              code: "temperature: 0, same prompt twice",
+              answer: "False: output can still differ slightly."
+            },
           ],
         },
         {
@@ -608,6 +1015,20 @@ Red flag: tests with no real assertions.`,
   expect(calcTax(100)).toBe(20);
 });`),
             ex("Name one quick way to prove tests catch bugs.", "Checks mutation-style test validation.", "Break the code on purpose and see if a test fails. Mutation testing tools automate this."),
+            {
+              easy: true,
+              task: "Spot the weak test.",
+              description: "Checks assertions.",
+              code: "it('works', () => { render(<App />); });",
+              answer: "It asserts nothing, so it always passes."
+            },
+            {
+              easy: true,
+              task: "Name a way to test tests.",
+              description: "Checks mutation testing.",
+              code: "// break the code on purpose",
+              answer: "Break the code: good tests should fail."
+            },
           ],
         },
       ],
@@ -626,6 +1047,20 @@ const groups = Object.groupBy(data, (x) => x.type);`,
             ex("Say why you would reject this one-liner.", "Checks readability over cleverness.", "It is hard to read and debug. A short clear loop or named steps is easier to maintain.", "const r = s.split('').reduce((a, c) => ((a[c] = -~a[c]), a), {});", `const counts = {};
 for (const ch of s) counts[ch] = (counts[ch] ?? 0) + 1;`),
             ex("Spot the subtle bug in this one-liner.", "Checks sort comparator defaults.", "Default sort compares strings, so [10, 9, 1] becomes [1, 10, 9]. Pass a numeric comparator.", "const sorted = nums.sort();", "const sorted = [...nums].sort((a, b) => a - b);"),
+            {
+              easy: true,
+              task: "Spot the bug.",
+              description: "Checks falsy zero.",
+              code: "const qty = input.qty || 1;",
+              answer: "qty 0 becomes 1; use ?? instead."
+            },
+            {
+              easy: true,
+              task: "True or false: shorter is always better.",
+              description: "Checks readability.",
+              code: "// one clever regex line",
+              answer: "False: clear code beats short code."
+            },
           ],
         },
         {
@@ -641,6 +1076,20 @@ Red flag: a big rewrite with no safety net.`,
   expect(fmt(5)).toBe('5');
   expect(fmt(1500)).toBe('1.5k');
 });`),
+            {
+              easy: true,
+              task: "Name the first test type.",
+              description: "Checks characterization tests.",
+              code: "// legacy code, no tests",
+              answer: "Characterization tests that lock current behavior."
+            },
+            {
+              easy: true,
+              task: "True or false: refactor first, test later.",
+              description: "Checks safety net.",
+              code: "Legacy code with no tests.",
+              answer: "False: add tests first, then refactor."
+            },
           ],
         },
         {
@@ -664,6 +1113,20 @@ Red flag: thinks blocking "<script>" is enough.`,
 el.innerHTML = clean;`, `el.textContent = input;
 // or, if HTML is needed: el.innerHTML = DOMPurify.sanitize(input);`),
             ex("Fix the React code.", "Checks dangerouslySetInnerHTML risk.", "Rendering raw user HTML allows XSS. Render it as text, or sanitize first.", "<div dangerouslySetInnerHTML={{ __html: comment }} />", "<div>{comment}</div>"),
+            {
+              easy: true,
+              task: "Spot the XSS.",
+              description: "Checks dangerouslySetInnerHTML.",
+              code: "<div dangerouslySetInnerHTML={{ __html: comment }} />",
+              answer: "Raw user HTML runs scripts; sanitize or render text."
+            },
+            {
+              easy: true,
+              task: "Name a sanitizer library.",
+              description: "Checks DOMPurify.",
+              code: "const clean = ???.sanitize(html);",
+              answer: "DOMPurify removes dangerous HTML."
+            },
           ],
         },
       ],
@@ -678,6 +1141,20 @@ Red flag: lowering review standards to keep up.`,
           exercises: [
             ex("Name two quality gates for AI-heavy teams.", "Checks scaling review and checks.", "Required CI with tests, types and lint, and small PRs with an author who can explain them."),
             ex("Spot the process problem.", "Checks review capacity limits.", "PR size grew while review time fell, so reviews are rubber stamps. Cap PR size.", "Avg PR: 120 -> 900 lines. Avg review time: 20 -> 5 min."),
+            {
+              easy: true,
+              task: "Name a quality gate.",
+              description: "Checks CI gates.",
+              code: "// more AI code per week",
+              answer: "Required tests and lint in CI before merge."
+            },
+            {
+              easy: true,
+              task: "True or false: bigger PRs are fine.",
+              description: "Checks PR size.",
+              code: "AI writes 2,000-line PRs.",
+              answer: "False: keep PRs small for real review."
+            },
           ],
         },
         {
@@ -691,6 +1168,20 @@ Red flag: no check on where code is sent and stored.`,
             ex("Name three criteria for choosing an AI coding tool.", "Checks tool evaluation.", "Data and security terms, admin controls like SSO and audit logs, and measured value in a pilot."),
             ex("Fix this tool selection plan.", "Checks piloting before buying.", "Pick with evidence: a time-boxed pilot on real tasks with set metrics, then decide.", "Plan: buy the tool with the best demo for all 200 devs.", `Plan: 4-week pilot, 2 tools, 15 devs, real tickets.
 Measure cycle time, defects, survey. Then decide.`),
+            {
+              easy: true,
+              task: "Name one selection criterion.",
+              description: "Checks tool choice.",
+              code: "Choosing an AI coding tool.",
+              answer: "Data privacy: no training on our code."
+            },
+            {
+              easy: true,
+              task: "Spot the bad plan.",
+              description: "Checks pilot testing.",
+              code: "Buy for 500 devs after one demo.",
+              answer: "No pilot; test with a small team first."
+            },
           ],
         },
         {
@@ -704,6 +1195,20 @@ Measure cycle time, defects, survey. Then decide.`),
           exercises: [
             ex("Name two ways to enforce a no-AI client contract.", "Checks policy enforcement.", "Turn off AI tools for that repo through admin settings, and brief the team in writing. Audit it."),
             ex("Spot the contract violation.", "Checks hidden data flows to AI.", "The IDE plugin sends client code to a third-party AI service. Disable it for that workspace.", "Client repo open in IDE with AI autocomplete enabled (cloud model)."),
+            {
+              easy: true,
+              task: "Spot the violation.",
+              description: "Checks contract rules.",
+              code: "Dev pastes client code into ChatGPT.",
+              answer: "Client code was sent to a third-party AI."
+            },
+            {
+              easy: true,
+              task: "Name an enforcement way.",
+              description: "Checks tool blocking.",
+              code: "Client bans third-party AI.",
+              answer: "Disable AI tools for that repo by policy."
+            },
           ],
         },
       ],
@@ -721,6 +1226,20 @@ Red flag: changes code only to make the bot quiet.`,
             ex("Name how you prove the AI comment is wrong.", "Checks evidence over opinion.", "Write a test for the case it describes. If the test passes, reply with it and resolve."),
             ex("Decide if this AI comment is right.", "Checks verifying AI review claims.", "Wrong. ?? only falls back on null or undefined, so 0 is kept. Reply with that reason.", `const qty = input ?? 1;
 // AI: "Bug: qty becomes 1 when input is 0."`),
+            {
+              easy: true,
+              task: "Prove the AI wrong.",
+              description: "Checks testing claims.",
+              code: "AI: \"this crashes on empty array\"",
+              answer: "Write a quick test with an empty array."
+            },
+            {
+              easy: true,
+              task: "True or false: AI is always right.",
+              description: "Checks verification.",
+              code: "AI flags a bug.",
+              answer: "False: verify before you change code."
+            },
           ],
         },
         {
@@ -740,6 +1259,20 @@ setLoading(false);`, `setLoading(true);
 try { setData(await load()); }
 catch (e) { setError(e); }
 finally { setLoading(false); }`),
+            {
+              easy: true,
+              task: "Make this comment useful.",
+              description: "Checks specific comments.",
+              code: "\"Consider adding error handling.\"",
+              answer: "Name which call can fail and what to do."
+            },
+            {
+              easy: true,
+              task: "Add the missing handling.",
+              description: "Checks try/catch.",
+              code: "const user = await getUser(id);",
+              answer: "Wrap in try/catch and show an error."
+            },
           ],
         },
         {
@@ -754,6 +1287,20 @@ finally { setLoading(false); }`),
             ex("Improve this self-review prompt.", "Checks focused review prompts.", "Give the goal, the diff and what to look for. A focused prompt gives useful findings.", "Review my code.", `Review this diff for a login form. Look for bugs, missing
 error states and accessibility issues. List by severity.`),
             ex("Name two limits of AI self-review.", "Checks realistic self-review expectations.", "It does not know the requirements, and it can miss or invent issues. Still run tests and get human review."),
+            {
+              easy: true,
+              task: "Improve the self-review prompt.",
+              description: "Checks focused prompts.",
+              code: "\"Review my code.\"",
+              answer: "Ask for bugs, edge cases, and security."
+            },
+            {
+              easy: true,
+              task: "Name an AI self-review limit.",
+              description: "Checks missing context.",
+              code: "// AI sees only this file",
+              answer: "It does not know the business rules."
+            },
           ],
         },
       ],
@@ -773,6 +1320,21 @@ error states and accessibility issues. List by severity.`),
 + export const fmt = (n, currency) => ...
 // unchanged: 14 callers use fmt(price)`),
             ex("Name two bug types a diff-only reviewer misses.", "Checks limits of local review.", "Broken callers in unchanged files, and business rules or design problems outside the diff."),
+            {
+              easy: true,
+              task: "Spot the hidden bug.",
+              description: "Checks caller impact.",
+              code: `- function get(id)
++ function get(id, opts)  // opts required`,
+              answer: "Old callers not in the diff now break."
+            },
+            {
+              easy: true,
+              task: "Name a diff-only blind spot.",
+              description: "Checks cross-file bugs.",
+              code: "// reviewer sees changed lines only",
+              answer: "Broken callers in other files."
+            },
           ],
         },
         {
@@ -786,6 +1348,20 @@ Red flag: no way to tune or reduce noise.`,
             ex("Improve this reviewer prompt.", "Checks scope and output format.", "Set focus, skip style handled by linters, and ask for severity with a clear format.", "You are a code reviewer. Review the PR.", `Review for bugs, security and missing tests only. Skip style.
 For each issue: file:line, severity, one-line fix. Max 10.`),
             ex("Name two context items to give an AI reviewer.", "Checks review context.", "The ticket or acceptance criteria, and team conventions like a short guidelines file."),
+            {
+              easy: true,
+              task: "Improve this reviewer prompt.",
+              description: "Checks prompt context.",
+              code: "\"Find issues.\"",
+              answer: "Add stack, rules, and severity levels."
+            },
+            {
+              easy: true,
+              task: "Name one context item.",
+              description: "Checks reviewer inputs.",
+              code: "// what to give the AI reviewer",
+              answer: "The team's coding rules."
+            },
           ],
         },
         {
@@ -799,6 +1375,20 @@ Red flag: ignores it without any note.`,
             ex("Reply to this AI comment in one sentence.", "Checks keeping PR scope small.", "Thank it, keep this PR focused on the fix, and open a separate ticket for the refactor.", `PR: fix null check (3 lines).
 AI: "Rewrite this module with a state machine."`),
             ex("Name the main risk of mixing refactor into a bug fix.", "Checks review and rollback risk.", "It is harder to review and roll back. A small fix ships safely; the refactor can wait."),
+            {
+              easy: true,
+              task: "Reply to the refactor comment.",
+              description: "Checks scope control.",
+              code: "AI: \"Refactor this whole module.\"",
+              answer: "Thanks; out of scope, I will open a ticket."
+            },
+            {
+              easy: true,
+              task: "True or false: mix refactor and fix.",
+              description: "Checks small PRs.",
+              code: "Bug fix PR + big refactor.",
+              answer: "False: it hides the fix and adds risk."
+            },
           ],
         },
       ],
@@ -832,6 +1422,21 @@ Red flag: does not understand function identity.`,
 window.removeEventListener('scroll', this.onScroll.bind(this));`, `this.handler = this.onScroll.bind(this);
 window.addEventListener('scroll', this.handler);
 window.removeEventListener('scroll', this.handler);`),
+            {
+              easy: true,
+              task: "Spot the leak.",
+              description: "Checks timer cleanup.",
+              code: "useEffect(() => { setInterval(poll, 5000); }, []);",
+              answer: "The interval is never cleared on unmount."
+            },
+            {
+              easy: true,
+              task: "Predict if removal works.",
+              description: "Checks listener identity.",
+              code: `addEventListener('x', () => f());
+removeEventListener('x', () => f());`,
+              answer: "No: they are different functions."
+            },
           ],
         },
         {
@@ -846,6 +1451,21 @@ window.removeEventListener('scroll', this.handler);`),
             ex("Name two rules to stop blind AI fixes.", "Checks process against rubber-stamping.", "Every applied suggestion needs a test or a reason in the commit, and humans still review the final diff."),
             ex("Spot the bug the AI suggestion added.", "Checks verifying applied suggestions.", "The suggestion uses ||, so a valid 0 discount becomes 10. ?? was correct before.", `- const discount = input ?? 10;
 + const discount = input || 10; // AI: "simpler"`),
+            {
+              easy: true,
+              task: "Name one rule.",
+              description: "Checks understanding AI fixes.",
+              code: "Dev applies AI fixes blindly.",
+              answer: "Author must explain each applied change."
+            },
+            {
+              easy: true,
+              task: "Spot the added bug.",
+              description: "Checks AI suggestion side effects.",
+              code: `- arr.sort((a,b) => a - b)
++ arr.sort()`,
+              answer: "sort() compares as strings, so 10 comes before 9."
+            },
           ],
         },
         {
@@ -859,6 +1479,20 @@ Red flag: cannot tell safe queries from unsafe ones.`,
           exercises: [
             ex("Decide if this is SQL injection.", "Checks parameterized queries.", "No. The value is passed as a parameter, not concatenated, so the driver escapes it. The AI is wrong.", "await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);"),
             ex("Fix the real SQL injection.", "Checks string-built SQL.", "User input is put straight into SQL. Use a parameter placeholder.", "await db.query(`SELECT * FROM users WHERE name = '${req.query.name}'`);", "await db.query('SELECT * FROM users WHERE name = $1', [req.query.name]);"),
+            {
+              easy: true,
+              task: "Decide: injection or not?",
+              description: "Checks parameterized queries.",
+              code: "db.query('SELECT * FROM u WHERE id = $1', [id]);",
+              answer: "Not injection: the value is a bound parameter."
+            },
+            {
+              easy: true,
+              task: "Spot the real injection.",
+              description: "Checks string concatenation.",
+              code: "db.query(`SELECT * FROM u WHERE name = '${name}'`);",
+              answer: "User input goes straight into SQL."
+            },
           ],
         },
       ],
@@ -877,6 +1511,20 @@ Red flag: no data on whether it is useful.`,
   max_comments: unlimited`, `ai_review:
   min_severity: high
   max_comments: 5`),
+            {
+              easy: true,
+              task: "Name a noise fix.",
+              description: "Checks severity threshold.",
+              code: "// 50 AI comments per PR",
+              answer: "Post only high-severity issues."
+            },
+            {
+              easy: true,
+              task: "True or false: more comments help.",
+              description: "Checks signal vs noise.",
+              code: "Bot comments on every line.",
+              answer: "False: people ignore noisy bots."
+            },
           ],
         },
         {
@@ -889,6 +1537,20 @@ Red flag: nothing changes after the incident.`,
           exercises: [
             ex("Name who owns an AI-reviewed change.", "Checks accountability.", "The author and human approvers own it. The AI is a tool, like a linter."),
             ex("Name two follow-ups after the incident.", "Checks blameless postmortem actions.", "A blameless postmortem, and a test or check that would have caught the bug. Adjust the review process."),
+            {
+              easy: true,
+              task: "Name the owner.",
+              description: "Checks accountability.",
+              code: "AI-reviewed PR broke prod.",
+              answer: "The author and human reviewers own the change."
+            },
+            {
+              easy: true,
+              task: "Name a follow-up.",
+              description: "Checks blameless postmortem.",
+              code: "Incident after AI review.",
+              answer: "A blameless postmortem with action items."
+            },
           ],
         },
         {
@@ -903,6 +1565,20 @@ Red flag: nothing changes after the incident.`,
             ex("Name two steps to build trust in an AI reviewer.", "Checks gradual adoption.", "Start advisory on a few volunteer repos, and share accepted-comment stats openly. Let teams opt out."),
             ex("Fix this rollout plan.", "Checks piloting before mandates.", "Forcing a blocking bot on everyone kills trust. Pilot it as advisory first.", "Week 1: AI review required and blocking on all repos.", `Weeks 1-4: advisory on 3 volunteer repos.
 Review accepted-comment rate, then expand.`),
+            {
+              easy: true,
+              task: "Name a trust step.",
+              description: "Checks gradual rollout.",
+              code: "Team does not trust the AI bot.",
+              answer: "Start in advisory mode on a few repos."
+            },
+            {
+              easy: true,
+              task: "True or false: force it on everyone.",
+              description: "Checks opt-in rollout.",
+              code: "Day one: AI review required.",
+              answer: "False: earn trust with useful results first."
+            },
           ],
         },
       ],
@@ -928,6 +1604,20 @@ Where are CI env vars set?"`),
             ex('Tell me you will miss today\'s small deadline.', 'Checks early warning with a new plan.', 'Strong: tells early, short reason, new time, an option. Red flag: says nothing until asked.', 'You promised a fix today. At 3 PM you found a deeper issue.',
               `"The bug is in the shared date helper, so it is bigger.
 I need until noon tomorrow. I can ship a small workaround today."`),
+            {
+              easy: true,
+              task: "Ask for help clearly.",
+              description: "Checks a good help request.",
+              code: "CI fails and you are stuck.",
+              answer: "Share the error, what you tried, and your guess."
+            },
+            {
+              easy: true,
+              task: "Spot the weak request.",
+              description: "Checks specific asks.",
+              code: "\"Hey, it doesn't work, help?\"",
+              answer: "No details; say what fails and the error."
+            },
           ],
         },
         {
@@ -946,6 +1636,20 @@ Blocker: Maria, need the empty state design."`),
             ex('Make this standup update shorter.', 'Checks cutting details to what matters.', 'Strong: result, next step, blocker in two sentences. Red flag: keeps every detail.', '"So I looked at the thing, maybe the API is slow, I tried caching..."',
               `"The orders API is slow, caching did not help.
 Today I measure it with backend. No blockers."`),
+            {
+              easy: true,
+              task: "Give a short update.",
+              description: "Checks standup format.",
+              code: "Daily standup, your turn.",
+              answer: "Yesterday, today, and any blocker, in 30 seconds."
+            },
+            {
+              easy: true,
+              task: "True or false: debug in standup.",
+              description: "Checks standup scope.",
+              code: "Long tech talk in standup.",
+              answer: "False: take details offline after standup."
+            },
           ],
         },
         {
@@ -964,6 +1668,20 @@ I need it by tomorrow to finish."`),
             ex('Write one message instead of five short ones.', 'Checks grouping thoughts before sending.', 'Strong: one message with the problem, link and question. Red flag: many pings.', 'You sent: "hi" / "the build" / "fails" / "on main" / "any idea?"',
               `"The main build fails since 10:00 on the lint step (link).
 Did anyone change the ESLint config?"`),
+            {
+              easy: true,
+              task: "Improve this chat message.",
+              description: "Checks complete messages.",
+              code: "\"hi\" (then waits)",
+              answer: "Ask your full question in one message."
+            },
+            {
+              easy: true,
+              task: "Name what to include.",
+              description: "Checks actionable asks.",
+              code: "Asking a teammate for a decision.",
+              answer: "The question, context, and when you need it."
+            },
           ],
         },
       ],
@@ -982,6 +1700,20 @@ Did anyone change the ESLint config?"`),
               '"I don\'t know. I will check analytics and post it here by 3 PM."'),
             ex('Correct a wrong answer you gave earlier.', 'Checks fixing a mistake openly.', 'Strong: corrects quickly in the same channel. Red flag: hopes nobody notices.', 'You said "about 10%". Analytics shows 2%.',
               '"Correction: Safari 15 is 2%, not 10%. Sorry for the confusion."'),
+            {
+              easy: true,
+              task: "Say \"I do not know\" well.",
+              description: "Checks honest uncertainty.",
+              code: "Asked a question you cannot answer.",
+              answer: "Say you do not know and when you will find out."
+            },
+            {
+              easy: true,
+              task: "True or false: guess to look smart.",
+              description: "Checks honesty.",
+              code: "Meeting question you are unsure of.",
+              answer: "False: a wrong guess hurts trust more."
+            },
           ],
         },
         {
@@ -997,6 +1729,20 @@ Red flag: interrupts people rudely.`,
               `"Good topic, but let's park it.
 We need the release date in 10 minutes."`),
             ex('Suggest a fix for meetings that always go off topic.', 'Checks fixing the process.', 'Strong: agenda before, timebox per item, parking list, notes. Red flag: just leaving early.', 'Weekly sync runs 30 minutes over every time.'),
+            {
+              easy: true,
+              task: "Bring the meeting back.",
+              description: "Checks steering politely.",
+              code: "Meeting drifts to an unrelated topic.",
+              answer: "Note it for later and return to the agenda."
+            },
+            {
+              easy: true,
+              task: "Name a prevention.",
+              description: "Checks agendas.",
+              code: "Meetings often go off topic.",
+              answer: "Share an agenda with a clear goal."
+            },
           ],
         },
         {
@@ -1014,6 +1760,20 @@ Can we talk then so I understand what happened?"`),
             ex('Give private feedback about the public comment.', 'Checks addressing tone without drama.', 'Strong: "I" message, the impact, a request. Red flag: attacking them back.', 'Later, you talk with that teammate alone.',
               `"I want to fix staging, that is fair.
 In standup it felt like blame. Next time, can you message me first?"`),
+            {
+              easy: true,
+              task: "Respond to public harsh feedback.",
+              description: "Checks calm response.",
+              code: "A peer mocks your code in the meeting.",
+              answer: "Stay calm, thank them, and talk privately later."
+            },
+            {
+              easy: true,
+              task: "Name where to discuss it.",
+              description: "Checks private follow-up.",
+              code: "You felt hurt by the comment.",
+              answer: "In a private 1:1, not in public."
+            },
           ],
         },
       ],
@@ -1034,6 +1794,20 @@ Ask: feedback by Friday.`),
             ex('Answer a strong objection to your proposal.', 'Checks responding to pushback with care.', 'Strong: accepts the concern, gives a mitigation, offers a trial. Red flag: dismissing it.', 'A senior: "Tailwind makes HTML unreadable."',
               `"Fair. We can use components to hide long classes.
 Can we try it on one page and review?"`),
+            {
+              easy: true,
+              task: "Write the proposal's first line.",
+              description: "Checks lead-with-problem.",
+              code: "Proposal to adopt TypeScript.",
+              answer: "State the problem and the ask first."
+            },
+            {
+              easy: true,
+              task: "Name a section to include.",
+              description: "Checks alternatives.",
+              code: "Technical proposal outline.",
+              answer: "Alternatives considered and why rejected."
+            },
           ],
         },
         {
@@ -1051,6 +1825,20 @@ We can share a spreadsheet now and build it next sprint. Would that work?"`),
             ex('Write a follow-up after saying no.', 'Checks keeping the relationship after a no.', 'Strong: confirms the plan in writing with a date. Red flag: no follow-up.', 'The VP accepted the next-sprint option.',
               `"Thanks! Plan: spreadsheet today, dashboard in sprint 14.
 I will show a draft on the 12th."`),
+            {
+              easy: true,
+              task: "Say no to a VP.",
+              description: "Checks firm, respectful no.",
+              code: "VP wants a feature this sprint.",
+              answer: "Say no clearly, give reasons, offer an option."
+            },
+            {
+              easy: true,
+              task: "True or false: always say yes to leaders.",
+              description: "Checks honest pushback.",
+              code: "VP asks for the impossible.",
+              answer: "False: an honest no protects the plan."
+            },
           ],
         },
         {
@@ -1068,6 +1856,20 @@ Investigating, owner: me. Next update 14:30."`),
             ex('Tell support what to say to customers.', 'Checks simple external messaging.', 'Strong: simple, honest, no blame, next update. Red flag: technical details or promises.', 'Support asks what to tell angry customers.',
               `"We know about the checkout problem and are fixing it.
 Please try again in 30 minutes. We will update you."`),
+            {
+              easy: true,
+              task: "Post the first update.",
+              description: "Checks incident comms.",
+              code: "Login is down for all users.",
+              answer: "Say impact, that we are on it, next update time."
+            },
+            {
+              easy: true,
+              task: "Name the update rhythm.",
+              description: "Checks regular updates.",
+              code: "During an incident.",
+              answer: "Fixed intervals, like every 30 minutes."
+            },
           ],
         },
       ],
@@ -1087,6 +1889,20 @@ or they cannot renew. That is 30% of revenue."`),
             ex('Check that the team understood the reason.', 'Checks two-way communication of priorities.', 'Strong: ask someone to say it back, invite questions, write it down. Red flag: "any questions?" and moving on.', 'You explained the new priority in a meeting.',
               `"Can someone say in one sentence why this is first?
 I will put it in our team doc too."`),
+            {
+              easy: true,
+              task: "Explain a priority.",
+              description: "Checks the why.",
+              code: "Team asks why we do feature X.",
+              answer: "Link it to a goal, like customer churn."
+            },
+            {
+              easy: true,
+              task: "Check understanding.",
+              description: "Checks confirmation.",
+              code: "You explained the priority.",
+              answer: "Ask the team to say the reason back."
+            },
           ],
         },
         {
@@ -1103,6 +1919,20 @@ Red flag: never gives feedback upward.`,
 We lose planning time. Could we get them 3 days earlier?"`),
             ex('Ask your manager for feedback on yourself.', 'Checks asking for specific feedback.', 'Strong: a specific question about one area. Red flag: "any feedback?" only.', 'It is your monthly 1:1 with your manager.',
               '"What is one thing I could do better in planning meetings?"'),
+            {
+              easy: true,
+              task: "Give upward feedback.",
+              description: "Checks respectful feedback.",
+              code: "Manager decides late often.",
+              answer: "Share one example and its effect, then ask."
+            },
+            {
+              easy: true,
+              task: "True or false: managers do not need feedback.",
+              description: "Checks upward feedback.",
+              code: "Your manager's habit hurts the team.",
+              answer: "False: good managers want feedback."
+            },
           ],
         },
         {
@@ -1121,6 +1951,20 @@ Each team presents, then the guild votes."`),
             ex('Handle a team that refuses the decision.', 'Checks alignment without forcing.', 'Strong: listen to reasons, find exceptions or a migration path, escalate if needed. Red flag: force or ignore.', 'One team says they will keep their library.',
               `"What blocks you? If it is effort, we can migrate it
 with you over two sprints."`),
+            {
+              easy: true,
+              task: "Open a cross-team meeting.",
+              description: "Checks shared goals.",
+              code: "Three teams pick a logging tool.",
+              answer: "State the shared goal and how we decide."
+            },
+            {
+              easy: true,
+              task: "Name a decision tool.",
+              description: "Checks RFCs.",
+              code: "Many teams must agree.",
+              answer: "A written RFC with time for comments."
+            },
           ],
         },
       ],
@@ -1142,6 +1986,20 @@ Tests and review: 2 hours. About half a day."`),
             ex('Tell your lead your estimate was wrong.', 'Checks updating estimates early.', 'Strong: tells now, explains why, new estimate. Red flag: waits until the end.', 'You said 1 day. After 2 hours you see it needs 3.',
               `"The API does not return what we need, so it is 3 days, not 1.
 Should I continue?"`),
+            {
+              easy: true,
+              task: "Estimate a small task.",
+              description: "Checks estimate with buffer.",
+              code: "Add a field to a form.",
+              answer: "Break it down and add time for tests and review."
+            },
+            {
+              easy: true,
+              task: "True or false: estimates are promises.",
+              description: "Checks estimate uncertainty.",
+              code: "You said 1 day.",
+              answer: "False: they are guesses; update them early."
+            },
           ],
         },
         {
@@ -1158,6 +2016,20 @@ Red flag: says "works on my machine" and stops.`,
 What did you expect, and what happened?
 Which browser?"`),
             ex('Name your first steps after you reproduce a bug.', 'Checks a calm debugging routine.', 'Strong: find the smallest case, check console and network, write a failing test. Red flag: random changes.', 'You can now see the bug on your machine.'),
+            {
+              easy: true,
+              task: "Ask about a bug report.",
+              description: "Checks repro questions.",
+              code: "\"The page is broken.\"",
+              answer: "Ask which page, steps, and browser."
+            },
+            {
+              easy: true,
+              task: "Name the first step.",
+              description: "Checks reproducing.",
+              code: "New bug ticket.",
+              answer: "Reproduce it before changing code."
+            },
           ],
         },
         {
@@ -1177,6 +2049,20 @@ Which browser?"`),
 4. Avatar upload
 5. Tests`),
             ex('Choose which step to ship first.', 'Checks value-first ordering.', 'Strong: page with real data first, so others can see progress. Red flag: avatar upload first because it is fun.', 'You have the five steps for the profile page.'),
+            {
+              easy: true,
+              task: "Break a task down.",
+              description: "Checks decomposition.",
+              code: "Add user avatars.",
+              answer: "Upload API, storage, UI, then tests."
+            },
+            {
+              easy: true,
+              task: "Pick what to ship first.",
+              description: "Checks smallest valuable slice.",
+              code: "Steps: UI, API, polish.",
+              answer: "The smallest piece that works end to end."
+            },
           ],
         },
       ],
@@ -1195,6 +2081,20 @@ Red flag: cannot explain the cause.`,
 I memoized rows and virtualized the list. Time went from 4s to 200ms."`),
             ex('Explain what you would do differently.', 'Checks reflection on the approach.', 'Strong: a concrete change, like profiling earlier or asking sooner. Red flag: "nothing".', 'The same hard problem took you two weeks.',
               '"I would profile on day one instead of guessing for a week."'),
+            {
+              easy: true,
+              task: "Tell a hard problem briefly.",
+              description: "Checks STAR format.",
+              code: "Asked about a hard problem.",
+              answer: "Situation, task, action, result, in one minute."
+            },
+            {
+              easy: true,
+              task: "Name a good ending.",
+              description: "Checks reflection.",
+              code: "End of your story.",
+              answer: "The result and what you learned."
+            },
           ],
         },
         {
@@ -1211,6 +2111,20 @@ Red flag: no plan at all.`,
 Week 2: edit form, save.
 Week 3: errors, tests, demo.`),
             ex('Name the biggest risk and how you check it early.', 'Checks risk-first planning.', 'Strong: performance or API limits, test with a spike on day one. Red flag: find out in week 3.', 'Bulk edit must handle 1000 orders.'),
+            {
+              easy: true,
+              task: "Write a short plan.",
+              description: "Checks milestones.",
+              code: "3-week feature.",
+              answer: "Weekly milestones, each with a demo."
+            },
+            {
+              easy: true,
+              task: "Name the risk check.",
+              description: "Checks early spikes.",
+              code: "Unknown third-party API.",
+              answer: "A small spike in week one."
+            },
           ],
         },
         {
@@ -1228,6 +2142,20 @@ Look at what changed in that release.
 Profile the slow page with DevTools."`),
             ex('Explain what you would do if the cause is unclear.', 'Checks safe fallback steps.', 'Strong: roll back or flag off the change, bisect, ask for help. Red flag: let users suffer.', 'You cannot find the cause in one day.',
               '"Turn off the new feature flag, then bisect the commits."'),
+            {
+              easy: true,
+              task: "Name the first step.",
+              description: "Checks diff-first debugging.",
+              code: "App slow after release.",
+              answer: "Compare metrics before and after the release."
+            },
+            {
+              easy: true,
+              task: "True or false: guess and fix.",
+              description: "Checks measuring.",
+              code: "Slowness after deploy.",
+              answer: "False: measure first, then fix."
+            },
           ],
         },
       ],
@@ -1246,6 +2174,20 @@ Profile the slow page with DevTools."`),
               `"The edge case affects under 1% and fails safely.
 Ship now, ticket for the edge case and animation."`),
             ex('Name two things that must be done before shipping.', 'Checks a minimum quality bar.', 'Strong: key tests and accessibility pass, monitoring or rollback ready. Red flag: "QA will catch it".', 'The team wants to ship a new checkout step today.'),
+            {
+              easy: true,
+              task: "Decide if it is good enough.",
+              description: "Checks ship criteria.",
+              code: "Feature works, one rare edge bug.",
+              answer: "Ship if the bug is low impact and tracked."
+            },
+            {
+              easy: true,
+              task: "Name a must-have.",
+              description: "Checks quality bar.",
+              code: "Before shipping.",
+              answer: "Core flows tested and no data loss risk."
+            },
           ],
         },
         {
@@ -1261,6 +2203,20 @@ Red flag: the root cause is "a person made a mistake".`,
               `"Why old prices? Cached. Why cached? API has a 1-day cache header.
 Why? Default config. Fix: set the right header for prices."`),
             ex('Name how you prevent this bug next time.', 'Checks a lasting fix.', 'Strong: a test, a config review, or a doc. Red flag: no follow-up.', 'You fixed the cache header for prices.'),
+            {
+              easy: true,
+              task: "Ask why.",
+              description: "Checks 5 Whys.",
+              code: "Bug: order saved twice.",
+              answer: "Ask why repeatedly until you find the real cause."
+            },
+            {
+              easy: true,
+              task: "Name a prevention.",
+              description: "Checks regression tests.",
+              code: "Root cause found and fixed.",
+              answer: "Add a test so it cannot come back."
+            },
           ],
         },
         {
@@ -1278,6 +2234,20 @@ Ticket for the proper fix next sprint."`),
             ex('Convince the team to do the proper fix later.', 'Checks following up on quick fixes.', 'Strong: shows cost or risk of the hack, asks for time. Red flag: forget it.', 'Two sprints later nobody fixed it properly.',
               `"This hotfix caused two bugs this month.
 Can we take 3 days for the proper fix now?"`),
+            {
+              easy: true,
+              task: "Choose a fix.",
+              description: "Checks quick vs proper.",
+              code: "Prod is down at night.",
+              answer: "Quick fix now, proper fix tracked for later."
+            },
+            {
+              easy: true,
+              task: "True or false: quick fixes are always bad.",
+              description: "Checks pragmatism.",
+              code: "Customers blocked right now.",
+              answer: "False: a quick fix can be right if tracked."
+            },
           ],
         },
       ],
@@ -1298,6 +2268,20 @@ Run Vue and React side by side."`),
             ex('Show progress to leadership during the migration.', 'Checks simple progress reporting.', 'Strong: a metric (pages done), a trend, risks. Red flag: "it\'s going well" only.', 'Leadership asks: "Is the migration on track?"',
               `"60 of 200 pages done, about 10 per sprint.
 Risk: reports pages are complex. Plan: done in Q3."`),
+            {
+              easy: true,
+              task: "Name the first step.",
+              description: "Checks migration planning.",
+              code: "Move from Vue to React.",
+              answer: "Pick a small pilot page to migrate first."
+            },
+            {
+              easy: true,
+              task: "Show progress.",
+              description: "Checks progress tracking.",
+              code: "Leadership asks about the migration.",
+              answer: "Share a simple percent-done chart."
+            },
           ],
         },
         {
@@ -1317,6 +2301,20 @@ Red flag: hides risks from stakeholders.`,
               `"The provider is 3 weeks late.
 Options: move launch, or launch with card only.
 I need a decision by Friday."`),
+            {
+              easy: true,
+              task: "List one risk.",
+              description: "Checks risk identification.",
+              code: "New payment provider integration.",
+              answer: "The provider's API may change or be slow."
+            },
+            {
+              easy: true,
+              task: "Name a risk tool.",
+              description: "Checks risk register.",
+              code: "Many risks to track.",
+              answer: "A risk list with owner, impact, and plan."
+            },
           ],
         },
         {
@@ -1333,6 +2331,20 @@ Red flag: favorites or a single point of failure.`,
 Junior takes bugs with pairing. Senior unblocks and owns docs."`),
             ex('Respond when someone always gets boring tasks.', 'Checks fairness in work split.', 'Strong: listens, agrees on a plan for a feature task. Red flag: "someone has to do it".', 'A dev says: "I only get bugs."',
               '"You are right. Next sprint you take a feature, and I pair you with Kim."'),
+            {
+              easy: true,
+              task: "Assign a task.",
+              description: "Checks fair assignment.",
+              code: "Hard task, two devs.",
+              answer: "Match skills, and pair to grow others."
+            },
+            {
+              easy: true,
+              task: "Spot the unfairness.",
+              description: "Checks rotation.",
+              code: "Same dev always gets bug duty.",
+              answer: "Rotate boring tasks fairly."
+            },
           ],
         },
       ],
@@ -1354,6 +2366,20 @@ Let's agree on the data shape now and sync at 3."`),
             ex('Message a teammate whose change broke your code.', 'Checks friendly conflict handling.', 'Strong: friendly, facts, offers to fix. Red flag: blaming in public.', 'Their merge changed a prop name you use.',
               `"Hi, your merge renamed \`onSave\`, my form broke.
 I can update it, just checking it was intended."`),
+            {
+              easy: true,
+              task: "Split a feature.",
+              description: "Checks agreement on boundaries.",
+              code: "You and a peer share one feature.",
+              answer: "Agree on who owns which part and the interface."
+            },
+            {
+              easy: true,
+              task: "Name a sync habit.",
+              description: "Checks frequent integration.",
+              code: "Two devs, one feature.",
+              answer: "Merge small changes often."
+            },
           ],
         },
         {
@@ -1369,6 +2395,20 @@ Red flag: ignores comments or merges anyway.`,
               '"Good catch, I did not know it existed. Fixed!"'),
             ex('Reply when you do not understand a comment.', 'Checks asking instead of guessing.', 'Strong: asks for an example or a short call. Red flag: ignores it or changes code at random.', 'Reviewer: "This will cause a stale closure."',
               '"Can you show where? I am not sure how it happens here."'),
+            {
+              easy: true,
+              task: "Reply to a review comment.",
+              description: "Checks positive replies.",
+              code: "Reviewer: \"Extract this to a function.\"",
+              answer: "Thank them and fix it, or explain why not."
+            },
+            {
+              easy: true,
+              task: "Ask about an unclear comment.",
+              description: "Checks clarification.",
+              code: "\"This feels off.\"",
+              answer: "Ask what they mean, with an example."
+            },
           ],
         },
         {
@@ -1384,6 +2424,20 @@ Red flag: takes the task over or makes them feel stupid.`,
               `"Want to look at it together for 10 minutes?
 You drive, I can help."`),
             ex('Choose: fix it for them or teach them.', 'Checks judgment on helping.', 'Strong: fix together now quickly, teach in detail later. Red flag: always just fixing it.', 'Urgent bug blocks release. The teammate is learning.'),
+            {
+              easy: true,
+              task: "Offer help.",
+              description: "Checks respectful help.",
+              code: "A teammate is stuck.",
+              answer: "Ask if they want help, then guide them."
+            },
+            {
+              easy: true,
+              task: "Pick: teach or fix?",
+              description: "Checks teaching.",
+              code: "They will face this again.",
+              answer: "Teach them, so they can do it next time."
+            },
           ],
         },
       ],
@@ -1403,6 +2457,20 @@ Could we add \`?page\` and \`limit\`? Open to other ideas."`),
             ex('Agree on an API contract before coding.', 'Checks working in parallel safely.', 'Strong: agree on a schema or OpenAPI, mocks, a sync date. Red flag: guess and fix later.', 'Frontend and backend start the same feature on Monday.',
               `"Let's write the OpenAPI spec today.
 I will use a mock, and we test the real API Thursday."`),
+            {
+              easy: true,
+              task: "Ask backend for a change.",
+              description: "Checks clear API requests.",
+              code: "You need an extra field.",
+              answer: "Explain the need, the field, and the deadline."
+            },
+            {
+              easy: true,
+              task: "Name an API contract format.",
+              description: "Checks OpenAPI.",
+              code: "Agree on API before coding.",
+              answer: "An OpenAPI spec both teams review."
+            },
           ],
         },
         {
@@ -1419,6 +2487,20 @@ Red flag: keeps knowledge to feel needed.`,
               `Problem: "certificate invalid" locally.
 Fix: run \`npm run cert\`, restart dev server.
 Doc: wiki/Local-setup`),
+            {
+              easy: true,
+              task: "Name a sharing way.",
+              description: "Checks knowledge sharing.",
+              code: "Only one dev knows the build.",
+              answer: "Write a short doc and do a demo."
+            },
+            {
+              easy: true,
+              task: "True or false: docs alone are enough.",
+              description: "Checks mixed sharing.",
+              code: "We have a wiki.",
+              answer: "False: pair and demo too."
+            },
           ],
         },
         {
@@ -1436,6 +2518,20 @@ let's check it in two months."`),
             ex('Bring up the topic again with new data.', 'Checks when reopening is fair.', 'Strong: brings data, not "I told you so". Red flag: no data.', 'Two months later, REST needs 8 calls per page.',
               `"The dashboard now makes 8 calls per load.
 Can we look at options again?"`),
+            {
+              easy: true,
+              task: "Respond to the decision.",
+              description: "Checks disagree and commit.",
+              code: "Team chose an approach you dislike.",
+              answer: "Commit fully and help it succeed."
+            },
+            {
+              easy: true,
+              task: "Name when to reopen it.",
+              description: "Checks new evidence.",
+              code: "You still dislike the choice.",
+              answer: "Only with new data."
+            },
           ],
         },
       ],
@@ -1453,6 +2549,20 @@ Red flag: takes sides or gossips.`,
             ex('Suggest one small team change and how to check it.', 'Checks experiment-based improvement.', 'Strong: one change like a daily review time, measure wait time. Red flag: no measure.', 'PRs wait 3 days for review.',
               `"Let's review PRs every day at 11 for two weeks,
 then check average wait time."`),
+            {
+              easy: true,
+              task: "Name a first step.",
+              description: "Checks listening.",
+              code: "The team works poorly together.",
+              answer: "Talk 1:1 with each person first."
+            },
+            {
+              easy: true,
+              task: "Suggest one change.",
+              description: "Checks small experiments.",
+              code: "Team has tense standups.",
+              answer: "Try one small change and review it in two weeks."
+            },
           ],
         },
         {
@@ -1471,6 +2581,20 @@ and find a project to grow it."`),
             ex('Give feedback to your mentee after a design review.', 'Checks specific, growth-focused feedback.', 'Strong: one strength, one gap, a next step. Red flag: only praise or only criticism.', 'Their design was good, but they did not think about errors.',
               `"The data flow was clear. Next time add an error section.
 Want to review my last doc for an example?"`),
+            {
+              easy: true,
+              task: "Start mentoring.",
+              description: "Checks goal setting.",
+              code: "Mid-level dev wants to be senior.",
+              answer: "Ask their goals and agree on one area."
+            },
+            {
+              easy: true,
+              task: "Name a growth task.",
+              description: "Checks stretch work.",
+              code: "Mentee needs senior skills.",
+              answer: "Let them lead a small design."
+            },
           ],
         },
         {
@@ -1487,6 +2611,20 @@ Red flag: always schedules meetings in their own hours only.`,
 Next: submit API (spec link).
 Blocker: none. Questions in the thread.`),
             ex('Name two ways to reduce time-zone delays.', 'Checks async-first collaboration.', 'Strong: clear written questions with options, overlap hour, decision docs. Red flag: more meetings at night.', 'Questions wait a full day for answers.'),
+            {
+              easy: true,
+              task: "Write a handoff note.",
+              description: "Checks async handoff.",
+              code: "End of your day, team in Asia.",
+              answer: "Status, blockers, and clear next steps."
+            },
+            {
+              easy: true,
+              task: "Name a delay fix.",
+              description: "Checks overlap time.",
+              code: "12-hour time difference.",
+              answer: "Use the overlap hour for key talks."
+            },
           ],
         },
       ],
@@ -1504,6 +2642,20 @@ Red flag: hero culture.`,
             ex('Praise help in a team message.', 'Checks specific public recognition.', 'Strong: specific, names the impact. Red flag: generic "great job, everyone".', 'Ana helped two juniors fix their tests.',
               `"Big thanks to Ana for pairing with Max and Lee on tests.
 Both PRs merged today."`),
+            {
+              easy: true,
+              task: "Name a helping habit.",
+              description: "Checks team culture.",
+              code: "You want people to help each other.",
+              answer: "Praise help in public."
+            },
+            {
+              easy: true,
+              task: "True or false: heroes help culture.",
+              description: "Checks shared ownership.",
+              code: "One dev fixes everything alone.",
+              answer: "False: heroes block learning; share the work."
+            },
           ],
         },
         {
@@ -1521,6 +2673,20 @@ Can we add tests from both teams and review each other's PRs?"`),
             ex('Tell your team about the agreement.', 'Checks closing the loop without blame.', 'Strong: new process, why, no blame. Red flag: "they finally admitted it".', 'You agreed on shared reviews with the other team.',
               `"From now on we review each other's Table PRs.
 This protects both teams."`),
+            {
+              easy: true,
+              task: "Talk to the other team.",
+              description: "Checks shared problem framing.",
+              code: "Another team blocks your release.",
+              answer: "Meet, share goals, and find a shared fix."
+            },
+            {
+              easy: true,
+              task: "Name what to write down.",
+              description: "Checks written agreement.",
+              code: "Teams agreed on a fix.",
+              answer: "The agreement, owners, and dates."
+            },
           ],
         },
         {
@@ -1539,6 +2705,20 @@ The senior moves to Team A in 3 weeks."`),
             ex('Tell the losing team the decision.', 'Checks explaining a decision with support.', 'Strong: reason, what help they get, when it changes. Red flag: no reason.', 'Team A did not get the senior now.',
               `"Security had to come first. Until the senior joins,
 I will review your design and help with planning."`),
+            {
+              easy: true,
+              task: "Decide on the senior.",
+              description: "Checks priority-based decision.",
+              code: "Two teams want one senior.",
+              answer: "Pick by company priority and explain why."
+            },
+            {
+              easy: true,
+              task: "Tell the losing team.",
+              description: "Checks honest messaging.",
+              code: "They do not get the senior.",
+              answer: "Explain the reason and offer other help."
+            },
           ],
         },
       ],
@@ -1559,6 +2739,20 @@ Red flag: blames others or says it never happened.`,
               `"I missed yesterday's deadline, I underestimated the tests.
 It will be ready by noon today."`),
             ex('Name what you change to avoid it next time.', 'Checks a concrete lesson.', 'Strong: add test time to estimates, warn earlier. Red flag: "try harder".', 'Your tests always take longer than planned.'),
+            {
+              easy: true,
+              task: "Report a missed deadline.",
+              description: "Checks ownership.",
+              code: "You missed today's deadline.",
+              answer: "Own it, say why, and give a new date."
+            },
+            {
+              easy: true,
+              task: "Name a prevention.",
+              description: "Checks early warning.",
+              code: "Missed deadline last month.",
+              answer: "Warn early when risk appears."
+            },
           ],
         },
         {
@@ -1574,6 +2768,20 @@ It will be ready by noon today."`),
             ex('Tell a teammate you forgot their task.', 'Checks a quick, honest apology.', 'Strong: apologize, no excuses, do it now. Red flag: pretends you were busy.', 'You promised to review their PR yesterday and forgot.',
               '"Sorry, I forgot your review yesterday. Doing it now, done in 30 minutes."'),
             ex('Name one way to stop forgetting promises.', 'Checks a simple tracking habit.', 'Strong: write it down at once, in a todo or ticket. Red flag: "I have a good memory".', 'You forget small tasks from chats.'),
+            {
+              easy: true,
+              task: "Tell a teammate you forgot.",
+              description: "Checks apology.",
+              code: "You forgot their review.",
+              answer: "Apologize and do it now."
+            },
+            {
+              easy: true,
+              task: "Name a habit.",
+              description: "Checks tracking promises.",
+              code: "You forget small promises.",
+              answer: "Write every promise in a task list."
+            },
           ],
         },
         {
@@ -1592,6 +2800,20 @@ I can ship the UI part on Friday if that helps."`),
             ex('Respond when your lead says no to more time.', 'Checks finding options under a fixed date.', 'Strong: proposes a smaller scope that works for the demo. Red flag: works all night silently.', 'Lead: "Friday is fixed, a client demo."',
               `"OK. For the demo I can show the main flow with mock data.
 Is that enough?"`),
+            {
+              easy: true,
+              task: "Ask for more time.",
+              description: "Checks clear request.",
+              code: "Task needs 2 more days.",
+              answer: "Ask early, explain why, and give a new date."
+            },
+            {
+              easy: true,
+              task: "React to a no.",
+              description: "Checks scope trade-off.",
+              code: "Lead says no to more time.",
+              answer: "Offer to cut scope instead."
+            },
           ],
         },
       ],
@@ -1612,6 +2834,20 @@ I listed the top 5 and will fix one per day."`),
             ex('Tell the team you need help with it.', 'Checks owning without being a hero.', 'Strong: shares progress, asks the right people. Red flag: struggles alone.', 'You fixed 3 of 10 flaky tests. The rest are in another area.',
               `"Fixed 3 of 10. The other 7 are in payments.
 Can someone from payments pair with me?"`),
+            {
+              easy: true,
+              task: "Take ownership.",
+              description: "Checks proactive ownership.",
+              code: "Flaky test nobody owns.",
+              answer: "Say you will fix it, then do it."
+            },
+            {
+              easy: true,
+              task: "True or false: only fix your own bugs.",
+              description: "Checks team ownership.",
+              code: "Bug from another dev.",
+              answer: "False: team quality is everyone's job."
+            },
           ],
         },
         {
@@ -1630,6 +2866,20 @@ I can give a basic version, or the full one on the 17th."`),
             ex('Answer their frustrated reply.', 'Checks empathy and solutions.', 'Strong: accepts it, says sorry, helps reduce impact. Red flag: defends yourself.', '"We planned our sprint on your date!"',
               `"You are right, and I am sorry.
 How can I help? I can pair with your dev to use the basic version."`),
+            {
+              easy: true,
+              task: "Tell them early.",
+              description: "Checks bad news timing.",
+              code: "Promised feature will be late.",
+              answer: "Tell them as soon as you know."
+            },
+            {
+              easy: true,
+              task: "Offer an option.",
+              description: "Checks alternatives.",
+              code: "You cannot deliver it.",
+              answer: "Offer a smaller version or a new date."
+            },
           ],
         },
         {
@@ -1647,6 +2897,20 @@ Red flag: cannot think of any.`,
 They were stuck 3 days. Now I block 30 minutes a day for help."`),
             ex('Apologize to that teammate.', 'Checks a sincere, short apology.', 'Strong: sorry, no excuses, offer help now. Red flag: long excuse.', 'You see the teammate was stuck because of you.',
               '"Sorry I did not help last week. Can we look at it now?"'),
+            {
+              easy: true,
+              task: "Admit you failed to help.",
+              description: "Checks honest reflection.",
+              code: "Teammate needed help, you were busy.",
+              answer: "Say what happened and what you learned."
+            },
+            {
+              easy: true,
+              task: "Apologize well.",
+              description: "Checks sincere apology.",
+              code: "You ignored their request.",
+              answer: "Say sorry without excuses and offer help now."
+            },
           ],
         },
       ],
@@ -1665,6 +2929,20 @@ Red flag: still defends the wrong view.`,
               `"I was wrong about SSR, the data is clear.
 Thanks Kim for pushing. Let's plan it."`),
             ex('Name what made you change your mind.', 'Checks openness to evidence.', 'Strong: names data or a test that changed it. Red flag: "I never change my mind".', 'You held a strong opinion for months.'),
+            {
+              easy: true,
+              task: "Admit you were wrong.",
+              description: "Checks humility.",
+              code: "Your debate idea was worse.",
+              answer: "Say it plainly and support the better idea."
+            },
+            {
+              easy: true,
+              task: "Name what changed your mind.",
+              description: "Checks evidence-based thinking.",
+              code: "Asked why you changed your view.",
+              answer: "Data or a test that proved the other idea."
+            },
           ],
         },
         {
@@ -1683,6 +2961,20 @@ I added it today and we will review the rest."`),
             ex('Tell the dev who ran the release it is not their fault.', 'Checks blameless culture.', 'Strong: reassures, explains the process gap, involves them in the fix. Red flag: silence.', 'The dev who ran the release feels guilty.',
               `"You followed the checklist. The gap was in it.
 Want to help me improve it?"`),
+            {
+              easy: true,
+              task: "Own the process failure.",
+              description: "Checks systemic ownership.",
+              code: "Your release process caused an outage.",
+              answer: "Say it was the process you built, then fix it."
+            },
+            {
+              easy: true,
+              task: "Support the dev.",
+              description: "Checks blameless culture.",
+              code: "Dev who ran the release feels guilty.",
+              answer: "Tell them the process failed, not them."
+            },
           ],
         },
         {
@@ -1700,6 +2992,20 @@ Red flag: no lesson.`,
 Now I write a short proposal first."`),
             ex('Say what you would do now in one sentence.', 'Checks a concrete lesson.', 'Strong: one specific action. Red flag: vague "communicate better".', 'Same challenge, today.',
               '"I would write a one-page plan and get two reviewers first."'),
+            {
+              easy: true,
+              task: "Tell a hard challenge.",
+              description: "Checks honest story.",
+              code: "A challenge you handled badly.",
+              answer: "Be honest, show the impact, and the lesson."
+            },
+            {
+              easy: true,
+              task: "Say what you would do now.",
+              description: "Checks growth.",
+              code: "Same challenge today.",
+              answer: "Name one clear different action."
+            },
           ],
         },
       ],
@@ -1718,6 +3024,20 @@ Red flag: no change.`,
               `"I ignored signs of poor teamwork because the skills were great.
 Now we have a teamwork interview with clear signals."`),
             ex('Name one change to your hiring process.', 'Checks a concrete process fix.', 'Strong: a behavior round, a structured rubric, or a pairing task. Red flag: "trust my gut more".', 'The bad hire passed every technical round.'),
+            {
+              easy: true,
+              task: "Tell a bad hire story.",
+              description: "Checks hiring lessons.",
+              code: "Hire did not work out.",
+              answer: "Own your part and the lesson."
+            },
+            {
+              easy: true,
+              task: "Name a process change.",
+              description: "Checks structured interviews.",
+              code: "Bad hire happened.",
+              answer: "Add a structured, scored interview."
+            },
           ],
         },
         {
@@ -1736,6 +3056,20 @@ No weekend work from now. We drop two features to fix the plan."`),
             ex('Tell leadership the plan will change.', 'Checks protecting the team upward.', 'Strong: facts, risk of losing people, new plan. Red flag: hides the burnout.', 'You must cut scope to protect the team.',
               `"The team is burned out. If we keep going, we lose people.
 I cut two features. New date: end of next month."`),
+            {
+              easy: true,
+              task: "Own the burnout.",
+              description: "Checks lead accountability.",
+              code: "Team burned out under you.",
+              answer: "Admit it and cut scope now."
+            },
+            {
+              easy: true,
+              task: "True or false: burnout is personal.",
+              description: "Checks workload ownership.",
+              code: "Team works late every week.",
+              answer: "False: workload is the lead's job to fix."
+            },
           ],
         },
         {
@@ -1754,6 +3088,20 @@ Next time I will add a spike first."`),
             ex('Respond when a junior admits a mistake.', 'Checks rewarding honesty.', 'Strong: thanks them for telling fast, fix together, improve the system. Red flag: anger.', 'A junior says: "I deleted the test data by accident."',
               `"Thanks for telling me right away. Let's restore it,
 then add a safety check so it can't happen easily."`),
+            {
+              easy: true,
+              task: "Share your mistake first.",
+              description: "Checks modeling vulnerability.",
+              code: "Team meeting.",
+              answer: "Tell your own mistake and what you learned."
+            },
+            {
+              easy: true,
+              task: "React to a junior's mistake.",
+              description: "Checks psychological safety.",
+              code: "Junior admits breaking staging.",
+              answer: "Thank them, then fix it together."
+            },
           ],
         },
       ],

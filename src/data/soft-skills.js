@@ -28,6 +28,20 @@ Does that make sense?"`
           "solution": `"Our page asks the phone to do a lot of work at once.
 Old phones are like small engines, so they are slower.
 We are making the page lighter this sprint."`
+        },
+        {
+          "easy": true,
+          "task": "Explain a cookie simply.",
+          "description": "Checks plain-language explanations.",
+          "code": "A PM asks: \"What is a cookie?\"",
+          "answer": "Use a simple picture, like a name tag the site remembers you by."
+        },
+        {
+          "easy": true,
+          "task": "Spot the jargon.",
+          "description": "Checks audience fit.",
+          "code": "Tell sales: \"The SPA hydrates lazily.\"",
+          "answer": "Too technical; say \"the page shows first, then loads extras\"."
         }
       ]
     }, {
@@ -56,6 +70,20 @@ What do we show when nothing matches?"`
           "solution": `In scope: CSV export, admins only.
 Out of scope: filters (later ticket).
 Open: max rows? @lead`
+        },
+        {
+          "easy": true,
+          "task": "Ask one clarifying question.",
+          "description": "Checks scope clarification.",
+          "code": "Ticket: \"Add export.\"",
+          "answer": "Ask about format and who uses it, e.g. CSV for admins?"
+        },
+        {
+          "easy": true,
+          "task": "True or false: just start coding.",
+          "description": "Checks confirming understanding.",
+          "code": "Task is a bit unclear, deadline is soon.",
+          "answer": "False: a two-minute check saves days of rework."
         }
       ]
     }],
@@ -84,6 +112,20 @@ OK to keep it inline and extract if a second use appears?"`
           "answer": "Strong: suggests a quick call or asks a third person, records the result. Red flag: comment number 13 with the same arguments.",
           "solution": `"We are going in circles. 5-minute call?
 If we still disagree, let's ask Ana and follow the team style guide."`
+        },
+        {
+          "easy": true,
+          "task": "Reply to a review nit.",
+          "description": "Checks calm disagreement.",
+          "code": "Reviewer: \"Use reduce here.\"",
+          "answer": "Agree or give a short reason, kindly and without ego."
+        },
+        {
+          "easy": true,
+          "task": "Name when to move to a call.",
+          "description": "Checks escalation channel.",
+          "code": "The PR thread has 12 back-and-forth comments.",
+          "answer": "Move to a quick call, then write the result in the PR."
         }
       ]
     }, {
@@ -112,6 +154,20 @@ Risk: low, form only.`
           "answer": "Strong: progress, blocker, ask and date. Red flag: list of tickets with no meaning for the reader.",
           "solution": `"Checkout: 70% done, on track for the 15th if the payment API lands by Friday.
 Blocked: payment endpoint, @backend can you confirm the date?"`
+        },
+        {
+          "easy": true,
+          "task": "Fix this PR title.",
+          "description": "Checks clear summaries.",
+          "code": "PR title: \"fixes\"",
+          "answer": "Say what and why, e.g. \"Fix double submit on login\"."
+        },
+        {
+          "easy": true,
+          "task": "Name what goes first.",
+          "description": "Checks lead-with-the-point.",
+          "code": "A long status update for the PM.",
+          "answer": "Put the main result or ask in the first line."
         }
       ]
     }],
@@ -143,6 +199,20 @@ Two weeks of work removes the risk. I suggest next sprint."`
           "solution": `"We can wait, but then I suggest a monitor and a plan B.
 Option A: fix now, 2 weeks. Option B: wait, accept the risk.
 Your call, I will write it down."`
+        },
+        {
+          "easy": true,
+          "task": "Explain a risk in one line.",
+          "description": "Checks business framing.",
+          "code": "The server is out of support next month.",
+          "answer": "State impact: security holes and outages if we do not upgrade."
+        },
+        {
+          "easy": true,
+          "task": "Spot the weak framing.",
+          "description": "Checks impact language.",
+          "code": "\"Our ORM version is deprecated.\"",
+          "answer": "It lacks impact; say what can break and the cost."
         }
       ]
     }, {
@@ -171,6 +241,20 @@ Can we agree on a changelog or contract tests?"`
           "solution": `"Can I share something? On PR 341 you wrote 'this is wrong'.
 The junior was afraid to ask more.
 Maybe add why and a suggestion?"`
+        },
+        {
+          "easy": true,
+          "task": "Start hard feedback kindly.",
+          "description": "Checks feedback opener.",
+          "code": "A teammate's PRs are always too big.",
+          "answer": "Describe one example and its effect, then ask their view."
+        },
+        {
+          "easy": true,
+          "task": "True or false: feedback in public works.",
+          "description": "Checks private feedback.",
+          "code": "You want to correct a peer in the team channel.",
+          "answer": "False: give critical feedback in private."
         }
       ]
     }],
@@ -200,6 +284,20 @@ Criteria: learning curve, devtools, server data.
           "answer": "Strong: names the decision, the reason, the review date, next steps. Red flag: \"let's meet again\" with no owner.",
           "solution": `"We go with Zustand: smaller and faster to learn.
 We review in 2 months. Kim writes the ADR today."`
+        },
+        {
+          "easy": true,
+          "task": "Open a decision meeting.",
+          "description": "Checks meeting framing.",
+          "code": "Topic: choose a date library.",
+          "answer": "State the goal, options, and that we decide today."
+        },
+        {
+          "easy": true,
+          "task": "Name what you send after.",
+          "description": "Checks decision records.",
+          "code": "The meeting chose option B.",
+          "answer": "A short note with the decision, reasons, and owners."
         }
       ]
     }, {
@@ -228,6 +326,20 @@ Let's plan the hand-off together tomorrow."`
           "solution": `"Fair point, this is the third change.
 I will ask leadership for a fixed quarter plan,
 and tell you what I learn by Friday."`
+        },
+        {
+          "easy": true,
+          "task": "Announce bad news first.",
+          "description": "Checks direct delivery.",
+          "code": "The team's feature is cancelled.",
+          "answer": "Say the news early and plainly, then explain why."
+        },
+        {
+          "easy": true,
+          "task": "Spot the weak message.",
+          "description": "Checks honest framing.",
+          "code": "\"Great news! Plans changed, we stop your project.\"",
+          "answer": "Fake positivity hurts trust; be honest and caring."
         }
       ]
     }]
@@ -257,6 +369,20 @@ Can you look for 10 minutes?"`
           "description": "Checks a basic self-help routine.",
           "code": "You have a strange TypeScript error in a new file.",
           "answer": "Strong: read the error, search docs, make a tiny repro, take a break, then ask. Red flag: asks after one minute, or never asks."
+        },
+        {
+          "easy": true,
+          "task": "Ask for help clearly.",
+          "description": "Checks a good help request.",
+          "code": "Stuck 4 hours on a failing build.",
+          "answer": "Say the goal, what you tried, and the exact error."
+        },
+        {
+          "easy": true,
+          "task": "Name a first step.",
+          "description": "Checks self-unblocking.",
+          "code": "You are stuck on an error.",
+          "answer": "Read the full error and search for it."
         }
       ]
     }, {
@@ -282,6 +408,20 @@ The feature moves to tomorrow. OK?"`
           "description": "Checks priority by impact and who is waiting.",
           "code": "A customer bug, a teammate waiting for your review, a refactor.",
           "answer": "Strong: customer bug, then review (unblocks someone), refactor last. Red flag: easiest task first."
+        },
+        {
+          "easy": true,
+          "task": "Pick the first task.",
+          "description": "Checks priority by impact.",
+          "code": "A) bug for a client today  B) refactor  C) docs",
+          "answer": "A: it has the deadline and the biggest impact."
+        },
+        {
+          "easy": true,
+          "task": "Tell your lead early.",
+          "description": "Checks early warning.",
+          "code": "You will finish only one of three tasks today.",
+          "answer": "Tell them now and ask which task matters most."
         }
       ]
     }],
@@ -309,6 +449,20 @@ Which do you prefer?"`
           "description": "Checks learning from estimation misses.",
           "code": "Your last three tasks took 60% longer than estimated.",
           "answer": "Strong: a concrete change like a spike for unknowns, ranges, or splitting tasks. Red flag: \"I will work harder\"."
+        },
+        {
+          "easy": true,
+          "task": "Report a late task.",
+          "description": "Checks honest status.",
+          "code": "Estimate: 3 days. Today: day 5.",
+          "answer": "Say it is late, why, and a new date."
+        },
+        {
+          "easy": true,
+          "task": "True or false: wait until done to tell.",
+          "description": "Checks early communication.",
+          "code": "You are 2 days late, nearly done.",
+          "answer": "False: report delays as soon as you see them."
         }
       ]
     }, {
@@ -334,6 +488,20 @@ An account ID helps me check logs."`
           "description": "Checks options beyond local reproduction.",
           "code": "The bug happens only in production for a few users.",
           "answer": "Strong: logs or error tracking, session replay, feature flag with extra logging, same browser or data. Red flag: guessing and shipping."
+        },
+        {
+          "easy": true,
+          "task": "Ask the user one question.",
+          "description": "Checks repro details.",
+          "code": "\"The button does not work.\"",
+          "answer": "Ask for the browser, steps, and what they saw."
+        },
+        {
+          "easy": true,
+          "task": "Name a tool for remote bugs.",
+          "description": "Checks logs and monitoring.",
+          "code": "Bug happens only in production.",
+          "answer": "Logs or error tracking like Sentry with context."
         }
       ]
     }],
@@ -361,6 +529,20 @@ Is it all users or big accounts?"`
           "description": "Checks a measure-first plan.",
           "code": "You know first load takes 8 seconds for large accounts.",
           "answer": "Strong: measure (Lighthouse, traces), find the biggest cause, fix and measure again. Red flag: rewrite in a new framework."
+        },
+        {
+          "easy": true,
+          "task": "Ask one key question.",
+          "description": "Checks clarifying goals.",
+          "code": "\"Make the dashboard faster.\"",
+          "answer": "Ask which part is slow and how fast is enough."
+        },
+        {
+          "easy": true,
+          "task": "Name the first step.",
+          "description": "Checks measuring first.",
+          "code": "Dashboard feels slow.",
+          "answer": "Measure load time to find the real bottleneck."
         }
       ]
     }, {
@@ -386,6 +568,20 @@ We can measure bug count after."`
           "description": "Checks a clear rule for debt priority.",
           "code": "A slow build adds 4 minutes for each of 10 developers, many times a day.",
           "answer": "Strong: fix now, because it costs hours every day; debt that blocks often goes first. Red flag: \"later\" without numbers."
+        },
+        {
+          "easy": true,
+          "task": "Pitch tech debt in one line.",
+          "description": "Checks business value.",
+          "code": "PM asks why fix old code.",
+          "answer": "Show the cost: bugs and slow delivery it causes."
+        },
+        {
+          "easy": true,
+          "task": "Pick: debt now or later?",
+          "description": "Checks debt triage.",
+          "code": "Debt in code nobody touches.",
+          "answer": "Later: fix debt where you work often."
         }
       ]
     }],
@@ -414,6 +610,20 @@ Should we look at the list together?"`
           "description": "Checks focusing on the real goal.",
           "code": "Feature: a full reporting module, requested for a big client demo.",
           "answer": "Strong: asks the real goal (the demo), must-haves, who uses it, what can be fake. Red flag: cuts tests to save time."
+        },
+        {
+          "easy": true,
+          "task": "Answer 2 vs 6 weeks.",
+          "description": "Checks scope negotiation.",
+          "code": "PM: \"We need it in 2 weeks.\"",
+          "answer": "Offer a smaller scope in 2 weeks, the rest later."
+        },
+        {
+          "easy": true,
+          "task": "True or false: just agree to 2 weeks.",
+          "description": "Checks honest estimates.",
+          "code": "You estimate 6 weeks.",
+          "answer": "False: say the risk and offer options."
         }
       ]
     }, {
@@ -439,6 +649,20 @@ Which helps you more?"`
           "description": "Checks a simple, shared priority method.",
           "code": "You have 25 requests and room for 8.",
           "answer": "Strong: impact vs effort, company goals, keep 20% for bugs and debt, share the list openly. Red flag: whoever shouts loudest."
+        },
+        {
+          "easy": true,
+          "task": "Say no politely.",
+          "description": "Checks saying no with reason.",
+          "code": "A team asks for a feature this quarter.",
+          "answer": "Say no now, explain priorities, offer a later slot."
+        },
+        {
+          "easy": true,
+          "task": "Name a ranking method.",
+          "description": "Checks prioritization.",
+          "code": "20 requests, room for 6.",
+          "answer": "Rank by impact versus effort."
         }
       ]
     }]
@@ -469,6 +693,20 @@ I can use our default spinner if that is OK."`
           "answer": "Strong: thanks, asks for details, gives a time to fix. Red flag: \"works for me\" or treating QA as an enemy.",
           "solution": `"Thanks for catching it! Which Safari version?
 I will look today and ping you when it is ready to retest."`
+        },
+        {
+          "easy": true,
+          "task": "Ask design about a gap.",
+          "description": "Checks design collaboration.",
+          "code": "No design for the empty state.",
+          "answer": "Ask the designer early, with a screenshot."
+        },
+        {
+          "easy": true,
+          "task": "Reply to a QA bug.",
+          "description": "Checks positive QA response.",
+          "code": "QA finds a bug in your feature.",
+          "answer": "Thank them, confirm the steps, and fix it."
         }
       ]
     }, {
@@ -494,6 +732,20 @@ Can we try both for 10 minutes and pick the simpler one?"`
           "code": "The team picked your teammate's approach.",
           "answer": "Strong: supports it fully, no \"I told you so\" later. Red flag: does it badly to prove a point.",
           "solution": "\"OK, let's go with extending it. I will start on the props today.\""
+        },
+        {
+          "easy": true,
+          "task": "Respond to disagreement.",
+          "description": "Checks open discussion.",
+          "code": "A teammate wants another approach.",
+          "answer": "Ask for their reasons and compare trade-offs."
+        },
+        {
+          "easy": true,
+          "task": "True or false: always defend your idea.",
+          "description": "Checks openness.",
+          "code": "Their idea is simpler.",
+          "answer": "False: pick the better idea, not your own."
         }
       ]
     }],
@@ -522,6 +774,20 @@ Happy to pair for 15 minutes."`
           "answer": "Strong: escalates as a planning problem, not a complaint about the person. Red flag: \"they are lazy\".",
           "solution": `"PR 210 is blocking my ticket for 5 days.
 I could not reach Sam. Can you help us find a plan?"`
+        },
+        {
+          "easy": true,
+          "task": "Ping a blocking reviewer.",
+          "description": "Checks polite follow-up.",
+          "code": "Your PR waits 3 days for review.",
+          "answer": "Ask kindly, give context, and offer a quick call."
+        },
+        {
+          "easy": true,
+          "task": "Name when to ask the lead.",
+          "description": "Checks escalation timing.",
+          "code": "No reply after two pings.",
+          "answer": "When the delay risks a deadline."
         }
       ]
     }, {
@@ -546,6 +812,20 @@ Let's add the answers to the onboarding doc so the next person benefits."`
           "description": "Checks a practical onboarding plan.",
           "code": "A mid-level frontend dev joins your project on Monday.",
           "answer": "Strong: working local setup, a small real ticket, a buddy and code tour. Red flag: \"read all the docs\" only."
+        },
+        {
+          "easy": true,
+          "task": "Welcome a new teammate.",
+          "description": "Checks onboarding.",
+          "code": "New dev asks where to start.",
+          "answer": "Give a small first task and a short code tour."
+        },
+        {
+          "easy": true,
+          "task": "Name one onboarding doc.",
+          "description": "Checks onboarding material.",
+          "code": "New teammate starts Monday.",
+          "answer": "A setup guide with how to run the app."
         }
       ]
     }],
@@ -573,6 +853,20 @@ Should we add it to a PR checklist together?"`
           "description": "Checks fixing systems, not people.",
           "code": "Many devs forget loading and error states.",
           "answer": "Strong: lint rule or PR template checklist, shared component that handles states. Red flag: more review comments only."
+        },
+        {
+          "easy": true,
+          "task": "Start a 1:1 on a mistake.",
+          "description": "Checks coaching tone.",
+          "code": "Junior repeats the same PR mistake.",
+          "answer": "Ask what they think, then show one example."
+        },
+        {
+          "easy": true,
+          "task": "Name a team-wide fix.",
+          "description": "Checks automation.",
+          "code": "The same lint mistake repeats.",
+          "answer": "Add a lint rule so it is caught automatically."
         }
       ]
     }, {
@@ -599,6 +893,20 @@ Can we try the form and measure?"`
           "code": "The PM keeps the wizard after hearing your arguments.",
           "answer": "Strong: commits, notes the risk once, builds it well. Red flag: slows down or complains to the team.",
           "solution": "\"OK, we build the wizard. I noted the timeline risk in the ticket.\""
+        },
+        {
+          "easy": true,
+          "task": "Disagree with a PM kindly.",
+          "description": "Checks shared goals.",
+          "code": "PM wants a complex feature.",
+          "answer": "Ask the goal, then offer a simpler path."
+        },
+        {
+          "easy": true,
+          "task": "True or false: the PM decides scope.",
+          "description": "Checks role clarity.",
+          "code": "You disagree on what to build.",
+          "answer": "True: PM owns what; you advise on cost and risk."
         }
       ]
     }],
@@ -629,6 +937,20 @@ If still split, I decide Friday."`
           "answer": "Strong: private talk, values their input, gives them a real role. Red flag: ignoring the feelings.",
           "solution": `"Your concerns were real, they shaped the plan.
 Can you own the build caching part, where your ideas help most?"`
+        },
+        {
+          "easy": true,
+          "task": "Unblock two seniors.",
+          "description": "Checks decision process.",
+          "code": "Two seniors argue on architecture.",
+          "answer": "Set criteria and a date, then decide."
+        },
+        {
+          "easy": true,
+          "task": "Talk to the senior who lost.",
+          "description": "Checks inclusion.",
+          "code": "Their design was not chosen.",
+          "answer": "Thank them and say why, and keep them involved."
         }
       ]
     }, {
@@ -653,6 +975,20 @@ I will fix one small thing in two weeks, then we check."`
           "description": "Checks listening before changing things.",
           "code": "You took over a team of 6 frontend devs.",
           "answer": "Strong: 1:1s with everyone, learn the code and process, a few quick wins. Red flag: big reorg in week one."
+        },
+        {
+          "easy": true,
+          "task": "Start your first 1:1.",
+          "description": "Checks listening first.",
+          "code": "First week as lead.",
+          "answer": "Ask what works and what to change."
+        },
+        {
+          "easy": true,
+          "task": "True or false: change things in week one.",
+          "description": "Checks building trust.",
+          "code": "New team lead.",
+          "answer": "False: listen first, then change step by step."
         }
       ]
     }]
@@ -682,6 +1018,20 @@ Now I always run tests before I push."`
           "code": "\"I learned to be more careful.\"",
           "answer": "Strong: names an exact habit or tool, like a checklist or test. Red flag: stays vague.",
           "solution": "\"Now I test on mobile width before every PR.\""
+        },
+        {
+          "easy": true,
+          "task": "Tell a mistake briefly.",
+          "description": "Checks ownership story.",
+          "code": "Asked about a work mistake.",
+          "answer": "Say what you did, the impact, and the fix."
+        },
+        {
+          "easy": true,
+          "task": "Turn a lesson into a habit.",
+          "description": "Checks concrete learning.",
+          "code": "\"I learned to be careful.\"",
+          "answer": "Name a habit, like testing edge cases first."
         }
       ]
     }, {
@@ -707,6 +1057,20 @@ I will split my next feature into smaller PRs. Can you check?"`
           "code": "One month later the lead asks how it is going.",
           "answer": "Strong: shows a real change and asks if it helps. Red flag: forgot the feedback.",
           "solution": "\"My PRs are now under 300 lines. Is it easier to review?\""
+        },
+        {
+          "easy": true,
+          "task": "React to hard feedback.",
+          "description": "Checks receptiveness.",
+          "code": "Lead: \"Your PRs are hard to read.\"",
+          "answer": "Thank them and ask for an example."
+        },
+        {
+          "easy": true,
+          "task": "Show you used feedback.",
+          "description": "Checks follow-through.",
+          "code": "Asked what you did with feedback.",
+          "answer": "Give a later example where you applied it."
         }
       ]
     }],
@@ -732,6 +1096,20 @@ Update in 10 minutes."`
           "description": "Checks learning beyond the fix.",
           "code": "The rollback worked. Checkout is OK again.",
           "answer": "Strong: blameless postmortem, a test or alert so it cannot happen again. Red flag: \"be more careful\" only."
+        },
+        {
+          "easy": true,
+          "task": "Write the first incident message.",
+          "description": "Checks incident ownership.",
+          "code": "Your deploy broke login.",
+          "answer": "Say what broke, that you are on it, and ETA."
+        },
+        {
+          "easy": true,
+          "task": "Name the first action.",
+          "description": "Checks mitigation first.",
+          "code": "Production broke after your deploy.",
+          "answer": "Roll back first, then find the cause."
         }
       ]
     }, {
@@ -758,6 +1136,20 @@ I waited to be sure. Now I flag risks as soon as I see them."`
           "answer": "Strong: keeps the facts but adds what the speaker could have done. Red flag: only lists others' mistakes.",
           "solution": `"Backend was late and design changed.
 I should have cut scope early instead of hoping to catch up."`
+        },
+        {
+          "easy": true,
+          "task": "Describe your part.",
+          "description": "Checks ownership in failure.",
+          "code": "Project missed its goals.",
+          "answer": "Name your own mistake, not only others'."
+        },
+        {
+          "easy": true,
+          "task": "Spot the blame.",
+          "description": "Checks blame-free answers.",
+          "code": "\"The PM gave bad specs.\"",
+          "answer": "It blames others; say what you could do better."
         }
       ]
     }],
@@ -786,6 +1178,20 @@ and we moved to a lighter library over two sprints."`
           "answer": "Strong: small steps, behind a wrapper, measured. Red flag: big rewrite that blocks everything.",
           "solution": `"We wrap the charts first, then swap one chart per sprint.
 We check bundle size in each PR."`
+        },
+        {
+          "easy": true,
+          "task": "Say how you found out.",
+          "description": "Checks evidence.",
+          "code": "A tech choice was wrong.",
+          "answer": "Name the signal, like rising bugs or slow builds."
+        },
+        {
+          "easy": true,
+          "task": "Name the next step.",
+          "description": "Checks corrective action.",
+          "code": "You know the decision was wrong.",
+          "answer": "Tell the team and propose a fix plan."
         }
       ]
     }, {
@@ -812,6 +1218,20 @@ Can we add a feature flag?"`
           "code": "The release failed, as you warned.",
           "answer": "Strong: helps fix it first, raises the process later without blame. Red flag: \"I told you so\".",
           "solution": "\"Let's roll back first. Later, can we add a rollback check to the release list?\""
+        },
+        {
+          "easy": true,
+          "task": "Raise a concern clearly.",
+          "description": "Checks persuasive concerns.",
+          "code": "You think the release is risky.",
+          "answer": "Give data and a clear suggestion."
+        },
+        {
+          "easy": true,
+          "task": "React when you were right.",
+          "description": "Checks no I-told-you-so.",
+          "code": "Your ignored warning came true.",
+          "answer": "Help fix it; do not say \"I told you\"."
         }
       ]
     }],
@@ -837,6 +1257,20 @@ Now I pair and give hard tasks to others with support."`
           "description": "Checks self-awareness and a check habit.",
           "code": "You used to micromanage PRs.",
           "answer": "Strong: a clear signal like \"I review every PR\" and an action. Red flag: \"it will not happen again\"."
+        },
+        {
+          "easy": true,
+          "task": "Share a lead mistake.",
+          "description": "Checks self-awareness.",
+          "code": "Asked for your biggest lead mistake.",
+          "answer": "Give a real mistake, its cost, and what changed."
+        },
+        {
+          "easy": true,
+          "task": "Name a warning sign.",
+          "description": "Checks self-monitoring.",
+          "code": "You used to do work yourself.",
+          "answer": "Tasks waiting on you means you stopped delegating."
         }
       ]
     }, {
@@ -863,6 +1297,20 @@ New date: the 20th. I added weekly risk checks."`
           "answer": "Strong: shares ownership, thanks the work, asks for ideas. Red flag: naming who was slow.",
           "solution": `"I took responsibility with leadership.
 Let's do a short retro: what should we change next time?"`
+        },
+        {
+          "easy": true,
+          "task": "Tell your manager the miss.",
+          "description": "Checks upward ownership.",
+          "code": "Your team missed a big date.",
+          "answer": "Say it early, own it, and give a new plan."
+        },
+        {
+          "easy": true,
+          "task": "True or false: blame one engineer.",
+          "description": "Checks lead accountability.",
+          "code": "One task slipped the plan.",
+          "answer": "False: the lead owns the team's promise."
         }
       ]
     }]
